@@ -1,0 +1,13 @@
+# 应用基本配置
+spring:
+  application:
+    name: smartcs-web
+
+
+# 日志配置
+logging:
+  level:
+    root: info
+    com:
+      leyue:
+        smartcs: debug
