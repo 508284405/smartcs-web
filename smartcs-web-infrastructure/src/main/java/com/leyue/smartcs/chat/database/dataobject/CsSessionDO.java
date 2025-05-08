@@ -1,0 +1,40 @@
+package com.leyue.smartcs.chat.database.dataobject;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.leyue.smartcs.common.dao.BaseDO;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import java.time.LocalDateTime;
+
+/**
+ * 会话数据对象，对应cs_session表
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@TableName("cs_session")
+public class CsSessionDO extends BaseDO {
+    /**
+     * 会话ID
+     */
+    private Long sessionId;
+    
+    /**
+     * 客户ID
+     */
+    private Long customerId;
+    
+    /**
+     * 客服ID
+     */
+    private Long agentId;
+    
+    /**
+     * 会话状态 0=排队 1=进行中 2=已结束
+     */
+    private Integer sessionState;
+    
+    /**
+     * 最后消息时间
+     */
+    private LocalDateTime lastMsgTime;
+}

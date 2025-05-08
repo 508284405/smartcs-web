@@ -1,6 +1,6 @@
 package com.leyue.smartcs.user.executor;
 
-import com.leyue.smartcs.domain.gateway.UserGateway;
+import com.leyue.smartcs.domain.user.gateway.UserGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 

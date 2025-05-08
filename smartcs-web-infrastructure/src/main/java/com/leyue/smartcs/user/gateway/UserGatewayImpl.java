@@ -1,6 +1,6 @@
 package com.leyue.smartcs.user.gateway;
 
-import com.leyue.smartcs.domain.gateway.UserGateway;
+import com.leyue.smartcs.domain.user.gateway.UserGateway;
 import com.leyue.smartcs.user.feign.UserValidateClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

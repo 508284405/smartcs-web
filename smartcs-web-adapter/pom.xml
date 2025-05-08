@@ -22,6 +22,38 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        
+        <!-- WebSocket 相关依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+        
+        <!-- Kafka 相关依赖 -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+        
+        <!-- Redis 相关依赖 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        
+        <!-- Spring State Machine -->
+        <dependency>
+            <groupId>org.springframework.statemachine</groupId>
+            <artifactId>spring-statemachine-core</artifactId>
+            <version>3.2.1</version>
+        </dependency>
+        
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

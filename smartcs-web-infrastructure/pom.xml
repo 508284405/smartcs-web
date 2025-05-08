@@ -48,6 +48,18 @@
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
         </dependency>
+        <!-- MapStruct for object mapping -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>1.5.5.Final</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct-processor</artifactId>
+            <version>1.5.5.Final</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
@@ -65,6 +77,23 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok-mapstruct-binding</artifactId>
+        </dependency>
+        
+        <!-- Redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        
+        <!-- 日志支持 -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>

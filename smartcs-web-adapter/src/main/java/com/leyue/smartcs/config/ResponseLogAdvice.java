@@ -8,6 +8,7 @@ import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
+import org.springframework.lang.NonNull;
 
 /**
  * 统一响应日志Advice，打印响应体内容
@@ -17,14 +18,14 @@ public class ResponseLogAdvice implements ResponseBodyAdvice<Object> {
     private static final Logger log = LoggerFactory.getLogger(ResponseLogAdvice.class);
 
     @Override
-    public boolean supports(MethodParameter returnType, Class converterType) {
+    public boolean supports(@NonNull MethodParameter returnType, @NonNull Class converterType) {
         // 只对@RestController/@ResponseBody生效
         return true;
     }
 
     @Override
-    public Object beforeBodyWrite(Object body, MethodParameter returnType, MediaType selectedContentType,
-                                  Class selectedConverterType, ServerHttpRequest request, ServerHttpResponse response) {
+    public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType,
+                                  @NonNull Class selectedConverterType, @NonNull ServerHttpRequest request, @NonNull ServerHttpResponse response) {
         log.info("[Response] {} {} body={}", request.getMethod(), request.getURI(), body);
         return body;
     }
