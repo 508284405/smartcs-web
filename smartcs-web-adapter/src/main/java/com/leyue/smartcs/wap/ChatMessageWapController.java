@@ -1,4 +1,4 @@
-package com.leyue.smartcs.mobile;
+package com.leyue.smartcs.wap;
 
 import com.leyue.smartcs.api.chat.dto.MessageVO;
 import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
@@ -14,11 +14,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * 移动端消息管理控制器
+ * WAP端消息管理控制器
  */
 @RestController
-@RequestMapping("/api/mobile/chat/messages")
-public class ChatMessageController {
+@RequestMapping("/api/wap/chat/messages")
+public class ChatMessageWapController {
     
     @Autowired
     private MessageService messageService;

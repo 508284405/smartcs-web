@@ -1,6 +1,7 @@
 package com.leyue.smartcs.chat.statemachine;
 
 import com.leyue.smartcs.domain.chat.SessionEvent;
+import com.leyue.smartcs.domain.chat.SessionState;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
@@ -19,37 +20,37 @@ import java.util.EnumSet;
  */
 @Configuration
 @EnableStateMachineFactory(name = "sessionStateMachineFactory")
-public class SessionStateMachineConfig extends EnumStateMachineConfigurerAdapter<SessionStatus, SessionEvent> {
+public class SessionStateMachineConfig extends EnumStateMachineConfigurerAdapter<SessionState, SessionEvent> {
 
     @Override
-    public void configure(StateMachineStateConfigurer<SessionStatus, SessionEvent> states) throws Exception {
+    public void configure(StateMachineStateConfigurer<SessionState, SessionEvent> states) throws Exception {
         states
             .withStates()
-                .initial(SessionStatus.WAITING)
-                .states(EnumSet.allOf(SessionStatus.class));
+                .initial(SessionState.WAITING)
+                .states(EnumSet.allOf(SessionState.class));
     }
 
     @Override
-    public void configure(StateMachineTransitionConfigurer<SessionStatus, SessionEvent> transitions) throws Exception {
+    public void configure(StateMachineTransitionConfigurer<SessionState, SessionEvent> transitions) throws Exception {
         transitions
             .withExternal()
-                .source(SessionStatus.WAITING)
-                .target(SessionStatus.ACTIVE)
+                .source(SessionState.WAITING)
+                .target(SessionState.ACTIVE)
                 .event(SessionEvent.ASSIGN)
                 .and()
             .withExternal()
-                .source(SessionStatus.WAITING)
-                .target(SessionStatus.CLOSED)
+                .source(SessionState.WAITING)
+                .target(SessionState.CLOSED)
                 .event(SessionEvent.CLOSE)
                 .and()
             .withExternal()
-                .source(SessionStatus.ACTIVE)
-                .target(SessionStatus.CLOSED)
+                .source(SessionState.ACTIVE)
+                .target(SessionState.CLOSED)
                 .event(SessionEvent.CLOSE);
     }
 
     @Override
-    public void configure(StateMachineConfigurationConfigurer<SessionStatus, SessionEvent> config) throws Exception {
+    public void configure(StateMachineConfigurationConfigurer<SessionState, SessionEvent> config) throws Exception {
         config
             .withConfiguration()
                 .autoStartup(true)
@@ -57,10 +58,10 @@ public class SessionStateMachineConfig extends EnumStateMachineConfigurerAdapter
     }
     
     @Bean
-    public StateMachineListener<SessionStatus, SessionEvent> sessionStateChangeListener() {
-        return new StateMachineListenerAdapter<SessionStatus, SessionEvent>() {
+    public StateMachineListener<SessionState, SessionEvent> sessionStateChangeListener() {
+        return new StateMachineListenerAdapter<SessionState, SessionEvent>() {
             @Override
-            public void stateChanged(State<SessionStatus, SessionEvent> from, State<SessionStatus, SessionEvent> to) {
+            public void stateChanged(State<SessionState, SessionEvent> from, State<SessionState, SessionEvent> to) {
                 if (from != null && to != null) {
                     System.out.println("会话状态变更：" + from.getId() + " -> " + to.getId());
                 }

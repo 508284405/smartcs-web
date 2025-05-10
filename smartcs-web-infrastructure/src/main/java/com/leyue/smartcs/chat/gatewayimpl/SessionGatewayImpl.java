@@ -8,7 +8,8 @@ import com.leyue.smartcs.domain.chat.SessionState;
 import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.redisson.api.RedissonClient;
+import org.redisson.api.RBucket;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ public class SessionGatewayImpl implements SessionGateway {
     
     private final CsSessionMapper sessionMapper;
     private final SessionConverter sessionConverter;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
     
     // Redis缓存前缀
     private static final String CACHE_KEY_PREFIX = "session:";
@@ -43,34 +44,30 @@ public class SessionGatewayImpl implements SessionGateway {
     @Override
     public boolean updateSession(Session session) {
         CsSessionDO csSessionDO = sessionConverter.toDataObject(session);
-        // 更新数据库
         boolean result = sessionMapper.updateById(csSessionDO) > 0;
-        // 清除缓存
         if (result) {
-            redisTemplate.delete(CACHE_KEY_PREFIX + csSessionDO.getSessionId());
+            redissonClient.getKeys().delete(CACHE_KEY_PREFIX + csSessionDO.getSessionId());
         }
         return result;
     }
     
     @Override
     public Optional<Session> findById(Long sessionId) {
-        // 先从Redis缓存中查询
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
-        Session cachedSession = (Session) redisTemplate.opsForValue().get(cacheKey);
+        RBucket<Session> bucket = redissonClient.getBucket(cacheKey);
+        Session cachedSession = bucket.get();
         
         if (cachedSession != null) {
             return Optional.of(cachedSession);
         }
         
-        // 从数据库中查询
         CsSessionDO csSessionDO = sessionMapper.selectById(sessionId);
         if (csSessionDO == null) {
             return Optional.empty();
         }
         
-        // 转换为领域模型并缓存
         Session session = sessionConverter.toDomain(csSessionDO);
-        redisTemplate.opsForValue().set(cacheKey, session, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        bucket.set(session, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
         
         return Optional.of(session);
     }
@@ -99,15 +96,11 @@ public class SessionGatewayImpl implements SessionGateway {
     
     @Override
     public boolean checkSessionExists(String sessionId) {
-        // 先从Redis缓存中查询
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
-        Boolean hasKey = redisTemplate.hasKey(cacheKey);
-        
-        if (Boolean.TRUE.equals(hasKey)) {
+        if (redissonClient.getKeys().countExists(cacheKey) > 0) {
             return true;
         }
         
-        // 从数据库中查询
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         return sessionDO != null;
     }
@@ -126,15 +119,14 @@ public class SessionGatewayImpl implements SessionGateway {
 
     @Override
     public Session getSession(String sessionId) {
-        // 先从Redis缓存中查询
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
-        Session cachedSession = (Session) redisTemplate.opsForValue().get(cacheKey);
+        RBucket<Session> bucket2 = redissonClient.getBucket(cacheKey);
+        Session cachedSession = bucket2.get();
         
         if (cachedSession != null) {
             return cachedSession;
         }
         
-        // 从数据库中查询
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             // 会话不存在
@@ -143,14 +135,13 @@ public class SessionGatewayImpl implements SessionGateway {
         
         // 转换为领域模型并缓存
         Session session = sessionConverter.toDomain(sessionDO);
-        redisTemplate.opsForValue().set(cacheKey, session, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        bucket2.set(session, CACHE_EXPIRE_SECONDS, TimeUnit.SECONDS);
         
         return session;
     }
 
     @Override
     public void updateSessionStatus(String sessionId, String status) {
-        // 从数据库中查询
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法更新状态: sessionId={}, status={}", sessionId, status);
@@ -178,15 +169,13 @@ public class SessionGatewayImpl implements SessionGateway {
         sessionDO.setSessionState(sessionState);
         sessionMapper.updateById(sessionDO);
         
-        // 清除缓存
-        redisTemplate.delete(CACHE_KEY_PREFIX + sessionId);
+        redissonClient.getKeys().delete(CACHE_KEY_PREFIX + sessionId);
         
         log.info("会话状态已更新: sessionId={}, status={}", sessionId, status);
     }
 
     @Override
     public void assignAgent(String sessionId, String agentId) {
-        // 从数据库中查询
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法分配客服: sessionId={}, agentId={}", sessionId, agentId);
@@ -207,8 +196,7 @@ public class SessionGatewayImpl implements SessionGateway {
             // 更新数据库
             sessionMapper.updateById(sessionDO);
             
-            // 清除缓存
-            redisTemplate.delete(CACHE_KEY_PREFIX + sessionId);
+            redissonClient.getKeys().delete(CACHE_KEY_PREFIX + sessionId);
             
             log.info("会话已分配客服: sessionId={}, agentId={}", sessionId, agentId);
         } catch (NumberFormatException e) {
@@ -218,7 +206,6 @@ public class SessionGatewayImpl implements SessionGateway {
 
     @Override
     public void closeSession(String sessionId, String reason) {
-        // 从数据库中查询
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法关闭: sessionId={}, reason={}", sessionId, reason);
@@ -235,8 +222,7 @@ public class SessionGatewayImpl implements SessionGateway {
         // 更新数据库
         sessionMapper.updateById(sessionDO);
         
-        // 清除缓存
-        redisTemplate.delete(CACHE_KEY_PREFIX + sessionId);
+        redissonClient.getKeys().delete(CACHE_KEY_PREFIX + sessionId);
         
         log.info("会话已关闭: sessionId={}, reason={}", sessionId, reason);
     }

@@ -28,12 +28,31 @@ public interface SessionService {
     SessionDTO assignAgent(Long sessionId, Long agentId);
     
     /**
+     * 分配客服（带客服名称）
+     *
+     * @param sessionId 会话ID
+     * @param agentId 客服ID
+     * @param agentName 客服名称
+     * @return 会话DTO
+     */
+    SessionDTO assignAgent(Long sessionId, Long agentId, String agentName);
+    
+    /**
      * 关闭会话
      *
      * @param sessionId 会话ID
      * @return 会话DTO
      */
     SessionDTO closeSession(Long sessionId);
+    
+    /**
+     * 关闭会话（带关闭原因）
+     *
+     * @param sessionId 会话ID
+     * @param reason 关闭原因
+     * @return 会话DTO
+     */
+    SessionDTO closeSession(Long sessionId, String reason);
     
     /**
      * 获取会话详情

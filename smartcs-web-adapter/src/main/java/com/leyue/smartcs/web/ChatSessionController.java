@@ -44,11 +44,16 @@ public class ChatSessionController {
      *
      * @param sessionId 会话ID
      * @param agentId 客服ID
+     * @param agentName 客服名称 (可选)
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/assign")
-    public SessionVO assignAgent(@PathVariable Long sessionId, @RequestParam Long agentId) {
-        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId);
+    public SessionVO assignAgent(
+            @PathVariable Long sessionId, 
+            @RequestParam Long agentId,
+            @RequestParam(required = false) String agentName) {
+        // 扩展方法，传递客服名称
+        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId, agentName);
         return convertToVO(sessionDTO);
     }
 
@@ -56,11 +61,15 @@ public class ChatSessionController {
      * 关闭会话
      *
      * @param sessionId 会话ID
+     * @param reason 关闭原因 (可选)
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/close")
-    public SessionVO closeSession(@PathVariable Long sessionId) {
-        SessionDTO sessionDTO = sessionService.closeSession(sessionId);
+    public SessionVO closeSession(
+            @PathVariable Long sessionId,
+            @RequestParam(required = false) String reason) {
+        // 扩展方法，传递关闭原因
+        SessionDTO sessionDTO = sessionService.closeSession(sessionId, reason);
         return convertToVO(sessionDTO);
     }
 

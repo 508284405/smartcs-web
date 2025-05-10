@@ -2,7 +2,9 @@ package com.leyue.smartcs.config.websocket;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.redisson.api.RedissonClient;
+import org.redisson.api.RMap;
+import org.redisson.api.RSet;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -13,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.HashSet;
 
 /**
  * WebSocket会话管理器
@@ -22,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class WebSocketSessionManager {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
     
     // 本地会话缓存，用于快速查询，key为用户ID，value为会话ID
     private final Map<String, String> localUserSessionMap = new ConcurrentHashMap<>();
@@ -35,9 +38,9 @@ public class WebSocketSessionManager {
 
     @Autowired
     public WebSocketSessionManager(SimpMessagingTemplate messagingTemplate, 
-                                  RedisTemplate<String, Object> redisTemplate) {
+                                  RedissonClient redissonClient) {
         this.messagingTemplate = messagingTemplate;
-        this.redisTemplate = redisTemplate;
+        this.redissonClient = redissonClient;
     }
 
     /**
@@ -54,15 +57,18 @@ public class WebSocketSessionManager {
         
         // 存储到Redis，使用Hash结构存储会话信息
         String sessionKey = REDIS_SESSION_PREFIX + userId;
-        redisTemplate.opsForHash().put(sessionKey, "sessionId", sessionId);
-        redisTemplate.opsForHash().put(sessionKey, "userType", userType);
-        redisTemplate.expire(sessionKey, SESSION_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        RMap<String, String> sessionMap = redissonClient.getMap(sessionKey);
+        sessionMap.put("sessionId", sessionId);
+        sessionMap.put("userType", userType);
+        sessionMap.expire(SESSION_EXPIRE_SECONDS, TimeUnit.SECONDS);
         
         // 根据用户类型添加到相应的集合
         if ("CUSTOMER".equalsIgnoreCase(userType)) {
-            redisTemplate.opsForSet().add(REDIS_CUSTOMER_SET, userId);
+            RSet<String> customerSet = redissonClient.getSet(REDIS_CUSTOMER_SET);
+            customerSet.add(userId);
         } else if ("AGENT".equalsIgnoreCase(userType)) {
-            redisTemplate.opsForSet().add(REDIS_AGENT_SET, userId);
+            RSet<String> agentSet = redissonClient.getSet(REDIS_AGENT_SET);
+            agentSet.add(userId);
         }
     }
 
@@ -74,19 +80,20 @@ public class WebSocketSessionManager {
         log.info("移除WebSocket会话: userId={}", userId);
         
         // 获取用户类型
-        String userType = (String) redisTemplate.opsForHash().get(REDIS_SESSION_PREFIX + userId, "userType");
+        RMap<String, String> sessionMap = redissonClient.getMap(REDIS_SESSION_PREFIX + userId);
+        String userType = sessionMap.get("userType");
         
         // 从本地缓存移除
         localUserSessionMap.remove(userId);
         
         // 从Redis移除
-        redisTemplate.delete(REDIS_SESSION_PREFIX + userId);
+        redissonClient.getKeys().delete(REDIS_SESSION_PREFIX + userId);
         
         // 从用户集合中移除
         if ("CUSTOMER".equalsIgnoreCase(userType)) {
-            redisTemplate.opsForSet().remove(REDIS_CUSTOMER_SET, userId);
+            redissonClient.getSet(REDIS_CUSTOMER_SET).remove(userId);
         } else if ("AGENT".equalsIgnoreCase(userType)) {
-            redisTemplate.opsForSet().remove(REDIS_AGENT_SET, userId);
+            redissonClient.getSet(REDIS_AGENT_SET).remove(userId);
         }
     }
 
@@ -132,7 +139,8 @@ public class WebSocketSessionManager {
      * @return 客服ID集合
      */
     public Set<Object> getAllOnlineAgents() {
-        return redisTemplate.opsForSet().members(REDIS_AGENT_SET);
+        RSet<String> agentSet = redissonClient.getSet(REDIS_AGENT_SET);
+        return new HashSet<>(agentSet);
     }
 
     /**
@@ -140,7 +148,8 @@ public class WebSocketSessionManager {
      * @return 客户ID集合
      */
     public Set<Object> getAllOnlineCustomers() {
-        return redisTemplate.opsForSet().members(REDIS_CUSTOMER_SET);
+        RSet<String> customerSet = redissonClient.getSet(REDIS_CUSTOMER_SET);
+        return new HashSet<>(customerSet);
     }
 
     /**
@@ -149,6 +158,6 @@ public class WebSocketSessionManager {
      * @return 是否在线
      */
     public boolean isUserOnline(String userId) {
-        return redisTemplate.hasKey(REDIS_SESSION_PREFIX + userId);
+        return redissonClient.getKeys().countExists(REDIS_SESSION_PREFIX + userId) > 0;
     }
 }

@@ -57,6 +57,20 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson-spring-boot-starter</artifactId>
+                <version>3.39.0</version>
+            </dependency>
+            <!-- Spring State Machine -->
+            <dependency>
+                <groupId>org.springframework.statemachine</groupId>
+                <artifactId>spring-statemachine-bom</artifactId>
+                <version>3.2.0</version> <!-- 你可以改为需要的版本 -->
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring State Machine End -->
+            <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>

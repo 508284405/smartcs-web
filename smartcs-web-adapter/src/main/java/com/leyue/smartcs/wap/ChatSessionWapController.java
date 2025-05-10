@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/wap/chat/sessions")
-public class ChatSessionController {
+public class ChatSessionWapController {
     
     @Autowired
     private SessionService sessionService;

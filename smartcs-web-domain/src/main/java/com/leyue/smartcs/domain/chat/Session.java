@@ -24,9 +24,19 @@ public class Session {
     private Long agentId;
     
     /**
+     * 客服名称
+     */
+    private String agentName;
+    
+    /**
      * 会话状态
      */
     private SessionState sessionState;
+    
+    /**
+     * 关闭原因
+     */
+    private String closeReason;
     
     /**
      * 最后消息时间
@@ -69,9 +79,17 @@ public class Session {
     /**
      * 分配客服
      */
-    public void assignAgent(Long agentId) {
+    public void assignAgent(Long agentId, String agentName) {
         this.agentId = agentId;
+        this.agentName = agentName;
         this.sessionState = SessionState.ACTIVE;
+    }
+    
+    /**
+     * 分配客服
+     */
+    public void assignAgent(Long agentId) {
+        assignAgent(agentId, null);
     }
     
     /**
@@ -79,5 +97,13 @@ public class Session {
      */
     public void close() {
         this.sessionState = SessionState.CLOSED;
+    }
+    
+    /**
+     * 关闭会话
+     */
+    public void close(String reason) {
+        this.closeReason = reason;
+        close();
     }
 }

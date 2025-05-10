@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/mobile/chat/sessions")
-public class ChatSessionController {
+public class ChatSessionMobileController {
     
     @Autowired
     private SessionService sessionService;

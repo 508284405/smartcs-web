@@ -51,6 +51,18 @@ public class SessionDomainService {
      * @return 更新后的会话
      */
     public Session assignAgent(Long sessionId, Long agentId) {
+        return assignAgent(sessionId, agentId, null);
+    }
+    
+    /**
+     * 分配客服（带客服名称）
+     *
+     * @param sessionId 会话ID
+     * @param agentId 客服ID
+     * @param agentName 客服名称
+     * @return 更新后的会话
+     */
+    public Session assignAgent(Long sessionId, Long agentId, String agentName) {
         Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
         if (!sessionOpt.isPresent()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
@@ -61,7 +73,7 @@ public class SessionDomainService {
             throw new IllegalStateException("会话状态不是等待中，无法分配客服");
         }
         
-        session.assignAgent(agentId);
+        session.assignAgent(agentId, agentName);
         sessionGateway.updateSession(session);
         
         return session;
@@ -74,6 +86,17 @@ public class SessionDomainService {
      * @return 关闭后的会话
      */
     public Session closeSession(Long sessionId) {
+        return closeSession(sessionId, null);
+    }
+    
+    /**
+     * 关闭会话（带关闭原因）
+     *
+     * @param sessionId 会话ID
+     * @param reason 关闭原因
+     * @return 关闭后的会话
+     */
+    public Session closeSession(Long sessionId, String reason) {
         Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
         if (!sessionOpt.isPresent()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
@@ -84,7 +107,12 @@ public class SessionDomainService {
             return session;
         }
         
-        session.close();
+        if (reason != null) {
+            session.close(reason);
+        } else {
+            session.close();
+        }
+        
         sessionGateway.updateSession(session);
         
         return session;

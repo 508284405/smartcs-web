@@ -32,13 +32,23 @@ public class SessionServiceImpl implements SessionService {
     
     @Override
     public SessionDTO assignAgent(Long sessionId, Long agentId) {
-        Session session = sessionDomainService.assignAgent(sessionId, agentId);
+        return assignAgent(sessionId, agentId, null);
+    }
+    
+    @Override
+    public SessionDTO assignAgent(Long sessionId, Long agentId, String agentName) {
+        Session session = sessionDomainService.assignAgent(sessionId, agentId, agentName);
         return convertToDTO(session);
     }
     
     @Override
     public SessionDTO closeSession(Long sessionId) {
-        Session session = sessionDomainService.closeSession(sessionId);
+        return closeSession(sessionId, null);
+    }
+    
+    @Override
+    public SessionDTO closeSession(Long sessionId, String reason) {
+        Session session = sessionDomainService.closeSession(sessionId, reason);
         return convertToDTO(session);
     }
     
@@ -79,7 +89,9 @@ public class SessionServiceImpl implements SessionService {
         sessionDTO.setSessionId(session.getSessionId());
         sessionDTO.setCustomerId(session.getCustomerId());
         sessionDTO.setAgentId(session.getAgentId());
+        sessionDTO.setAgentName(session.getAgentName());
         sessionDTO.setSessionState(session.getSessionState().getCode());
+        sessionDTO.setCloseReason(session.getCloseReason());
         sessionDTO.setLastMsgTime(session.getLastMsgTime());
         sessionDTO.setCreatedAt(session.getCreatedAt());
         return sessionDTO;

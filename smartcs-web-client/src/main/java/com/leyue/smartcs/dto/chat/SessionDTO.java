@@ -49,6 +49,11 @@ public class SessionDTO {
     private Integer sessionState;
     
     /**
+     * 关闭原因
+     */
+    private String closeReason;
+    
+    /**
      * 最后消息时间
      */
     private LocalDateTime lastMsgTime;
