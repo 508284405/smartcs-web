@@ -8,10 +8,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-
 /**
  * 会话数据转换器
  */
@@ -25,7 +21,8 @@ public interface SessionConverter {
      * @return 会话数据对象
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "sessionStateToCode")
-    @Mapping(source = "createdAt", target = "createdAt", qualifiedByName = "localDateTimeToTimestamp")
+    @Mapping(source = "createdAt", target = "createdAt")
+    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -40,7 +37,8 @@ public interface SessionConverter {
      * @return 会话领域模型
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "codeToSessionState")
-    @Mapping(source = "createdAt", target = "createdAt", qualifiedByName = "timestampToLocalDateTime")
+    @Mapping(source = "createdAt", target = "createdAt")
+    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
     Session toDomain(CsSessionDO csSessionDO);
     
     /**
@@ -50,6 +48,7 @@ public interface SessionConverter {
      * @param target 目标对象
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "sessionStateToCode")
+    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -72,23 +71,5 @@ public interface SessionConverter {
     @Named("codeToSessionState")
     default SessionState codeToSessionState(Integer code) {
         return code != null ? SessionState.fromCode(code) : null;
-    }
-    
-    /**
-     * 时间戳转换为LocalDateTime
-     */
-    @Named("timestampToLocalDateTime")
-    default LocalDateTime timestampToLocalDateTime(Long timestamp) {
-        return timestamp != null ?
-                Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
-    }
-    
-    /**
-     * LocalDateTime转换为时间戳
-     */
-    @Named("localDateTimeToTimestamp")
-    default Long localDateTimeToTimestamp(LocalDateTime dateTime) {
-        return dateTime != null ?
-                dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() : null;
     }
 }

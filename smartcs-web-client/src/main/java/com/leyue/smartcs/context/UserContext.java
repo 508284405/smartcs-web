@@ -2,6 +2,7 @@ package com.leyue.smartcs.context;
 
 import lombok.Data;
 
+import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -105,7 +106,7 @@ public class UserContext {
      * 用户信息类
      */
     @Data
-    public static class UserInfo {
+    public static class UserInfo implements Principal {
         /**
          * 用户ID
          */
@@ -157,6 +158,11 @@ public class UserContext {
             return roles.stream().filter(role -> role.getMenus() != null)
                     .flatMap(role -> role.getMenus().stream())
                     .map(Menu::getPath).collect(Collectors.toList());
+        }
+
+        @Override
+        public String getName() {
+            return username;
         }
     }
 

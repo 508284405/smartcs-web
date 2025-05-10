@@ -1,7 +1,6 @@
 package com.leyue.smartcs.domain.chat;
 
 import lombok.Data;
-import java.time.LocalDateTime;
 
 /**
  * 会话领域模型
@@ -41,12 +40,12 @@ public class Session {
     /**
      * 最后消息时间
      */
-    private LocalDateTime lastMsgTime;
+    private Long lastMsgTime;
     
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private Long createdAt;
     
     /**
      * 检查会话是否活跃
@@ -72,7 +71,7 @@ public class Session {
     /**
      * 更新最后消息时间
      */
-    public void updateLastMessageTime(LocalDateTime time) {
+    public void updateLastMessageTime(Long time) {
         this.lastMsgTime = time;
     }
     

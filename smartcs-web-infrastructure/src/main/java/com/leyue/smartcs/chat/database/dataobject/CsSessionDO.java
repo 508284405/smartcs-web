@@ -4,14 +4,13 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
-import java.time.LocalDateTime;
 
 /**
  * 会话数据对象，对应cs_session表
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("cs_session")
+@TableName("t_cs_session")
 public class CsSessionDO extends BaseDO {
     /**
      * 会话ID
@@ -36,5 +35,5 @@ public class CsSessionDO extends BaseDO {
     /**
      * 最后消息时间
      */
-    private LocalDateTime lastMsgTime;
+    private Long lastMsgTime;
 }

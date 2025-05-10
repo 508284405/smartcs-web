@@ -20,7 +20,7 @@ public interface CsMessageMapper extends BaseMapper<CsMessageDO> {
      * @param msgId 消息ID
      * @return 消息对象
      */
-    @Select("SELECT * FROM cs_message WHERE msg_id = #{msgId} AND is_deleted = 0")
+    @Select("SELECT * FROM t_cs_message WHERE msg_id = #{msgId} AND is_deleted = 0")
     CsMessageDO selectByMessageId(@Param("msgId") String msgId);
     
     /**
@@ -30,7 +30,7 @@ public interface CsMessageMapper extends BaseMapper<CsMessageDO> {
      * @param limit 限制数量
      * @return 消息列表
      */
-    @Select("SELECT * FROM cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}")
+    @Select("SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}")
     List<CsMessageDO> findMessagesBySessionId(@Param("sessionId") Long sessionId, @Param("limit") int limit);
     
     /**
@@ -41,7 +41,7 @@ public interface CsMessageMapper extends BaseMapper<CsMessageDO> {
      * @param size 限制数量
      * @return 消息列表
      */
-    @Select("SELECT * FROM cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY create_time DESC LIMIT #{size} OFFSET #{offset}")
+    @Select("SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY create_time DESC LIMIT #{size} OFFSET #{offset}")
     List<CsMessageDO> selectBySessionId(@Param("sessionId") String sessionId, @Param("offset") int offset, @Param("size") int size);
     
     /**
@@ -50,7 +50,7 @@ public interface CsMessageMapper extends BaseMapper<CsMessageDO> {
      * @param sessionId 会话ID
      * @return 消息数量
      */
-    @Select("SELECT COUNT(*) FROM cs_message WHERE session_id = #{sessionId} AND is_deleted = 0")
+    @Select("SELECT COUNT(*) FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0")
     long countBySessionId(@Param("sessionId") String sessionId);
     
     /**

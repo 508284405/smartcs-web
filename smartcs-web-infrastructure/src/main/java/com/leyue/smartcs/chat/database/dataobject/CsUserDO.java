@@ -10,7 +10,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName("cs_user")
+@TableName("t_cs_user")
 public class CsUserDO extends BaseDO {
     /**
      * 用户ID

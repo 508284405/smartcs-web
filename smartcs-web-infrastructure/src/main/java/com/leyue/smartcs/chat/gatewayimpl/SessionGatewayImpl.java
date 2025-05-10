@@ -52,7 +52,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
     
     @Override
-    public Optional<Session> findById(Long sessionId) {
+    public Optional<Session> findBySessionId(Long sessionId) {
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
         RBucket<Session> bucket = redissonClient.getBucket(cacheKey);
         Session cachedSession = bucket.get();
@@ -61,7 +61,7 @@ public class SessionGatewayImpl implements SessionGateway {
             return Optional.of(cachedSession);
         }
         
-        CsSessionDO csSessionDO = sessionMapper.selectById(sessionId);
+        CsSessionDO csSessionDO = sessionMapper.selectBySessionId(sessionId);
         if (csSessionDO == null) {
             return Optional.empty();
         }
@@ -76,6 +76,12 @@ public class SessionGatewayImpl implements SessionGateway {
     public Optional<Session> findActiveSessionByCustomerId(Long customerId) {
         CsSessionDO csSessionDO = sessionMapper.findActiveSessionByCustomerId(customerId);
         return Optional.ofNullable(sessionConverter.toDomain(csSessionDO));
+    }
+    
+    @Override
+    public Session findCustomerActiveSession(Long customerId) {
+        CsSessionDO csSessionDO = sessionMapper.findCustomerActiveSession(customerId);
+        return csSessionDO != null ? sessionConverter.toDomain(csSessionDO) : null;
     }
     
     @Override
@@ -95,7 +101,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
     
     @Override
-    public boolean checkSessionExists(String sessionId) {
+    public boolean checkSessionExists(Long sessionId) {
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
         if (redissonClient.getKeys().countExists(cacheKey) > 0) {
             return true;
@@ -106,7 +112,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
 
     @Override
-    public String getSessionStatus(String sessionId) {
+    public String getSessionStatus(Long sessionId) {
         Session session = getSession(sessionId);
         if (session == null) {
             return null;
@@ -118,7 +124,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
 
     @Override
-    public Session getSession(String sessionId) {
+    public Session getSession(Long sessionId) {
         String cacheKey = CACHE_KEY_PREFIX + sessionId;
         RBucket<Session> bucket2 = redissonClient.getBucket(cacheKey);
         Session cachedSession = bucket2.get();
@@ -141,7 +147,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
 
     @Override
-    public void updateSessionStatus(String sessionId, String status) {
+    public void updateSessionStatus(Long sessionId, String status) {
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法更新状态: sessionId={}, status={}", sessionId, status);
@@ -175,7 +181,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
 
     @Override
-    public void assignAgent(String sessionId, String agentId) {
+    public void assignAgent(Long sessionId, String agentId) {
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法分配客服: sessionId={}, agentId={}", sessionId, agentId);
@@ -191,7 +197,7 @@ public class SessionGatewayImpl implements SessionGateway {
             sessionDO.setSessionState(1);
             
             // 更新最后消息时间
-            sessionDO.setLastMsgTime(LocalDateTime.now());
+            sessionDO.setLastMsgTime(System.currentTimeMillis());
             
             // 更新数据库
             sessionMapper.updateById(sessionDO);
@@ -205,7 +211,7 @@ public class SessionGatewayImpl implements SessionGateway {
     }
 
     @Override
-    public void closeSession(String sessionId, String reason) {
+    public void closeSession(Long sessionId, String reason) {
         CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
         if (sessionDO == null) {
             log.warn("会话不存在，无法关闭: sessionId={}, reason={}", sessionId, reason);
@@ -217,7 +223,7 @@ public class SessionGatewayImpl implements SessionGateway {
         sessionDO.setSessionState(2);
         
         // 更新最后消息时间
-        sessionDO.setLastMsgTime(LocalDateTime.now());
+        sessionDO.setLastMsgTime(System.currentTimeMillis());
         
         // 更新数据库
         sessionMapper.updateById(sessionDO);

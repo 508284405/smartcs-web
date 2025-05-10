@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.chat.domainservice;
 
+import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.MessageType;
 import com.leyue.smartcs.domain.chat.SenderRole;
@@ -9,7 +10,6 @@ import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -52,7 +52,7 @@ public class MessageDomainService {
     public Message sendMessage(Long sessionId, Long senderId, SenderRole senderRole, 
                               MessageType messageType, String content, List<Long> atList) {
         // 检查会话是否存在
-        Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
+        Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
         if (!sessionOpt.isPresent()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
         }
@@ -70,7 +70,7 @@ public class MessageDomainService {
         message.setMsgType(messageType);
         message.setContent(content);
         message.setAtList(atList);
-        message.setCreatedAt(LocalDateTime.now());
+        message.setCreatedAt(System.currentTimeMillis());
         
         // 发送消息
         Long msgId = messageGateway.sendMessage(message);
@@ -91,9 +91,9 @@ public class MessageDomainService {
      */
     public List<Message> getSessionMessages(Long sessionId, int limit) {
         // 检查会话是否存在
-        Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
-        if (!sessionOpt.isPresent()) {
-            throw new IllegalArgumentException("会话不存在: " + sessionId);
+        Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
+        if (sessionOpt.isEmpty()) {
+            throw new BizException("会话不存在: " + sessionId);
         }
         
         return messageGateway.findMessagesBySessionId(sessionId, limit);
@@ -109,7 +109,7 @@ public class MessageDomainService {
      */
     public List<Message> getSessionMessagesWithPagination(Long sessionId, int offset, int limit) {
         // 检查会话是否存在
-        Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
+        Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
         if (!sessionOpt.isPresent()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
         }

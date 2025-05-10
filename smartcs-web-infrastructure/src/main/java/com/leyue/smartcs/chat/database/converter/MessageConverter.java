@@ -9,10 +9,6 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-
 /**
  * 消息数据转换器
  */
@@ -27,7 +23,7 @@ public interface MessageConverter {
      */
     @Mapping(source = "senderRole", target = "senderRole", qualifiedByName = "senderRoleToCode")
     @Mapping(source = "msgType", target = "msgType", qualifiedByName = "messageTypeToCode")
-    @Mapping(source = "createdAt", target = "createdAt", qualifiedByName = "localDateTimeToTimestamp")
+    @Mapping(source = "createdAt", target = "createdAt")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
@@ -43,7 +39,7 @@ public interface MessageConverter {
      */
     @Mapping(source = "senderRole", target = "senderRole", qualifiedByName = "codeToSenderRole")
     @Mapping(source = "msgType", target = "msgType", qualifiedByName = "codeToMessageType")
-    @Mapping(source = "createdAt", target = "createdAt", qualifiedByName = "timestampToLocalDateTime")
+    @Mapping(source = "createdAt", target = "createdAt")
     Message toDomain(CsMessageDO csMessageDO);
     
     /**
@@ -92,23 +88,5 @@ public interface MessageConverter {
     @Named("codeToMessageType")
     default MessageType codeToMessageType(Integer code) {
         return code != null ? MessageType.fromCode(code) : null;
-    }
-    
-    /**
-     * 时间戳转换为LocalDateTime
-     */
-    @Named("timestampToLocalDateTime")
-    default LocalDateTime timestampToLocalDateTime(Long timestamp) {
-        return timestamp != null ?
-                Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDateTime() : null;
-    }
-    
-    /**
-     * LocalDateTime转换为时间戳
-     */
-    @Named("localDateTimeToTimestamp")
-    default Long localDateTimeToTimestamp(LocalDateTime dateTime) {
-        return dateTime != null ?
-                dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() : null;
     }
 }

@@ -1,6 +1,7 @@
 package com.leyue.smartcs.config.feign;
 
 import feign.Feign;
+import feign.Logger;
 import okhttp3.OkHttpClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
@@ -20,5 +21,10 @@ public class FeignConfig {
                 .writeTimeout(60, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .build();
+    }
+
+    @Bean
+    Logger.Level feignLoggerLevel() {
+        return Logger.Level.FULL;
     }
 } 

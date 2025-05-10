@@ -30,7 +30,7 @@ public interface SessionGateway {
      * @param sessionId 会话ID
      * @return 会话对象
      */
-    Optional<Session> findById(Long sessionId);
+    Optional<Session> findBySessionId(Long sessionId);
     
     /**
      * 根据客户ID查询活跃会话
@@ -39,6 +39,14 @@ public interface SessionGateway {
      * @return 会话对象
      */
     Optional<Session> findActiveSessionByCustomerId(Long customerId);
+    
+    /**
+     * 查询客户最新一条处理中的会话（排队或进行中）
+     * 
+     * @param customerId 客户ID
+     * @return 会话对象，如果没有则返回null
+     */
+    Session findCustomerActiveSession(Long customerId);
     
     /**
      * 根据客户ID查询会话列表
@@ -62,40 +70,40 @@ public interface SessionGateway {
      * @param sessionId 会话ID（字符串形式）
      * @return 是否存在
      */
-    boolean checkSessionExists(String sessionId);
+    boolean checkSessionExists(Long sessionId);
     
     /**
      * 获取会话状态
      * @param sessionId 会话ID（字符串形式）
      * @return 会话状态：WAITING-等待中，ACTIVE-进行中，CLOSED-已关闭
      */
-    String getSessionStatus(String sessionId);
+    String getSessionStatus(Long sessionId);
     
     /**
      * 根据字符串ID获取会话信息
      * @param sessionId 会话ID（字符串形式）
      * @return 会话对象
      */
-    Session getSession(String sessionId);
+    Session getSession(Long sessionId);
     
     /**
      * 更新会话状态
      * @param sessionId 会话ID（字符串形式）
      * @param status 会话状态
      */
-    void updateSessionStatus(String sessionId, String status);
+    void updateSessionStatus(Long sessionId, String status);
     
     /**
      * 分配客服
      * @param sessionId 会话ID（字符串形式）
      * @param agentId 客服ID（字符串形式）
      */
-    void assignAgent(String sessionId, String agentId);
+    void assignAgent(Long sessionId, String agentId);
     
     /**
      * 关闭会话
      * @param sessionId 会话ID（字符串形式）
      * @param reason 关闭原因
      */
-    void closeSession(String sessionId, String reason);
+    void closeSession(Long sessionId, String reason);
 }

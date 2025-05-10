@@ -78,7 +78,7 @@
             <dependency>
                 <groupId>org.springframework.statemachine</groupId>
                 <artifactId>spring-statemachine-bom</artifactId>
-                <version>3.2.0</version> <!-- 你可以改为需要的版本 -->
+                <version>4.0.0</version> <!-- 你可以改为需要的版本 -->
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

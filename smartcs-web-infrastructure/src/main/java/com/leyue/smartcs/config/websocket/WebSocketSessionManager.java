@@ -157,7 +157,7 @@ public class WebSocketSessionManager {
      * @param userId 用户ID
      * @return 是否在线
      */
-    public boolean isUserOnline(String userId) {
+    public boolean isUserOnline(Long userId) {
         return redissonClient.getKeys().countExists(REDIS_SESSION_PREFIX + userId) > 0;
     }
 }

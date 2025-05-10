@@ -20,8 +20,8 @@ public interface CsSessionMapper extends BaseMapper<CsSessionDO> {
      * @param sessionId 会话ID
      * @return 会话对象
      */
-    @Select("SELECT * FROM cs_session WHERE session_id = #{sessionId} AND is_deleted = 0")
-    CsSessionDO selectBySessionId(@Param("sessionId") String sessionId);
+    @Select("SELECT * FROM t_cs_session WHERE session_id = #{sessionId} AND is_deleted = 0")
+    CsSessionDO selectBySessionId(@Param("sessionId") Long sessionId);
     
     /**
      * 根据客户ID查询活跃会话
@@ -29,8 +29,17 @@ public interface CsSessionMapper extends BaseMapper<CsSessionDO> {
      * @param customerId 客户ID
      * @return 会话对象
      */
-    @Select("SELECT * FROM cs_session WHERE customer_id = #{customerId} AND session_state = 1 AND is_deleted = 0 LIMIT 1")
+    @Select("SELECT * FROM t_cs_session WHERE customer_id = #{customerId} AND session_state = 1 AND is_deleted = 0 LIMIT 1")
     CsSessionDO findActiveSessionByCustomerId(@Param("customerId") Long customerId);
+    
+    /**
+     * 查询客户最新一条处理中的会话（排队或进行中）
+     *
+     * @param customerId 客户ID
+     * @return 会话对象
+     */
+    @Select("SELECT * FROM t_cs_session WHERE customer_id = #{customerId} AND session_state IN (0, 1) AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1")
+    CsSessionDO findCustomerActiveSession(@Param("customerId") Long customerId);
     
     /**
      * 根据客户ID查询历史会话（按创建时间倒序）
@@ -39,7 +48,7 @@ public interface CsSessionMapper extends BaseMapper<CsSessionDO> {
      * @param limit 限制数量
      * @return 会话列表
      */
-    @Select("SELECT * FROM cs_session WHERE customer_id = #{customerId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}")
+    @Select("SELECT * FROM t_cs_session WHERE customer_id = #{customerId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}")
     List<CsSessionDO> findSessionsByCustomerId(@Param("customerId") Long customerId, @Param("limit") int limit);
     
     /**
@@ -48,7 +57,7 @@ public interface CsSessionMapper extends BaseMapper<CsSessionDO> {
      * @param agentId 客服ID
      * @return 会话列表
      */
-    @Select("SELECT * FROM cs_session WHERE agent_id = #{agentId} AND session_state = 1 AND is_deleted = 0")
+    @Select("SELECT * FROM t_cs_session WHERE agent_id = #{agentId} AND session_state = 1 AND is_deleted = 0")
     List<CsSessionDO> findActiveSessionsByAgentId(@Param("agentId") Long agentId);
     
     /**
@@ -59,6 +68,6 @@ public interface CsSessionMapper extends BaseMapper<CsSessionDO> {
      * @param limit 限制数量
      * @return 会话列表
      */
-    @Select("SELECT * FROM cs_session WHERE status = #{status} AND is_deleted = 0 ORDER BY create_time ASC LIMIT #{limit} OFFSET #{offset}")
+    @Select("SELECT * FROM t_cs_session WHERE status = #{status} AND is_deleted = 0 ORDER BY create_time ASC LIMIT #{limit} OFFSET #{offset}")
     List<CsSessionDO> findSessionsByStatus(@Param("status") String status, @Param("offset") int offset, @Param("limit") int limit);
 }

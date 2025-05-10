@@ -5,10 +5,11 @@ import com.leyue.smartcs.api.chat.dto.SessionVO;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.chat.service.SessionService;
-import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.alibaba.cola.dto.SingleResponse;
+import com.alibaba.cola.dto.MultiResponse;
+import com.leyue.smartcs.convertor.ChatSessionConvertor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 
 import java.util.Date;
 import java.util.List;
@@ -17,26 +18,24 @@ import java.util.stream.Collectors;
 /**
  * 会话管理控制器
  */
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/chat/sessions")
 public class ChatSessionController {
     
-    @Autowired
-    private SessionService sessionService;
+    private final SessionService sessionService;
+    private final ChatSessionConvertor sessionConvertor;
 
     /**
      * 创建会话
      *
-     * @param request 创建会话请求
+     * @param cmd 创建会话请求
      * @return 会话视图对象
      */
     @PostMapping
-    public SessionVO createSession(@RequestBody CreateSessionRequest request) {
-        CreateSessionCmd cmd = new CreateSessionCmd();
-        cmd.setCustomerId(request.getCustomerId());
-        
+    public SingleResponse<SessionDTO> createSession(@RequestBody CreateSessionCmd cmd) {
         SessionDTO sessionDTO = sessionService.createSession(cmd);
-        return convertToVO(sessionDTO);
+        return SingleResponse.of(sessionDTO);
     }
 
     /**
@@ -48,13 +47,12 @@ public class ChatSessionController {
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/assign")
-    public SessionVO assignAgent(
+    public SingleResponse<SessionVO> assignAgent(
             @PathVariable Long sessionId, 
             @RequestParam Long agentId,
             @RequestParam(required = false) String agentName) {
-        // 扩展方法，传递客服名称
         SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId, agentName);
-        return convertToVO(sessionDTO);
+        return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
     /**
@@ -65,12 +63,11 @@ public class ChatSessionController {
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/close")
-    public SessionVO closeSession(
+    public SingleResponse<SessionVO> closeSession(
             @PathVariable Long sessionId,
             @RequestParam(required = false) String reason) {
-        // 扩展方法，传递关闭原因
         SessionDTO sessionDTO = sessionService.closeSession(sessionId, reason);
-        return convertToVO(sessionDTO);
+        return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
     /**
@@ -80,9 +77,9 @@ public class ChatSessionController {
      * @return 会话视图对象
      */
     @GetMapping("/{sessionId}")
-    public SessionVO getSessionDetail(@PathVariable Long sessionId) {
+    public SingleResponse<SessionVO> getSessionDetail(@PathVariable Long sessionId) {
         SessionDTO sessionDTO = sessionService.getSessionDetail(sessionId);
-        return convertToVO(sessionDTO);
+        return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
     /**
@@ -93,11 +90,9 @@ public class ChatSessionController {
      * @return 会话视图对象列表
      */
     @GetMapping("/customer/{customerId}")
-    public List<SessionVO> getCustomerSessions(@PathVariable Long customerId, @RequestParam(defaultValue = "10") int limit) {
+    public MultiResponse<SessionVO> getCustomerSessions(@PathVariable Long customerId, @RequestParam(defaultValue = "10") int limit) {
         List<SessionDTO> sessionDTOList = sessionService.getCustomerSessions(customerId, limit);
-        return sessionDTOList.stream()
-                .map(this::convertToVO)
-                .collect(Collectors.toList());
+        return MultiResponse.of(sessionConvertor.toVOList(sessionDTOList));
     }
 
     /**
@@ -107,36 +102,20 @@ public class ChatSessionController {
      * @return 会话视图对象列表
      */
     @GetMapping("/agent/{agentId}")
-    public List<SessionVO> getAgentActiveSessions(@PathVariable Long agentId) {
+    public MultiResponse<SessionVO> getAgentActiveSessions(@PathVariable Long agentId) {
         List<SessionDTO> sessionDTOList = sessionService.getAgentActiveSessions(agentId);
-        return sessionDTOList.stream()
-                .map(this::convertToVO)
-                .collect(Collectors.toList());
+        return MultiResponse.of(sessionConvertor.toVOList(sessionDTOList));
     }
-    
+
     /**
-     * 将会话DTO转换为会话视图对象
+     * 获取客户最新一条处理中的会话（排队或进行中）
      *
-     * @param sessionDTO 会话DTO
-     * @return 会话视图对象
+     * @param customerId 客户ID
+     * @return 会话视图对象（如无则返回空）
      */
-    private SessionVO convertToVO(SessionDTO sessionDTO) {
-        if (sessionDTO == null) {
-            return null;
-        }
-        
-        SessionVO sessionVO = new SessionVO();
-        BeanUtils.copyProperties(sessionDTO, sessionVO);
-        
-        // 处理时间转换
-        if (sessionDTO.getLastMsgTime() != null) {
-            sessionVO.setLastMsgTime(Date.from(sessionDTO.getLastMsgTime().atZone(java.time.ZoneId.systemDefault()).toInstant()));
-        }
-        
-        if (sessionDTO.getCreatedAt() != null) {
-            sessionVO.setCreatedAt(Date.from(sessionDTO.getCreatedAt().atZone(java.time.ZoneId.systemDefault()).toInstant()));
-        }
-        
-        return sessionVO;
+    @GetMapping("/customer/{customerId}/active")
+    public SingleResponse<SessionDTO> getCustomerActiveSession(@PathVariable Long customerId) {
+        SessionDTO sessionDTO = sessionService.getCustomerActiveSession(customerId);
+        return SingleResponse.of(sessionDTO);
     }
 }

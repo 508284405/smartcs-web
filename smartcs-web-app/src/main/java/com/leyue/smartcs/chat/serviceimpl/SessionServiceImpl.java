@@ -54,7 +54,7 @@ public class SessionServiceImpl implements SessionService {
     
     @Override
     public SessionDTO getSessionDetail(Long sessionId) {
-        Optional<Session> sessionOpt = sessionGateway.findById(sessionId);
+        Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
         if (!sessionOpt.isPresent()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
         }
@@ -76,6 +76,12 @@ public class SessionServiceImpl implements SessionService {
         return sessions.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+    
+    @Override
+    public SessionDTO getCustomerActiveSession(Long customerId) {
+        Session activeSession = sessionGateway.findCustomerActiveSession(customerId);
+        return activeSession != null ? convertToDTO(activeSession) : null;
     }
     
     /**

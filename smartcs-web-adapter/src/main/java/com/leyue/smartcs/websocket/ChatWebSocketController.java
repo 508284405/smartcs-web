@@ -3,9 +3,9 @@ package com.leyue.smartcs.websocket;
 import com.leyue.smartcs.api.chat.dto.websocket.AckMessage;
 import com.leyue.smartcs.api.chat.dto.websocket.ChatMessage;
 import com.leyue.smartcs.api.chat.dto.websocket.WebSocketMessage;
+import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import com.leyue.smartcs.domain.chat.executor.MessageSendExecutor;
 import com.leyue.smartcs.domain.chat.validator.MessageValidator;
-import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Header;
@@ -31,8 +31,8 @@ public class ChatWebSocketController {
 
     @Autowired
     public ChatWebSocketController(WebSocketSessionManager sessionManager,
-                                  MessageSendExecutor messageSendExecutor,
-                                  MessageValidator messageValidator) {
+                                   MessageSendExecutor messageSendExecutor,
+                                   MessageValidator messageValidator) {
         this.sessionManager = sessionManager;
         this.messageSendExecutor = messageSendExecutor;
         this.messageValidator = messageValidator;
@@ -45,21 +45,20 @@ public class ChatWebSocketController {
     @MessageMapping("/chat.sendMessage")
     @SendToUser("/queue/reply")
     public AckMessage sendMessage(@Payload ChatMessage chatMessage,
-                                 Principal principal,
-                                 SimpMessageHeaderAccessor headerAccessor) {
-        String userId = principal.getName();
+                                  SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
         String sessionId = headerAccessor.getSessionId();
         log.info("接收到WebSocket消息: userId={}, sessionId={}, message={}", userId, sessionId, chatMessage);
-        
+
         // 设置消息ID（如果客户端未提供）
         if (chatMessage.getMsgId() == null) {
             chatMessage.setMsgId(UUID.randomUUID().toString());
         }
-        
+
         // 设置发送者ID和时间
-        chatMessage.setFromUserId(userId);
+        chatMessage.setFromUserId(String.valueOf(userId));
         chatMessage.setCreateTime(System.currentTimeMillis());
-        
+
         // 检查用户类型，从会话属性中获取
         if (headerAccessor.getSessionAttributes() != null) {
             Object userType = headerAccessor.getSessionAttributes().get("userType");
@@ -67,23 +66,23 @@ public class ChatWebSocketController {
                 chatMessage.setFromUserType(userType.toString());
             }
         }
-        
+
         // 验证消息
         AckMessage ackMessage = new AckMessage();
         ackMessage.setOriginalMsgId(chatMessage.getMsgId());
         ackMessage.setSessionId(chatMessage.getSessionId());
-        
+
         try {
             // 验证消息
             messageValidator.validate(chatMessage);
-            
+
             // 发送消息
             messageSendExecutor.send(chatMessage);
-            
+
             // 注册会话状态
             if (userId != null && sessionId != null && !sessionManager.isUserOnline(userId)) {
                 String userType = "CUSTOMER";
-                
+
                 // 安全获取userType
                 if (headerAccessor != null) {
                     java.util.Map<String, Object> sessionAttrs = headerAccessor.getSessionAttributes();
@@ -91,10 +90,10 @@ public class ChatWebSocketController {
                         userType = sessionAttrs.get("userType").toString();
                     }
                 }
-                
-                sessionManager.registerSession(userId, sessionId, userType);
+
+                sessionManager.registerSession(String.valueOf(userId), sessionId, userType);
             }
-            
+
             // 返回确认消息
             ackMessage.setStatus("SUCCESS");
         } catch (Exception e) {
@@ -103,10 +102,10 @@ public class ChatWebSocketController {
             ackMessage.setErrorCode("MESSAGE_SEND_FAILED");
             ackMessage.setErrorMessage(e.getMessage());
         }
-        
+
         return ackMessage;
     }
-    
+
     /**
      * 处理消息确认
      * 客户端发送消息到: /app/chat.ack
@@ -115,21 +114,21 @@ public class ChatWebSocketController {
     public void handleAck(@Payload AckMessage ackMessage, Principal principal) {
         String userId = principal.getName();
         log.info("接收到消息确认: userId={}, ackMessage={}", userId, ackMessage);
-        
+
         // 处理消息确认，可以记录消息已读状态等
         // 这里简化处理，实际项目可能需要更复杂的逻辑
     }
-    
+
     /**
      * 处理心跳消息
      * 客户端发送消息到: /app/chat.heartbeat
      */
     @MessageMapping("/chat.heartbeat")
     @SendToUser("/queue/heartbeat")
-    public WebSocketMessage handleHeartbeat(Principal principal, @Header("simpSessionId") String sessionId) {
-        String userId = principal.getName();
+    public WebSocketMessage handleHeartbeat(@Header("simpSessionId") String sessionId, SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
         log.debug("接收到心跳消息: userId={}, sessionId={}", userId, sessionId);
-        
+
         // 返回心跳响应
         AckMessage heartbeatResponse = new AckMessage();
         heartbeatResponse.setStatus("SUCCESS");

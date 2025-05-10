@@ -18,7 +18,7 @@ public class AckMessage extends WebSocketMessage {
     /**
      * 会话ID
      */
-    private String sessionId;
+    private Long sessionId;
     
     /**
      * 确认状态：SUCCESS-成功，FAIL-失败

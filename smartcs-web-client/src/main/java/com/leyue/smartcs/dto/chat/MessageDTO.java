@@ -1,7 +1,6 @@
 package com.leyue.smartcs.dto.chat;
 
 import lombok.Data;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -57,5 +56,5 @@ public class MessageDTO {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private Long createdAt;
 }

@@ -1,0 +1,139 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: "项目COLA架构DDD规范与代码标准"
+globs:
+  - "smartcs-web-adapter/src/main/java/com/leyue/smartcs/**/*"
+  - "smartcs-web-client/src/main/java/com/leyue/smartcs/**/*"
+  - "smartcs-web-app/src/main/java/com/leyue/smartcs/**/*"
+  - "smartcs-web-domain/src/main/java/com/leyue/smartcs/domain/**/*"
+  - "smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/**/*"
+  - "**/src/main/resources/**/*"
+  - "**/*.md"
+alwaysApply: true
+---
+
+# COLA架构DDD规范与代码标准
+
+## DDD 分层架构
+
+项目基于DDD的COLA架构，分为以下几层：
+
+### 1. adapter层
+- 基本目录：`src/main/java/com/leyue/smartcs`
+- 子目录结构：
+  - `web` 目录：定义给客户端调用的API接口
+  - `filter` 目录：定义常用的过滤器
+- 通过client定义的DTO和service与app交互
+- 常见DTO有 `MultiResponse`、`SingleResponse`、`PageQuery`、`PageResponse` 等标准预定义的DTO,在COLA架构中已经提供，无需创建。
+- 依赖client层，调用client提供的service能力
+
+### 2. client层
+- 基本目录：`src/main/java/com/leyue/smartcs`
+- 子目录结构：
+  - `api` 目录：包含所有需要实现的service接口
+  - `dto` 目录：包含所有模块使用的DTO对象,需要使用枚举类的时候用String
+- `@UserContext.java` 用户信息存储在这里
+- 提供service接口给adapter层调用，给app层实现
+
+### 3. app层
+- 基本目录：`src/main/java/com/leyue/smartcs`
+- 下级目录为各个模块定义的模块化目录，具体包含：
+  - Impl实现类：完全实现client层定义的service接口
+  - Impl实现类保证使用executor方式实现所有功能
+  - `executor` 目录：定义实现逻辑的具体执行器，每个executor包含一个execute执行方法
+    - 分为Qry和Cmd两类executor
+    - Qry的executor通过mapper直接与Infra层交互
+    - Cmd的executor通过Gateway接口与Infra层交互
+  - `scheduler` 目录：包含使用的定时器
+  - `statemachine` 目录：包含使用到的状态机类
+- 依赖关系：
+  - 依赖infra层，调用基础设施层提供的能力
+  - 传递依赖domain层，调用domain层提供的Gateway接口能力
+  - 依赖client层，实现client层定义的service的业务逻辑
+
+### 4. domain层
+- 基本目录：`src/main/java/com/leyue/smartcs/domain`
+- 下级目录为各个模块定义的模块化目录，具体包含：
+  - `model` 目录：定义该模块的核心领域模型对象，是充血模型
+  - `gateway` 目录：定义Gateway接口，给app层的executor调用
+  - `event` 目录：定义常用到的事件对象
+  - `enums` 目录：定义常用到的枚举类
+- 该层为最高等级层，不依赖任何层
+
+### 5. infra层
+- 基本目录：`src/main/java/com/leyue/smartcs`
+- 下级目录为各个模块的定义目录，具体包含：
+  - `convertor` 目录：使用mapstruct定义转换接口(是接口而不是抽象类)，为domain对象和DO对象进行转换
+  - `dataobject` 目录：定义数据库DO对象，使用mybatis-plus定义，并且统一继承位于com.leyue.web.infrastructure.common.dao基本的BaseDO对象
+  - `gateway` 目录：实现domain层定义的gatewayservice接口
+  - `mapper` 目录：定义访问数据库的mapper接口，使用mybatis-plus实现，继承BaseMapper。mapper接口禁止通过注解的方式写SQL，SQL应该编写在XML文件中
+  - `common` 目录：路径 `src/main/java/com/leyue/web/infrastructure/common`，子目录结构：
+    - `dao` 目录：定义公共 DAO 接口与基础 DO 类，如 `BaseDO`。
+    - `gateway` 目录：定义共享的 gateway 工具与实现，支持 domain 层的 Gateway 接口。
+    - `feign` 目录：定义 Feign 客户端接口，使用 `@FeignClient` 注解；fallback 或 fallbackFactory 在 config 层统一配置。
+  - `config` 目录：路径 `src/main/java/com/leyue/web/infrastructure/config`，子目录及注意事项：
+    - `persist` 目录：MyBatis-Plus 相关配置，如 `MyBatisPlusMetaObjectHandler`，用于自动填充 `createTime` 和 `updateTime` 字段（毫秒时间戳）。
+    - `feign` 目录：Feign 二次封装配置，如编码、解码、拦截、日志等，以及统一配置 `fallbackFactory`。
+    - 其他 Config 类：所有 `*Config.java` 均需使用 `@Configuration` 注解，类名以 `Config` 结尾；通过 `@Bean` 声明组件，优先构造函数注入；如 `MyBatisPlusConfig.java`、`DiamondConfig.java` 等。
+- 技术选型：
+  - redis客户端使用Redisson，单节点模式
+- 依赖关系：
+  - 依赖domain层，实现gateway接口的具体逻辑
+- resources目录下存放数据库相关的文件：
+  - `mapper` 目录：存放MyBatis的XML文件
+  - `sql` 目录：存放建表相关的SQL文件。SQL目录代表了各个模块的逻辑关系，不可以直接修改SQL目录下的文件，可以给出修改建议
+
+## 代码规范
+
+### 通用规范
+- 使用UTF-8编码；代码注释为中文
+- 使用详细注释解释代码
+- 保证代码简洁清晰，模块化清晰，仅创建必须的类
+- 在新增类或代码逻辑之前，应先查看是否已实现类似逻辑，用修改代替创建
+- 在修改代码前分析原有业务逻辑，非必要情况下不能删除已完善的业务逻辑
+- 统一时间戳类型为毫秒（`long`）(优先级最高)
+- 使用`@Slf4j`注解定义日志对象
+- 禁止使用魔法数字，可使用常量或者枚举。
+
+### Java规范
+- 命名规范：
+  - 类名使用`PascalCase`
+  - 方法/变量使用`camelCase`
+  - 常量全大写并下划线分隔
+- 使用Lombok简化代码：
+  - `@Data`注解定义getter和setter方法
+  - `@Builder`注解定义builder方法
+  - `@AllArgsConstructor`注解定义全参构造方法
+  - `@NoArgsConstructor`注解定义无参构造方法
+- 异常处理：统一抛出`BizException`，并记录详细日志
+
+### Spring Boot规范
+- 配置文件：`application.yml`划分`dev/test/prod`段；敏感信息使用环境变量或Vault
+- Bean注入：构造函数注入优先，使用lombok的类注解@RequiredArgsConstructor和final属性方式。
+- 接口定义：`@RestController` + `@RequestMapping`
+
+### MyBatis-Plus规范
+- Mapper接口继承`BaseMapper<DO>`
+- 禁止注解写SQL，使用XML文件
+- DO继承公共`BaseDO`，并放在`dataobject`目录
+- 查询分页：使用`PageQuery`/`PageResponse`
+
+### 提交及分支策略
+- Git分支：`feat/`/`fix/`/`hotfix/`；Pull Request必须关联JIRA编号
+- Commit信息遵循Conventional Commits
+
+### 测试规范
+- 单元测试使用JUnit5 + Mockito；覆盖核心业务逻辑
+- 集成测试放置于`src/test/java`，使用Spring Boot Test
+
+## 开发流程指南
+
+1. 在每一层编写代码之前，先查阅本规则文件，并查阅项目中相关组件的版本号，使用规定版本内的代码进行编码。
+2. 遵循DDD分层架构原则，严格按照各层职责开发
+3. 修改代码前，确保理解现有业务逻辑和技术实现
+4. 代码提交前进行自测，确保符合代码规范
+5. 禁用swagger代码

@@ -18,7 +18,7 @@ public class ChatMessage extends WebSocketMessage {
     /**
      * 会话ID
      */
-    private String sessionId;
+    private Long sessionId;
     
     /**
      * 发送者ID

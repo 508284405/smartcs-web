@@ -1,5 +1,6 @@
 package com.leyue.smartcs.filter;
 
+import com.leyue.smartcs.api.user.UserService;
 import com.leyue.smartcs.config.WhiteListProperties;
 import com.leyue.smartcs.context.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,7 +20,7 @@ import java.util.List;
 public class PermissionInterceptor implements HandlerInterceptor {
 
     @Autowired
-    private TokenValidateService tokenValidateService;
+    private UserService userService;
     
     @Autowired
     private WhiteListProperties whiteListProperties;
@@ -51,7 +52,7 @@ public class PermissionInterceptor implements HandlerInterceptor {
         }
 
         // 验证token并获取用户信息
-        boolean isValid = tokenValidateService.validateToken(token);
+        boolean isValid = userService.validateUserToken(token);
         if (!isValid) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             return false;

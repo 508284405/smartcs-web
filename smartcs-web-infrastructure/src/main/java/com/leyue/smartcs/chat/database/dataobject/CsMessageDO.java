@@ -13,7 +13,7 @@ import java.util.List;
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
-@TableName(value = "cs_message", autoResultMap = true)
+@TableName(value = "t_cs_message", autoResultMap = true)
 public class CsMessageDO extends BaseDO {
     /**
      * 消息ID

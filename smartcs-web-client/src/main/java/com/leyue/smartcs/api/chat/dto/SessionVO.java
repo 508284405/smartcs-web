@@ -1,7 +1,6 @@
 package com.leyue.smartcs.api.chat.dto;
 
 import lombok.Data;
-import java.util.Date;
 
 /**
  * 会话视图对象
@@ -51,10 +50,10 @@ public class SessionVO {
     /**
      * 最后消息时间
      */
-    private Date lastMsgTime;
+    private Long lastMsgTime;
     
     /**
      * 创建时间
      */
-    private Date createdAt;
+    private Long createdAt;
 }

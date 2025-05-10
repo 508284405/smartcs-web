@@ -49,7 +49,7 @@ public class MessageSendExecutorImpl implements MessageSendExecutor {
         
         // 2. 确定接收者ID
         String receiverId;
-        if ("CUSTOMER".equalsIgnoreCase(chatMessage.getFromUserType())) {
+        if ("USER".equalsIgnoreCase(chatMessage.getFromUserType())) {
             // 客户发送给客服
             receiverId = String.valueOf(session.getAgentId());
         } else {
@@ -68,12 +68,12 @@ public class MessageSendExecutorImpl implements MessageSendExecutor {
         String messageIdStr = messageId != null ? messageId.toString() : chatMessage.getMsgId();
         
         // 5. 通过WebSocket发送给接收者
-        if (sessionManager.isUserOnline(receiverId)) {
+        if (sessionManager.isUserOnline(Long.valueOf(receiverId))) {
             sessionManager.sendToUser(receiverId, "messages", chatMessage);
         }
         
         // 6. 发送消息到Kafka用于异步处理（例如消息推送、统计等）
-        kafkaTemplate.send("chat-messages", chatMessage.getSessionId(), messageIdStr);
+        kafkaTemplate.send("chat-messages", String.valueOf(chatMessage.getSessionId()), messageIdStr);
         
         log.info("消息发送成功: msgId={}, sessionId={}, from={}, to={}", 
                 messageIdStr, chatMessage.getSessionId(), 
@@ -97,7 +97,7 @@ public class MessageSendExecutorImpl implements MessageSendExecutor {
         
         if (chatMessage.getSessionId() != null) {
             try {
-                message.setSessionId(Long.parseLong(chatMessage.getSessionId()));
+                message.setSessionId(chatMessage.getSessionId());
             } catch (NumberFormatException e) {
                 log.warn("会话ID转换失败: {}", chatMessage.getSessionId());
             }
@@ -142,12 +142,9 @@ public class MessageSendExecutorImpl implements MessageSendExecutor {
         
         // 转换时间
         if (chatMessage.getCreateTime() != null) {
-            message.setCreatedAt(java.time.LocalDateTime.ofInstant(
-                java.time.Instant.ofEpochMilli(chatMessage.getCreateTime()),
-                java.time.ZoneId.systemDefault()
-            ));
+            message.setCreatedAt(chatMessage.getCreateTime());
         } else {
-            message.setCreatedAt(java.time.LocalDateTime.now());
+            message.setCreatedAt(System.currentTimeMillis());
         }
         
         return message;

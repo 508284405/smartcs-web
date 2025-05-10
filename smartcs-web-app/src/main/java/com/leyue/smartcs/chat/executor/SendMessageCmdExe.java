@@ -1,11 +1,12 @@
 package com.leyue.smartcs.chat.executor;
 
-import com.leyue.smartcs.dto.chat.MessageDTO;
-import com.leyue.smartcs.dto.chat.SendMessageCmd;
+import com.leyue.smartcs.context.UserContext;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.MessageType;
 import com.leyue.smartcs.domain.chat.SenderRole;
 import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
+import com.leyue.smartcs.dto.chat.MessageDTO;
+import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -15,9 +16,9 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class SendMessageCmdExe {
-    
+
     private final MessageDomainService messageDomainService;
-    
+
     /**
      * 执行发送消息命令
      *
@@ -28,13 +29,13 @@ public class SendMessageCmdExe {
         // 发送消息
         Message message = messageDomainService.sendMessage(
                 cmd.getSessionId(),
-                cmd.getSenderId(),
-                SenderRole.fromCode(cmd.getSenderRole()),
-                MessageType.fromCode(cmd.getMsgType()),
+                UserContext.getCurrentUser().getId(),
+                SenderRole.fromCode(cmd.getSenderRole() == null ? 0 : cmd.getSenderRole()),
+                MessageType.fromCode(cmd.getMsgType() == null ? 0 : cmd.getMsgType()),
                 cmd.getContent(),
                 cmd.getAtList()
         );
-        
+
         // 转换为DTO
         MessageDTO messageDTO = new MessageDTO();
         messageDTO.setMsgId(message.getMsgId());
@@ -45,7 +46,7 @@ public class SendMessageCmdExe {
         messageDTO.setContent(message.getContent());
         messageDTO.setAtList(message.getAtList());
         messageDTO.setCreatedAt(message.getCreatedAt());
-        
+
         return messageDTO;
     }
 }

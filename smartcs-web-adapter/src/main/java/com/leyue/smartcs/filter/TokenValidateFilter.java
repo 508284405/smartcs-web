@@ -1,6 +1,7 @@
 package com.leyue.smartcs.filter;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.api.user.UserService;
 import com.leyue.smartcs.config.WhiteListProperties;
 import com.leyue.smartcs.context.UserContext;
 import jakarta.servlet.*;
@@ -23,7 +24,7 @@ import java.io.PrintWriter;
 public class TokenValidateFilter implements Filter {
 
     @Autowired
-    private TokenValidateService tokenValidateService;
+    private UserService userService;
     
     @Autowired
     private WhiteListProperties whiteListProperties;
@@ -56,7 +57,7 @@ public class TokenValidateFilter implements Filter {
         }
 
         try {
-            if (!tokenValidateService.validateToken(token)) {
+            if (!userService.validateUserToken(token)) {
                 log.error("Invalid token");
                 httpRequest.getRequestDispatcher("/error/unauthorized?message=Invalid token").forward(request, response);
                 return;

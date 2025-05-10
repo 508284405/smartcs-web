@@ -78,4 +78,12 @@ public interface SessionService {
      * @return 会话DTO列表
      */
     List<SessionDTO> getAgentActiveSessions(Long agentId);
+    
+    /**
+     * 获取客户最新一条处理中的会话（排队或进行中）
+     *
+     * @param customerId 客户ID
+     * @return 会话DTO，如果没有则返回null
+     */
+    SessionDTO getCustomerActiveSession(Long customerId);
 }

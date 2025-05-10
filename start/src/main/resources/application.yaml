@@ -2,7 +2,20 @@
 spring:
   application:
     name: smartcs-web
-
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  mvc:
+    cors:
+      enabled: true
+    mapping:
+      /**:
+        allowed-origins: "*"
+        allowed-methods: "*"
+        allowed-headers: "*"
+        allow-credentials: true
+        max-age: 3600
 
 # 日志配置
 logging:
@@ -11,3 +24,6 @@ logging:
     com:
       leyue:
         smartcs: debug
+server:
+  servlet:
+    context-path: /smartcs

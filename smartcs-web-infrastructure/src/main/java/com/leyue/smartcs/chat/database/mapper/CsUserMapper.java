@@ -20,7 +20,7 @@ public interface CsUserMapper extends BaseMapper<CsUserDO> {
      * @param userType 用户类型
      * @return 用户列表
      */
-    @Select("SELECT * FROM cs_user WHERE user_type = #{userType} AND status = 1 AND is_deleted = 0")
+    @Select("SELECT * FROM t_cs_user WHERE user_type = #{userType} AND status = 1 AND is_deleted = 0")
     List<CsUserDO> findUsersByType(@Param("userType") Integer userType);
     
     /**
@@ -29,6 +29,6 @@ public interface CsUserMapper extends BaseMapper<CsUserDO> {
      * @param status 状态
      * @return 客服列表
      */
-    @Select("SELECT * FROM cs_user WHERE user_type = 1 AND status = #{status} AND is_deleted = 0")
+    @Select("SELECT * FROM t_cs_user WHERE user_type = 1 AND status = #{status} AND is_deleted = 0")
     List<CsUserDO> findAgentsByStatus(@Param("status") Integer status);
 }

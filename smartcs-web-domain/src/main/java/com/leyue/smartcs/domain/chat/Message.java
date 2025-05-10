@@ -1,7 +1,6 @@
 package com.leyue.smartcs.domain.chat;
 
 import lombok.Data;
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -47,7 +46,7 @@ public class Message {
     /**
      * 创建时间
      */
-    private LocalDateTime createdAt;
+    private Long createdAt;
     
     /**
      * 检查是否为文本消息

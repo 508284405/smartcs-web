@@ -1,5 +1,7 @@
 package com.leyue.smartcs.config.websocket;
 
+import com.leyue.smartcs.api.user.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -13,17 +15,22 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  */
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+    private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
+    private final WebSocketAuthInterceptor webSocketAuthInterceptor;
 
     @Override
     public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
         // 注册STOMP端点，客户连接WebSocket的入口
         registry.addEndpoint("/ws/chat")
+                .addInterceptors(webSocketHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")  // 允许跨域
                 .withSockJS();  // 启用SockJS支持
         
         // 客服端连接入口
         registry.addEndpoint("/ws/agent")
+                .addInterceptors(webSocketHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
@@ -43,13 +50,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
         // 配置客户端入站通道，添加拦截器
-        registration.interceptors(webSocketAuthInterceptor());
-    }
-    
-    /**
-     * WebSocket认证拦截器
-     */
-    public WebSocketAuthInterceptor webSocketAuthInterceptor() {
-        return new WebSocketAuthInterceptor();
+        registration.interceptors(webSocketAuthInterceptor);
     }
 }
