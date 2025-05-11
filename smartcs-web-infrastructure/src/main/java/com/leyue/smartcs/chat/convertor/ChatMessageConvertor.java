@@ -1,4 +1,4 @@
-package com.leyue.smartcs.convertor;
+package com.leyue.smartcs.chat.convertor;
 
 import com.leyue.smartcs.api.chat.dto.MessageVO;
 import com.leyue.smartcs.dto.chat.MessageDTO;

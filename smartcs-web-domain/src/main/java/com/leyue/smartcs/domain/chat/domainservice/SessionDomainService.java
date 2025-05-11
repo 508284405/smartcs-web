@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.chat.domainservice;
 
+import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.SessionState;
 import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
@@ -66,13 +67,13 @@ public class SessionDomainService {
      */
     public Session assignAgent(Long sessionId, Long agentId, String agentName) {
         Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
-        if (!sessionOpt.isPresent()) {
+        if (sessionOpt.isEmpty()) {
             throw new IllegalArgumentException("会话不存在: " + sessionId);
         }
 
         Session session = sessionOpt.get();
         if (!session.isWaiting()) {
-            throw new IllegalStateException("会话状态不是等待中，无法分配客服");
+            throw new BizException("会话状态不是等待中，无法分配客服");
         }
 
         session.assignAgent(agentId, agentName);

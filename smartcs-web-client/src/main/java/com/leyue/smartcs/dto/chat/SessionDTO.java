@@ -3,10 +3,11 @@ package com.leyue.smartcs.dto.chat;
 import lombok.Data;
 
 /**
- * 会话DTO
+ * 会话数据传输对象
  */
 @Data
 public class SessionDTO {
+    
     /**
      * 会话ID
      */
@@ -18,39 +19,29 @@ public class SessionDTO {
     private Long customerId;
     
     /**
-     * 客户昵称
-     */
-    private String customerName;
-    
-    /**
-     * 客户头像
-     */
-    private String customerAvatar;
-    
-    /**
      * 客服ID
      */
     private Long agentId;
     
     /**
-     * 客服昵称
+     * 客服名称
      */
     private String agentName;
     
     /**
-     * 客服头像
+     * 会话状态
      */
-    private String agentAvatar;
-    
-    /**
-     * 会话状态 0=排队 1=进行中 2=已结束
-     */
-    private Integer sessionState;
+    private String sessionState;
     
     /**
      * 关闭原因
      */
     private String closeReason;
+    
+    /**
+     * 最后消息内容
+     */
+    private String lastMessage;
     
     /**
      * 最后消息时间

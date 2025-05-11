@@ -7,12 +7,11 @@ import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.chat.service.SessionService;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.convertor.ChatSessionConvertor;
+import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * WAP端会话管理控制器

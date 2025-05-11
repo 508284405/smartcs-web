@@ -18,34 +18,29 @@ public class SessionVO {
     private Long customerId;
     
     /**
-     * 客户昵称
-     */
-    private String customerName;
-    
-    /**
-     * 客户头像
-     */
-    private String customerAvatar;
-    
-    /**
      * 客服ID
      */
     private Long agentId;
     
     /**
-     * 客服昵称
+     * 客服名称
      */
     private String agentName;
     
     /**
-     * 客服头像
+     * 会话状态
      */
-    private String agentAvatar;
+    private String sessionState;
     
     /**
-     * 会话状态 0=排队 1=进行中 2=已结束
+     * 关闭原因
      */
-    private Integer sessionState;
+    private String closeReason;
+    
+    /**
+     * 最后消息内容
+     */
+    private String lastMessage;
     
     /**
      * 最后消息时间

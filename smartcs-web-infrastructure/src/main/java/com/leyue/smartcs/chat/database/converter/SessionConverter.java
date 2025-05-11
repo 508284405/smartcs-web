@@ -21,13 +21,6 @@ public interface SessionConverter {
      * @return 会话数据对象
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "sessionStateToCode")
-    @Mapping(source = "createdAt", target = "createdAt")
-    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     CsSessionDO toDataObject(Session session);
     
     /**
@@ -37,8 +30,6 @@ public interface SessionConverter {
      * @return 会话领域模型
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "codeToSessionState")
-    @Mapping(source = "createdAt", target = "createdAt")
-    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
     Session toDomain(CsSessionDO csSessionDO);
     
     /**
@@ -48,13 +39,6 @@ public interface SessionConverter {
      * @param target 目标对象
      */
     @Mapping(source = "sessionState", target = "sessionState", qualifiedByName = "sessionStateToCode")
-    @Mapping(source = "lastMsgTime", target = "lastMsgTime")
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "isDeleted", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedBy", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
     void updateDataObject(Session source, @MappingTarget CsSessionDO target);
     
     /**

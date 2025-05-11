@@ -31,7 +31,7 @@ public class CreateSessionCmdExe {
         sessionDTO.setSessionId(session.getSessionId());
         sessionDTO.setCustomerId(session.getCustomerId());
         sessionDTO.setAgentId(session.getAgentId());
-        sessionDTO.setSessionState(session.getSessionState().getCode());
+        sessionDTO.setSessionState(session.getSessionState().name());
         sessionDTO.setLastMsgTime(session.getLastMsgTime());
         sessionDTO.setCreatedAt(session.getCreatedAt());
         

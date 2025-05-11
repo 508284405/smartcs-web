@@ -1,6 +1,9 @@
 package com.leyue.smartcs.domain.chat.gateway;
 
+import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.chat.Session;
+import com.leyue.smartcs.dto.chat.SessionPageQuery;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -106,4 +109,12 @@ public interface SessionGateway {
      * @param reason 关闭原因
      */
     void closeSession(Long sessionId, String reason);
+    
+    /**
+     * 分页查询会话列表
+     * 
+     * @param query 查询条件
+     * @return 分页会话列表
+     */
+    PageResponse<Session> pageSessions(SessionPageQuery query);
 }

@@ -1,8 +1,11 @@
 package com.leyue.smartcs.chat.serviceimpl;
 
+import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.chat.executor.CreateSessionCmdExe;
+import com.leyue.smartcs.chat.executor.query.PageSessionQryExe;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
+import com.leyue.smartcs.dto.chat.SessionPageQuery;
 import com.leyue.smartcs.chat.service.SessionService;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
@@ -22,6 +25,7 @@ import java.util.stream.Collectors;
 public class SessionServiceImpl implements SessionService {
     
     private final CreateSessionCmdExe createSessionCmdExe;
+    private final PageSessionQryExe pageSessionQryExe;
     private final SessionDomainService sessionDomainService;
     private final SessionGateway sessionGateway;
     
@@ -84,6 +88,11 @@ public class SessionServiceImpl implements SessionService {
         return activeSession != null ? convertToDTO(activeSession) : null;
     }
     
+    @Override
+    public PageResponse<SessionDTO> pageSessions(SessionPageQuery query) {
+        return pageSessionQryExe.execute(query);
+    }
+    
     /**
      * 将领域模型转换为DTO
      *
@@ -96,7 +105,7 @@ public class SessionServiceImpl implements SessionService {
         sessionDTO.setCustomerId(session.getCustomerId());
         sessionDTO.setAgentId(session.getAgentId());
         sessionDTO.setAgentName(session.getAgentName());
-        sessionDTO.setSessionState(session.getSessionState().getCode());
+        sessionDTO.setSessionState(session.getSessionState().name());
         sessionDTO.setCloseReason(session.getCloseReason());
         sessionDTO.setLastMsgTime(session.getLastMsgTime());
         sessionDTO.setCreatedAt(session.getCreatedAt());

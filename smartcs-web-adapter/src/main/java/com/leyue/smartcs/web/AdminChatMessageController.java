@@ -1,4 +1,4 @@
-package com.leyue.smartcs.wap;
+package com.leyue.smartcs.web;
 
 import com.leyue.smartcs.api.chat.dto.MessageVO;
 import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
@@ -15,12 +15,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * WAP端消息管理控制器
+ * 运营端消息管理控制器
  */
 @RequiredArgsConstructor
 @RestController
-@RequestMapping("/api/wap/chat/messages")
-public class ChatMessageWapController {
+@RequestMapping("/api/admin/chat/messages")
+public class AdminChatMessageController {
     
     private final MessageService messageService;
     private final ChatMessageConvertor messageConvertor;
@@ -62,11 +62,11 @@ public class ChatMessageWapController {
      * @return 消息视图对象列表
      */
     @GetMapping("/session/{sessionId}/page")
-    public PageResponse<MessageVO> getSessionMessagesWithPagination(
+    public PageResponse<MessageDTO> getSessionMessagesWithPagination(
             @PathVariable Long sessionId, 
             @RequestParam(defaultValue = "0") int offset, 
             @RequestParam(defaultValue = "20") int limit) {
         List<MessageDTO> messageDTOList = messageService.getSessionMessagesWithPagination(sessionId, offset, limit);
-        return PageResponse.of(messageConvertor.toVOList(messageDTOList),0,0,0);
+        return PageResponse.of(messageDTOList,0,0,0);
     }
-}
+} 

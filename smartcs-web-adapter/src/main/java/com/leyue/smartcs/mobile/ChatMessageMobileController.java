@@ -8,11 +8,11 @@ import com.leyue.smartcs.chat.service.MessageService;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
-import com.leyue.smartcs.convertor.ChatMessageConvertor;
+import com.leyue.smartcs.chat.convertor.ChatMessageConvertor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 
 /**
