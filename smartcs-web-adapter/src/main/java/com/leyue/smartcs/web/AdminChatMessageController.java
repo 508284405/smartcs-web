@@ -1,14 +1,15 @@
 package com.leyue.smartcs.web;
 
-import com.leyue.smartcs.api.chat.dto.MessageVO;
-import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
-import com.leyue.smartcs.dto.chat.MessageDTO;
-import com.leyue.smartcs.dto.chat.SendMessageCmd;
-import com.leyue.smartcs.chat.service.MessageService;
-import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
+import com.alibaba.cola.dto.SingleResponse;
+import com.leyue.smartcs.api.chat.dto.MessageVO;
+import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
 import com.leyue.smartcs.chat.convertor.ChatMessageConvertor;
+import com.leyue.smartcs.chat.service.MessageService;
+import com.leyue.smartcs.dto.chat.GetMessagesQry;
+import com.leyue.smartcs.dto.chat.MessageDTO;
+import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,7 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/chat/messages")
 public class AdminChatMessageController {
-    
+
     private final MessageService messageService;
     private final ChatMessageConvertor messageConvertor;
 
@@ -35,7 +36,7 @@ public class AdminChatMessageController {
     public SingleResponse<MessageVO> sendMessage(@RequestBody SendMessageRequest request) {
         SendMessageCmd cmd = new SendMessageCmd();
         messageConvertor.copyToCmd(request, cmd);
-        
+
         MessageDTO messageDTO = messageService.sendMessage(cmd);
         return SingleResponse.of(messageConvertor.toVO(messageDTO));
     }
@@ -43,13 +44,11 @@ public class AdminChatMessageController {
     /**
      * 获取会话消息历史
      *
-     * @param sessionId 会话ID
-     * @param limit 限制数量
      * @return 消息视图对象列表
      */
     @GetMapping("/session/{sessionId}")
-    public MultiResponse<MessageVO> getSessionMessages(@PathVariable Long sessionId, @RequestParam(defaultValue = "20") int limit) {
-        List<MessageDTO> messageDTOList = messageService.getSessionMessages(sessionId, limit);
+    public MultiResponse<MessageVO> getSessionMessages(GetMessagesQry qry) {
+        List<MessageDTO> messageDTOList = messageService.getSessionMessages(qry);
         return MultiResponse.of(messageConvertor.toVOList(messageDTOList));
     }
 
@@ -57,16 +56,16 @@ public class AdminChatMessageController {
      * 分页获取会话消息历史
      *
      * @param sessionId 会话ID
-     * @param offset 偏移量
-     * @param limit 限制数量
+     * @param offset    偏移量
+     * @param limit     限制数量
      * @return 消息视图对象列表
      */
     @GetMapping("/session/{sessionId}/page")
     public PageResponse<MessageDTO> getSessionMessagesWithPagination(
-            @PathVariable Long sessionId, 
-            @RequestParam(defaultValue = "0") int offset, 
+            @PathVariable Long sessionId,
+            @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "20") int limit) {
         List<MessageDTO> messageDTOList = messageService.getSessionMessagesWithPagination(sessionId, offset, limit);
-        return PageResponse.of(messageDTOList,0,0,0);
+        return PageResponse.of(messageDTOList, 0, 0, 0);
     }
 } 

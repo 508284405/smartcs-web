@@ -3,6 +3,7 @@ package com.leyue.smartcs.chat.serviceimpl;
 import com.leyue.smartcs.chat.executor.SendMessageCmdExe;
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
+import com.leyue.smartcs.dto.chat.GetMessagesQry;
 import com.leyue.smartcs.chat.service.MessageService;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
@@ -28,8 +29,11 @@ public class MessageServiceImpl implements MessageService {
     }
     
     @Override
-    public List<MessageDTO> getSessionMessages(Long sessionId, int limit) {
-        List<Message> messages = messageDomainService.getSessionMessages(sessionId, limit);
+    public List<MessageDTO> getSessionMessages(GetMessagesQry query) {
+        List<Message> messages = messageDomainService.getSessionMessages(
+                query.getSessionId(), 
+                query.getBeforeMessageId(), 
+                query.getLimit());
         return messages.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());

@@ -34,6 +34,16 @@ public interface MessageGateway {
     List<Message> findMessagesBySessionId(Long sessionId, int limit);
     
     /**
+     * 根据会话ID和消息ID查询该消息之前的消息列表
+     * 
+     * @param sessionId 会话ID
+     * @param beforeMessageId 消息ID，获取该消息之前的历史
+     * @param limit 限制数量
+     * @return 消息列表
+     */
+    List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, Long beforeMessageId, int limit);
+    
+    /**
      * 根据会话ID分页查询消息
      * 
      * @param sessionId 会话ID

@@ -32,35 +32,18 @@ public class WebSocketEventListener {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headerAccessor.getSessionId();
         log.info("WebSocket连接成功: sessionId={}", sessionId);
-        
-        // 获取会话属性中的用户信息
-        String userId = null;
-        String userType = null;
-        
-        // 安全获取会话属性
-        java.util.Map<String, Object> sessionAttributes = headerAccessor.getSessionAttributes();
-        if (sessionAttributes != null) {
-            Object userIdObj = sessionAttributes.get("userId");
-            Object userTypeObj = sessionAttributes.get("userType");
-            
-            if (userIdObj != null) {
-                userId = userIdObj.toString();
-            }
-            
-            if (userTypeObj != null) {
-                userType = userTypeObj.toString();
-            }
-        }
-        
-        if (userId != null && userType != null) {
-            // 注册会话
-            sessionManager.registerSession(userId, sessionId, userType);
-            
+        String userId = event.getUser().getName();
+
+
+        if (userId != null) {
+//            // 注册会话
+//            sessionManager.registerSession(userId, sessionId, "");
+
             // 发送连接成功通知
             SystemMessage systemMessage = new SystemMessage();
             systemMessage.setCode("CONNECT_SUCCESS");
             systemMessage.setContent("连接成功");
-            sessionManager.sendToUser(userId.toString(), "notifications", systemMessage);
+            sessionManager.sendToUser(userId, "messages", systemMessage);
         }
     }
 
@@ -73,17 +56,17 @@ public class WebSocketEventListener {
             log.warn("WebSocket断开连接事件或消息为空");
             return;
         }
-        
+
         // 获取会话的头部信息
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        
+
         String sessionId = headerAccessor.getSessionId();
         log.info("WebSocket断开连接: sessionId={}", sessionId);
-        
+
         // 处理断开连接
         sessionManager.handleDisconnectEvent(event);
     }
-    
+
     /**
      * 处理WebSocket订阅事件
      */

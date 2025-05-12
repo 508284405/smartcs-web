@@ -84,13 +84,10 @@ public class ChatWebSocketController {
                 String userType = "CUSTOMER";
 
                 // 安全获取userType
-                if (headerAccessor != null) {
-                    java.util.Map<String, Object> sessionAttrs = headerAccessor.getSessionAttributes();
-                    if (sessionAttrs != null && sessionAttrs.get("userType") != null) {
-                        userType = sessionAttrs.get("userType").toString();
-                    }
+                java.util.Map<String, Object> sessionAttrs = headerAccessor.getSessionAttributes();
+                if (sessionAttrs != null && sessionAttrs.get("userType") != null) {
+                    userType = sessionAttrs.get("userType").toString();
                 }
-
                 sessionManager.registerSession(String.valueOf(userId), sessionId, userType);
             }
 

@@ -4,6 +4,7 @@ import com.leyue.smartcs.api.chat.dto.MessageVO;
 import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
+import com.leyue.smartcs.dto.chat.GetMessagesQry;
 import com.leyue.smartcs.chat.service.MessageService;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
@@ -43,13 +44,11 @@ public class ChatMessageController {
     /**
      * 获取会话消息历史
      *
-     * @param sessionId 会话ID
-     * @param limit 限制数量
      * @return 消息视图对象列表
      */
     @GetMapping("/session/{sessionId}")
-    public MultiResponse<MessageVO> getSessionMessages(@PathVariable Long sessionId, @RequestParam(defaultValue = "20") int limit) {
-        List<MessageDTO> messageDTOList = messageService.getSessionMessages(sessionId, limit);
+    public MultiResponse<MessageVO> getSessionMessages(GetMessagesQry qry) {
+        List<MessageDTO> messageDTOList = messageService.getSessionMessages(qry);
         return MultiResponse.of(messageConvertor.toVOList(messageDTOList));
     }
 

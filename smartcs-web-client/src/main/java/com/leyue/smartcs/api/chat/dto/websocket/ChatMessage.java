@@ -26,7 +26,7 @@ public class ChatMessage extends WebSocketMessage {
     private String fromUserId;
     
     /**
-     * 发送者类型，CUSTOMER-客户，AGENT-客服
+     * 发送者类型，0-客户，1-客服
      */
     private String fromUserType;
     

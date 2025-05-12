@@ -19,6 +19,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketHandshakeInterceptor webSocketHandshakeInterceptor;
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final CustomHandshakeHandler customHandshakeHandler;
 
     @Override
     public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
@@ -26,12 +27,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws/chat")
                 .addInterceptors(webSocketHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")  // 允许跨域
+                .setHandshakeHandler(customHandshakeHandler) // 绑定userId为Principal
                 .withSockJS();  // 启用SockJS支持
         
         // 客服端连接入口
         registry.addEndpoint("/ws/agent")
                 .addInterceptors(webSocketHandshakeInterceptor)
                 .setAllowedOriginPatterns("*")
+                .setHandshakeHandler(customHandshakeHandler) // 绑定userId为Principal
                 .withSockJS();
     }
 

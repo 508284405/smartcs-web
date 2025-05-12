@@ -4,8 +4,8 @@ import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.chat.dto.SessionVO;
-import com.leyue.smartcs.chat.service.SessionService;
 import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
+import com.leyue.smartcs.chat.service.SessionService;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
@@ -62,11 +62,11 @@ public class AdminChatSessionController {
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/close")
-    public SingleResponse<SessionVO> closeSession(
+    public SingleResponse<SessionDTO> closeSession(
             @PathVariable Long sessionId,
             @RequestParam(required = false) String reason) {
         SessionDTO sessionDTO = sessionService.closeSession(sessionId, reason);
-        return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
+        return SingleResponse.of(sessionDTO);
     }
 
     /**

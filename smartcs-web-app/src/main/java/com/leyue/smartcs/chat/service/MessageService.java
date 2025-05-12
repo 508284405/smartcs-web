@@ -2,6 +2,7 @@ package com.leyue.smartcs.chat.service;
 
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
+import com.leyue.smartcs.dto.chat.GetMessagesQry;
 
 import java.util.List;
 
@@ -19,14 +20,12 @@ public interface MessageService {
     MessageDTO sendMessage(SendMessageCmd sendMessageCmd);
     
     /**
-     * 获取会话消息历史
+     * 获取会话消息历史（使用查询对象）
      *
-     * @param sessionId 会话ID
-     * @param limit 限制数量
+     * @param query 消息查询对象
      * @return 消息DTO列表
      */
-    List<MessageDTO> getSessionMessages(Long sessionId, int limit);
-    
+    List<MessageDTO> getSessionMessages(GetMessagesQry query);
     /**
      * 分页获取会话消息历史
      *

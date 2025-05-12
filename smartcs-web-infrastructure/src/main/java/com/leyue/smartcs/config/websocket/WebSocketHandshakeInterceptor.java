@@ -48,6 +48,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                 }
                 return null;
             }).findAny().orElseThrow(() -> new BizException("角色不支持"));
+            // 将 userId 和 userType 放入 attributes，供后续 CustomHandshakeHandler 绑定 Principal 使用
             attributes.put("userId", currentUser.getId());
             attributes.put("userType", userType);
             return true;

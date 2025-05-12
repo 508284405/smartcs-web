@@ -44,6 +44,14 @@ public class MessageGatewayImpl implements MessageGateway {
     }
     
     @Override
+    public List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, Long beforeMessageId, int limit) {
+        List<CsMessageDO> csMessageDOList = messageMapper.findMessagesBySessionIdBeforeMessageId(sessionId, beforeMessageId, limit);
+        return csMessageDOList.stream()
+                .map(messageConverter::toDomain)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
     public List<Message> findMessagesBySessionIdWithPagination(Long sessionId, int offset, int limit) {
         // 将Long类型的sessionId转换为String类型
         String sessionIdStr = sessionId != null ? sessionId.toString() : null;
