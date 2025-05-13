@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.knowledge.mapper.FaqMapper">
+    
+    <!-- 根据问题查询FAQ（模糊匹配） -->
+    <select id="findByQuestionLike" resultType="com.leyue.smartcs.knowledge.dataobject.FaqDO">
+        SELECT *
+        FROM cs_faq
+        WHERE is_deleted = 0
+          AND question LIKE CONCAT('%', #{question}, '%')
+        ORDER BY hit_count DESC
+    </select>
+    
+    <!-- 分页查询FAQ -->
+    <select id="listByPage" resultType="com.leyue.smartcs.knowledge.dataobject.FaqDO">
+        SELECT *
+        FROM cs_faq
+        WHERE is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (question LIKE CONCAT('%', #{keyword}, '%') OR answer_text LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY updated_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+    
+    <!-- 获取总记录数 -->
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM cs_faq
+        WHERE is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND (question LIKE CONCAT('%', #{keyword}, '%') OR answer_text LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+    
+    <!-- 增加命中次数 -->
+    <update id="incrementHitCount">
+        UPDATE cs_faq
+        SET hit_count = hit_count + 1,
+            updated_at = #{updatedAt}
+        WHERE id = #{id}
+          AND is_deleted = 0
+    </update>
+    
+</mapper> 

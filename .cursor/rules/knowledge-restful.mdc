@@ -1,0 +1,51 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 知识模块 RESTful 接口规范
+
+本规则适用于 [KnowledgeController.java](mdc:smartcs-web/smartcs-web-adapter/src/main/java/com/leyue/smartcs/web/knowledge/KnowledgeController.java) 及知识域相关API设计。
+
+## 1. 路径与资源命名
+- 路径统一以 `/api/knowledge` 为前缀。
+- 资源名使用小写、复数形式（如 `faq`、`doc`、`embeddings`、`search`）。
+- 子资源通过嵌套路径表达，如 `/doc/{id}/embeddings`。
+
+## 2. HTTP方法与语义
+- `GET`    ：查询资源（列表、详情）
+- `POST`   ：创建资源、批量操作、复杂查询
+- `PUT`    ：整体更新资源（如有）
+- `PATCH`  ：部分更新资源（如有）
+- `DELETE` ：删除资源
+
+## 3. 参数规范
+- 路径参数：用于唯一标识资源（如 `/faq/{id}`、`/doc/{id}`）。
+- 查询参数：用于分页、搜索、过滤（如 `?page=1&size=10&keyword=xxx`）。
+- 请求体：用于创建、更新、批量操作，采用JSON格式。
+- 文件上传：采用 `multipart/form-data`，参数名与业务字段一致。
+
+## 4. 返回值规范
+- 统一返回DTO对象，分页返回 `PageResponse<T>`，列表返回 `MultiResponse<T>`，单对象返回 `SingleResponse<T>`，操作结果返回 `Response`。
+- 所有返回体均包含标准结构：`success`、`data`、`errCode`、`errMessage`。
+
+## 5. 错误处理
+- 业务异常统一抛出 `BizException`，并返回明确的错误码与错误信息。
+- 参数校验失败返回400，未授权返回401，资源不存在返回404，服务器错误返回500。
+
+## 6. 典型接口示例
+- `POST   /api/knowledge/faq`           ：创建/更新FAQ
+- `GET    /api/knowledge/faq`           ：分页/搜索FAQ
+- `DELETE /api/knowledge/faq/{id}`      ：删除FAQ
+- `POST   /api/knowledge/doc`           ：上传文档
+- `GET    /api/knowledge/doc`           ：分页/搜索文档
+- `GET    /api/knowledge/doc/{id}/embeddings` ：获取文档分段向量
+- `POST   /api/knowledge/embeddings/batch`    ：批量添加向量
+- `POST   /api/knowledge/search/vector`       ：向量检索
+- `POST   /api/knowledge/search/text`         ：全文检索
+
+## 7. 其他约定
+- 日志记录所有接口请求与响应，便于追踪与审计。
+- 所有接口需支持JWT鉴权。
+- 输入输出字段需有详细注释，便于前后端协作。
+

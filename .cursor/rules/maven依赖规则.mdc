@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # Maven依赖结构
 
-本项目使用Maven管理依赖，采用多模块结构设计。根POM为 [pom.xml](mdc:pom.xml)，定义了整体依赖版本与管理策略。
+本项目使用Maven管理依赖，采用多模块结构设计。根POM为 [pom.xml](mdc:smartcs-web/smartcs-web/pom.xml)，定义了整体依赖版本与管理策略。
 
 ## 核心框架版本
 
@@ -14,8 +14,10 @@ alwaysApply: false
 - Spring Cloud：2024.0.1
 - Spring Cloud Alibaba：2023.0.3.2
 - COLA组件：5.0.0
-- MyBatis Plus：3.5.10.1
+- MyBatis Plus：3.5.12
 - MapStruct：1.5.5.Final
+- Spring AI：1.0.0-M6
+- Redisson：3.39.0
 
 ## 模块依赖关系
 
@@ -32,15 +34,15 @@ start
 
 ## 各模块主要依赖
 
-### 父POM [pom.xml](mdc:pom.xml)
+### 父POM [pom.xml](mdc:smartcs-web/smartcs-web/pom.xml)
 
 定义全局依赖版本管理，主要包括：
 - 基础依赖：lombok、junit
 - Spring相关：Spring Boot、Spring Cloud、Spring Cloud Alibaba
 - Nacos相关：服务发现、配置中心
-- 其他工具：MapStruct、FastJSON2等
+- 其他工具：MapStruct、FastJSON2、Redisson、Spring AI等
 
-### smartcs-web-app [smartcs-web-app/pom.xml](mdc:smartcs-web-app/pom.xml)
+### smartcs-web-app [smartcs-web-app/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-app/pom.xml)
 
 应用层依赖：
 - smartcs-web-client
@@ -48,7 +50,7 @@ start
 - COLA组件：cola-component-catchlog-starter
 - Jakarta Bean Validation相关组件
 
-### smartcs-web-infrastructure [smartcs-web-infrastructure/pom.xml](mdc:smartcs-web-infrastructure/pom.xml)
+### smartcs-web-infrastructure [smartcs-web-infrastructure/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-infrastructure/pom.xml)
 
 基础设施层依赖：
 - smartcs-web-domain
@@ -57,12 +59,39 @@ start
 - FastJSON2
 - Spring Cloud OpenFeign
 - MapStruct
+- Redisson
+- Kafka
+- WebSocket
+- Spring State Machine
 
-### start [start/pom.xml](mdc:start/pom.xml)
+### smartcs-web-domain [smartcs-web-domain/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-domain/pom.xml)
+
+领域层依赖：
+- smartcs-web-client
+- COLA组件：cola-component-exception
+- SLF4J
+- Lombok
+
+### smartcs-web-client [smartcs-web-client/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-client/pom.xml)
+
+客户端依赖：
+- COLA DTO
+- Jakarta Validation
+- Jackson
+
+### smartcs-web-adapter [smartcs-web-adapter/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-adapter/pom.xml)
+
+适配层依赖：
+- smartcs-web-app
+- Spring Boot Web
+
+### start [start/pom.xml](mdc:smartcs-web/smartcs-web/start/pom.xml)
 
 启动模块依赖：
 - smartcs-web-adapter
 - Spring Boot Web
+- Spring AI (OpenAI集成)
+- Redisson
 - Spring Cloud Bootstrap
 - Nacos服务发现与配置
 
@@ -73,3 +102,5 @@ start
 - **Nacos**：阿里巴巴开源的服务发现和配置管理平台
 - **MapStruct**：Java bean映射工具，用于DTO与领域对象转换
 - **Spring Cloud OpenFeign**：声明式REST客户端，用于微服务调用
+- **Spring AI**：Spring官方AI集成框架，支持OpenAI等主流大模型
+- **Redisson**：高性能Redis客户端，支持分布式锁、缓存等高级特性
