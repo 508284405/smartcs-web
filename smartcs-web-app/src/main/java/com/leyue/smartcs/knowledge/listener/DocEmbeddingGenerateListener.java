@@ -7,12 +7,17 @@ import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.DocumentParserFactory;
+import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
+import com.leyue.smartcs.knowledge.util.OssFileDownloader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,11 +34,12 @@ public class DocEmbeddingGenerateListener {
     private final DocumentGateway documentGateway;
     private final EmbeddingGateway embeddingGateway;
     private final LLMGateway llmGateway;
+    private final DocumentParserFactory parserFactory;
+    private final SegmentStrategy segmentStrategy;
+    private final OssFileDownloader ossFileDownloader;
     
     // 默认使用的向量模型类型
     private static final String DEFAULT_MODEL_TYPE = "text-embedding-ada-002";
-    // 默认的内容分段长度（字符数）
-    private static final int DEFAULT_CHUNK_SIZE = 1000;
     
     /**
      * 异步处理文档向量生成事件
@@ -83,44 +89,54 @@ public class DocEmbeddingGenerateListener {
     
     /**
      * 解析文档内容，并分段
-     * 注意：实际实现需要根据不同文件类型进行解析
      * @param document 文档对象
      * @return 分段后的内容列表
      */
     private List<String> parseDocumentContent(Document document) {
-        // TODO: 这里需要根据不同文件类型（PDF、Word、TXT等）调用不同的解析器
-        // 以下为简化版实现，假设已经有了文本内容
+        log.info("开始解析文档内容: {}", document.getTitle());
         
-        String fileType = document.getFileType();
-        String ossUrl = document.getOssUrl();
+        List<String> contentChunks = new ArrayList<>();
+        File localFile = null;
         
-        // 模拟解析出的全文
-        String fullText = "这是文档" + document.getTitle() + "的内容。这里应该是从OSS下载并解析文件得到的文本内容。";
-        
-        // 将文本分段，这里简化处理，实际应该根据语义或段落进行更智能的分段
-        return splitTextIntoChunks(fullText, DEFAULT_CHUNK_SIZE);
-    }
-    
-    /**
-     * 将长文本分割成多个段落
-     * @param text 完整文本
-     * @param chunkSize 每段长度限制
-     * @return 分段列表
-     */
-    private List<String> splitTextIntoChunks(String text, int chunkSize) {
-        List<String> chunks = new ArrayList<>();
-        
-        if (text == null || text.isEmpty()) {
-            return chunks;
+        try {
+            // 获取文件类型
+            String fileType = document.getFileType();
+            if (fileType == null || fileType.isEmpty()) {
+                log.error("文档类型为空，无法解析: {}", document.getId());
+                return contentChunks;
+            }
+            
+            // 检查文档URL
+            String ossUrl = document.getOssUrl();
+            if (ossUrl == null || ossUrl.isEmpty()) {
+                log.error("文档URL为空，无法下载: {}", document.getId());
+                return contentChunks;
+            }
+            
+            // 获取对应的解析器
+            DocumentParser parser = parserFactory.getParser(fileType);
+            if (parser == null) {
+                log.error("不支持的文档类型: {}", fileType);
+                return contentChunks;
+            }
+            
+            // 下载文档
+            localFile = ossFileDownloader.download(ossUrl);
+            
+            // 解析文档内容
+            String fullText = parser.parseContent(document, localFile);
+            
+            // 分段
+            if (fullText != null && !fullText.isEmpty()) {
+                contentChunks = segmentStrategy.segment(fullText);
+                log.info("文档内容分段完成，共 {} 段，策略: {}", 
+                        contentChunks.size(), segmentStrategy.getStrategyName());
+            }
+        } catch (Exception e) {
+            log.error("文档解析或分段过程出错: {}", e.getMessage(), e);
         }
         
-        // 简单按字符长度分段，实际应该按句子或段落分隔符进行更智能的分段
-        for (int i = 0; i < text.length(); i += chunkSize) {
-            int end = Math.min(i + chunkSize, text.length());
-            chunks.add(text.substring(i, end));
-        }
-        
-        return chunks;
+        return contentChunks;
     }
     
     /**
