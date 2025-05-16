@@ -1,13 +1,13 @@
 package com.leyue.smartcs.websocket;
 
-import com.leyue.smartcs.api.chat.dto.websocket.AckMessage;
-import com.leyue.smartcs.api.chat.dto.websocket.ChatMessage;
-import com.leyue.smartcs.api.chat.dto.websocket.WebSocketMessage;
+import com.leyue.smartcs.dto.chat.ws.AckMessage;
+import com.leyue.smartcs.dto.chat.ws.ChatMessage;
+import com.leyue.smartcs.dto.chat.ws.WebSocketMessage;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
-import com.leyue.smartcs.domain.chat.executor.MessageSendExecutor;
-import com.leyue.smartcs.domain.chat.validator.MessageValidator;
+import com.leyue.smartcs.api.MessageSendService;
+import com.leyue.smartcs.api.MessageValidatorService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -23,20 +23,12 @@ import java.util.UUID;
  */
 @Slf4j
 @Controller
+@RequiredArgsConstructor
 public class ChatWebSocketController {
 
     private final WebSocketSessionManager sessionManager;
-    private final MessageSendExecutor messageSendExecutor;
-    private final MessageValidator messageValidator;
-
-    @Autowired
-    public ChatWebSocketController(WebSocketSessionManager sessionManager,
-                                   MessageSendExecutor messageSendExecutor,
-                                   MessageValidator messageValidator) {
-        this.sessionManager = sessionManager;
-        this.messageSendExecutor = messageSendExecutor;
-        this.messageValidator = messageValidator;
-    }
+    private final MessageSendService messageSendService;
+    private final MessageValidatorService messageValidatorService;
 
     /**
      * 处理客户或客服发送的聊天消息
@@ -74,10 +66,10 @@ public class ChatWebSocketController {
 
         try {
             // 验证消息
-            messageValidator.validate(chatMessage);
+            messageValidatorService.validate(chatMessage);
 
             // 发送消息
-            messageSendExecutor.send(chatMessage);
+            messageSendService.send(chatMessage);
 
             // 注册会话状态
             if (userId != null && sessionId != null && !sessionManager.isUserOnline(userId)) {

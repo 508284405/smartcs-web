@@ -2,14 +2,13 @@ package com.leyue.smartcs.customer;
 
 import com.leyue.smartcs.domain.customer.Customer;
 import com.leyue.smartcs.domain.customer.gateway.CustomerGateway;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class CustomerGatewayImpl implements CustomerGateway {
-    @Autowired
-    private CustomerMapper customerMapper;
+    private final CustomerMapper customerMapper;
 
     public Customer getByById(String customerId){
       CustomerDO customerDO = customerMapper.getById(customerId);

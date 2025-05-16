@@ -2,7 +2,7 @@ package com.leyue.smartcs.domain.chat.domainservice;
 
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.chat.Session;
-import com.leyue.smartcs.domain.chat.SessionState;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import lombok.RequiredArgsConstructor;

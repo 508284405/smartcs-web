@@ -7,9 +7,10 @@ import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.knowledge.factory.SegmentStrategyFactory;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
-import com.leyue.smartcs.knowledge.parser.DocumentParserFactory;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
+import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import com.leyue.smartcs.knowledge.util.OssFileDownloader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ public class DocEmbeddingGenerateListener {
     private final EmbeddingGateway embeddingGateway;
     private final LLMGateway llmGateway;
     private final DocumentParserFactory parserFactory;
-    private final SegmentStrategy segmentStrategy;
+    private final SegmentStrategyFactory segmentStrategyFactory;
     private final OssFileDownloader ossFileDownloader;
     
     // 默认使用的向量模型类型
@@ -128,9 +129,12 @@ public class DocEmbeddingGenerateListener {
             
             // 分段
             if (fullText != null && !fullText.isEmpty()) {
-                contentChunks = segmentStrategy.segment(fullText);
+                // TODO: 根据实际业务逻辑确定分段策略名称
+                String strategyName = "defaultStrategy"; // 临时使用默认策略名
+                SegmentStrategy strategy = segmentStrategyFactory.getStrategy(strategyName);
+                contentChunks = strategy.segment(fullText);
                 log.info("文档内容分段完成，共 {} 段，策略: {}", 
-                        contentChunks.size(), segmentStrategy.getStrategyName());
+                        contentChunks.size(), strategy.getStrategyName());
             }
         } catch (Exception e) {
             log.error("文档解析或分段过程出错: {}", e.getMessage(), e);

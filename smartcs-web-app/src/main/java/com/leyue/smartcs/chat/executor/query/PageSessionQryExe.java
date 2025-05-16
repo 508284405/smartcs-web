@@ -1,7 +1,7 @@
 package com.leyue.smartcs.chat.executor.query;
 
 import com.alibaba.cola.dto.PageResponse;
-import com.leyue.smartcs.chat.assembler.SessionAssembler;
+import com.leyue.smartcs.chat.convertor.SessionConvertor;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import com.leyue.smartcs.dto.chat.SessionDTO;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public class PageSessionQryExe {
     
     private final SessionGateway sessionGateway;
-    private final SessionAssembler sessionAssembler;
+    private final SessionConvertor sessionConvertor;
     
     /**
      * 执行分页查询
@@ -39,7 +39,7 @@ public class PageSessionQryExe {
         
         // 转换为DTO
         List<SessionDTO> sessionDTOList = pageResponse.getData().stream()
-                .map(sessionAssembler::toDTO)
+                .map(sessionConvertor::toDTO)
                 .collect(Collectors.toList());
         
         // 返回结果

@@ -1,10 +1,10 @@
 package com.leyue.smartcs.mobile;
 
-import com.leyue.smartcs.api.chat.dto.CreateSessionRequest;
-import com.leyue.smartcs.api.chat.dto.SessionVO;
+import com.leyue.smartcs.dto.chat.CreateSessionRequest;
+import com.leyue.smartcs.dto.chat.SessionVO;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
-import com.leyue.smartcs.chat.service.SessionService;
+import com.leyue.smartcs.api.SessionService;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
@@ -47,8 +47,8 @@ public class ChatSessionMobileController {
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/assign")
-    public SingleResponse<SessionVO> assignAgent(@PathVariable Long sessionId, @RequestParam Long agentId) {
-        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId);
+    public SingleResponse<SessionVO> assignAgent(@PathVariable Long sessionId, @RequestParam Long agentId, @RequestParam String agentName) {
+        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId,agentName);
         return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
@@ -60,7 +60,7 @@ public class ChatSessionMobileController {
      */
     @PostMapping("/{sessionId}/close")
     public SingleResponse<SessionVO> closeSession(@PathVariable Long sessionId) {
-        SessionDTO sessionDTO = sessionService.closeSession(sessionId);
+        SessionDTO sessionDTO = sessionService.closeSession(sessionId,"");
         return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 

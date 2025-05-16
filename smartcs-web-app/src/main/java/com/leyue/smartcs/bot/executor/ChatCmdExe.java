@@ -2,8 +2,8 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.bot.dto.BotChatRequest;
-import com.leyue.smartcs.bot.dto.BotChatResponse;
+import com.leyue.smartcs.dto.bot.BotChatRequest;
+import com.leyue.smartcs.dto.bot.BotChatResponse;
 import com.leyue.smartcs.domain.bot.gateway.KnowledgeGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
@@ -95,8 +95,8 @@ public class ChatCmdExe {
             if (request.getMaxTokens() != null) {
                 options.put("maxTokens", request.getMaxTokens());
             }
-            if (request.getModelId() != null && !request.getModelId().isEmpty()) {
-                options.put("modelId", request.getModelId());
+            if (request.getModel() != null && !request.getModel().isEmpty()) {
+                options.put("model", request.getModel());
             }
             
             String answer = llmGateway.generateAnswer(prompt, options);
@@ -108,7 +108,7 @@ public class ChatCmdExe {
             sessionGateway.saveConversation(conversation);
             
             // 构建响应
-            BotChatResponse response = buildResponse(sessionId, answer, searchResults, request.getModelId(), startTime);
+            BotChatResponse response = buildResponse(sessionId, answer, searchResults, request.getModel(), startTime);
             
             log.info("聊天命令执行完成，耗时: {}ms", System.currentTimeMillis() - startTime);
             return SingleResponse.of(response);

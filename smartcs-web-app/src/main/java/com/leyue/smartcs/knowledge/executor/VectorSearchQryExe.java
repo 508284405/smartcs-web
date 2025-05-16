@@ -7,9 +7,9 @@ import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.VectorSearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
-import com.leyue.smartcs.knowledge.dto.EmbeddingDTO;
-import com.leyue.smartcs.knowledge.dto.KnowledgeSearchQry;
-import com.leyue.smartcs.knowledge.dto.KnowledgeSearchResult;
+import com.leyue.smartcs.dto.knowledge.EmbeddingDTO;
+import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
+import com.leyue.smartcs.dto.knowledge.KnowledgeSearchResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,6 +31,9 @@ public class VectorSearchQryExe {
     private final VectorSearchGateway vectorSearchGateway;
     private final EmbeddingGateway embeddingGateway;
     private final DocumentGateway documentGateway;
+    
+    // 向量集合名称（与EmbeddingGatewayImpl中定义的相同）
+    private static final String VECTOR_COLLECTION = "embedding_vectors";
     
     /**
      * 执行向量检索查询
@@ -60,10 +63,10 @@ public class VectorSearchQryExe {
         }
         
         try {
-            // 调用向量检索（这里简化为从向量库中检索并按相似度排序）
+            // 调用向量检索（使用RedisSearch作为向量库）
             byte[] queryVector = Base64.getDecoder().decode(vector);
             Map<Long, Float> searchResults = vectorSearchGateway.searchTopK(
-                    "cs_embeddings", queryVector, k, modelType, threshold);
+                    VECTOR_COLLECTION, queryVector, k, modelType, threshold);
             
             // 没有结果则返回空
             if (searchResults.isEmpty()) {
@@ -71,14 +74,19 @@ public class VectorSearchQryExe {
                 return MultiResponse.of(new ArrayList<>());
             }
             
+            log.info("向量检索获取到 {} 个结果", searchResults.size());
+            
             // 查询文档段落详情并组装结果
             List<KnowledgeSearchResult.EmbeddingWithScore> embeddingResults = new ArrayList<>();
             for (Map.Entry<Long, Float> entry : searchResults.entrySet()) {
                 Long embeddingId = entry.getKey();
                 Float score = entry.getValue();
                 
+                log.debug("处理向量检索结果: id={}, score={}", embeddingId, score);
+                
                 Optional<Embedding> embeddingOpt = embeddingGateway.findById(embeddingId);
                 if (embeddingOpt.isEmpty()) {
+                    log.warn("未找到对应的Embedding记录: id={}", embeddingId);
                     continue;
                 }
                 
@@ -90,6 +98,8 @@ public class VectorSearchQryExe {
                 Optional<Document> docOpt = documentGateway.findById(embedding.getDocId());
                 if (docOpt.isPresent()) {
                     docTitle = docOpt.get().getTitle();
+                } else {
+                    log.warn("未找到对应的文档记录: docId={}", embedding.getDocId());
                 }
                 
                 KnowledgeSearchResult.EmbeddingWithScore resultItem = new KnowledgeSearchResult.EmbeddingWithScore();

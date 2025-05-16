@@ -2,7 +2,7 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.bot.dto.BotContextDTO;
+import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.domain.bot.gateway.SessionGateway;
 import com.leyue.smartcs.domain.bot.model.Conversation;
 import com.leyue.smartcs.domain.bot.model.Message;

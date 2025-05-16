@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.chat;
 
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 import lombok.Data;
 
 /**

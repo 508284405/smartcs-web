@@ -52,8 +52,8 @@ public class LLMGatewayImpl implements LLMGateway {
                     builder.maxTokens((Integer) options.get("maxTokens"));
                 }
                 
-                if (options.containsKey("modelId")) {
-                    builder.model((String) options.get("modelId"));
+                if (options.containsKey("model")) {
+                    builder.model((String) options.get("model"));
                 }
             }
             

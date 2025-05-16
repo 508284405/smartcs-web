@@ -6,7 +6,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
-import com.leyue.smartcs.knowledge.dto.EmbeddingAddCmd;
+import com.leyue.smartcs.dto.knowledge.EmbeddingAddCmd;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

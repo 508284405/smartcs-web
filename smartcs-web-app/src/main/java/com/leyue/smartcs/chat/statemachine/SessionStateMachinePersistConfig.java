@@ -1,8 +1,8 @@
 package com.leyue.smartcs.chat.statemachine;
 
 import com.leyue.smartcs.config.persist.CombinPersistingStateMachineInterceptor;
-import com.leyue.smartcs.domain.chat.SessionEvent;
-import com.leyue.smartcs.domain.chat.SessionState;
+import com.leyue.smartcs.domain.chat.enums.SessionEvent;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;

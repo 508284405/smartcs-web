@@ -1,11 +1,11 @@
 package com.leyue.smartcs.chat.statemachine;
 
 import com.leyue.smartcs.domain.chat.Session;
-import com.leyue.smartcs.domain.chat.SessionEvent;
+import com.leyue.smartcs.domain.chat.enums.SessionEvent;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
-import com.leyue.smartcs.domain.chat.SessionState;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
@@ -22,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SessionStateMachineService {
 
     private final StateMachineFactory<SessionState, SessionEvent> stateMachineFactory;
@@ -29,14 +30,6 @@ public class SessionStateMachineService {
     
     // 会话状态机缓存
     private final Map<String, StateMachine<SessionState, SessionEvent>> stateMachines = new ConcurrentHashMap<>();
-
-    @Autowired
-    public SessionStateMachineService(
-            StateMachineFactory<SessionState, SessionEvent> stateMachineFactory,
-            WebSocketSessionManager webSocketSessionManager) {
-        this.stateMachineFactory = stateMachineFactory;
-        this.webSocketSessionManager = webSocketSessionManager;
-    }
 
     /**
      * 创建会话状态机

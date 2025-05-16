@@ -1,11 +1,11 @@
 package com.leyue.smartcs.wap;
 
-import com.leyue.smartcs.api.chat.dto.MessageVO;
-import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
+import com.leyue.smartcs.dto.chat.MessageVO;
+import com.leyue.smartcs.dto.chat.SendMessageRequest;
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import com.leyue.smartcs.dto.chat.GetMessagesQry;
-import com.leyue.smartcs.chat.service.MessageService;
+import com.leyue.smartcs.api.MessageService;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
@@ -43,10 +43,6 @@ public class ChatMessageWapController {
 
     /**
      * 获取会话消息历史
-     *
-     * @param sessionId 会话ID
-     * @param beforeMessageId 消息ID，获取该消息之前的历史，为空则获取最新消息
-     * @param limit 限制数量
      * @return 消息视图对象列表
      */
     @GetMapping("/session/{sessionId}")

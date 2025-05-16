@@ -2,8 +2,8 @@ package com.leyue.smartcs.domain.chat.domainservice;
 
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.chat.Message;
-import com.leyue.smartcs.domain.chat.MessageType;
-import com.leyue.smartcs.domain.chat.SenderRole;
+import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.gateway.MessageGateway;
 import com.leyue.smartcs.domain.chat.gateway.SessionGateway;

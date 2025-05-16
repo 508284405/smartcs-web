@@ -1,8 +1,8 @@
 package com.leyue.smartcs.config.websocket;
 
-import com.leyue.smartcs.api.chat.dto.websocket.SystemMessage;
+import com.leyue.smartcs.dto.chat.ws.SystemMessage;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
@@ -15,14 +15,10 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
-
-    @Autowired
-    public WebSocketEventListener(WebSocketSessionManager sessionManager) {
-        this.sessionManager = sessionManager;
-    }
 
     /**
      * 处理WebSocket连接事件

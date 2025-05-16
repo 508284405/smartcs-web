@@ -1,0 +1,117 @@
+---
+description: 文件应该放在指定的目录下
+globs: 
+alwaysApply: false
+---
+# Smartcs-Web 项目实际目录结构扫描详情
+
+本文档是对 `[smartcs-web/project-rules](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/.cursor/rules/smartcs-web/project-rules.md)` 规则的补充，旨在提供一个基于2024年7月（具体扫描日期可能不同，此处为示例）对 `smartcs-web` 项目实际目录结构进行扫描的快照。建议将此文档与主要规则结合阅读，以便更好地理解项目的实际布局与设计规范之间的关系。
+
+在阅读过程中，请注意各层模块下可能会提及"符合规范"、"额外目录"或"注意点"，这些是为了帮助理解实际结构与COLA架构指导原则的对应关系。
+
+## 1. 顶层模块结构
+
+`smartcs-web` 项目主要由以下 Maven 模块构成：
+
+- `smartcs-web-adapter`
+- `smartcs-web-client`
+- `smartcs-web-app`
+- `smartcs-web-domain`
+- `smartcs-web-infrastructure`
+- `start` (Spring Boot 启动模块)
+
+此外，项目根目录下还包含一些重要的 Markdown 文档，可作为深入了解特定模块或整体架构的参考：
+
+- `[Bot模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/Bot模块.md)`
+- `[知识模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/知识模块.md)`
+- `[架构文档.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/架构文档.md)`
+
+## 2. 各层模块详细结构
+
+### 2.1. `smartcs-web-adapter`
+
+- **源代码路径**: `smartcs-web-adapter/src/main/java/com/leyue/smartcs/`
+- **主要子目录**: 
+    - `config/` (全局异常，跨域配置，请求和响应日志打印，spring mvc配置，白名单配置等)
+    - `filter/` (权限控制，token校验)
+    - `mobile/` 
+    - `wap/` 
+    - `web/` 分为客户端和运营端，运营端的Controller命名应该是Admin开头
+    - `websocket/` 
+- **说明**: 此层负责处理外部请求的适配，如HTTP API接口。常见DTO有 `MultiResponse`、`SingleResponse`、`PageQuery`、`PageResponse` 等标准预定义的DTO,在COLA架构中已经提供，无需创建。
+-- **依赖关系**: 依赖client层，调用client提供的service能力
+
+### 2.2. `smartcs-web-client`
+
+- **源代码路径**: `smartcs-web-client/src/main/java/com/leyue/smartcs/`
+- **主要子目录**: 
+    - `api/` (符合规范，定义服务接口)
+    - `dto/` (符合规范，定义数据传输对象)
+    - `context/` (存放`@UserContext.java` 用户信息存储在这里。)
+- **说明**: `client` 层定义了应用对外提供的服务接口（`api/`）及其使用的数据传输对象（`dto/`）。实际扫描发现存在 `context` 目录，需要结合代码确认其具体作用和必要性。
+
+### 2.3. `smartcs-web-app`
+
+- **源代码路径**: `smartcs-web-app/src/main/java/com/leyue/smartcs/`
+- **结构**: 主要按业务模块组织 (如 `bot/`, `chat/`, `customer/`, `knowledge/`, `order/`, `user/`)。
+- **业务模块内部 (以 `chat/` 模块为例)**:
+    - `serviceimpl/`: 存放 `client` 层定义的服务接口的实现类 。
+    - `executor/`: 包含具体的命令（Cmd）和查询（Qry）执行器 ;Qry的executor通过mapper直接与Infra层交互; Cmd的executor通过Gateway接口与Infra层交互
+    - `statemachine/`: 包含状态机相关实现 。
+    - `listener/`: spring事件监听器。
+- **说明**: `app` 层是业务逻辑的核心实现层，负责编排领域服务、执行器等完成业务用例。目录结构体现了按业务模块的划分。
+- **依赖关系**：
+    - 依赖infra层，调用基础设施层提供的能力
+    - 传递依赖domain层，调用domain层提供的Gateway接口能力
+    - 依赖client层，实现client层定义的service的业务逻辑
+
+### 2.4. `smartcs-web-domain`
+
+- **源代码路径**: `smartcs-web-domain/src/main/java/com/leyue/smartcs/domain/`
+- **顶层内容**: 
+    - 业务模块目录: `bot/`, `chat/`, `common/`, `customer/`, `knowledge/`, `order/`, `user/`
+    - 文件: `package-info.java`
+- **业务模块内部 (以 `chat/` 模块为例)**:
+    - `enums/`: 定义领域相关的枚举 
+    - `domainservice/`: 可能包含不适合放在任何特定实体或值对象中的领域逻辑 (额外观察到的目录)
+    - `event/`: 定义领域事件 
+    - `gateway/`: 定义了与基础设施层交互的接口 
+    - 领域模型文件: 如 `Message.java`, `Session.java`
+- **说明**: `domain` 层包含了核心的业务逻辑和领域模型。其内部按业务模块组织，并定义了枚举、领域服务、事件、网关接口以及领域模型对象; 扫描结果显示存在 `domainservice` 目录，需要结合代码确认其具体作用和必要性; 
+- **依赖关系**: 该层为最高等级层，不依赖任何层
+
+
+### 2.5. `smartcs-web-infrastructure`
+
+- **源代码路径**: `smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/`
+- **顶层内容**: 
+    - 业务模块目录: `bot/`, `chat/`, `common/`, `config/`, `customer/`, `knowledge/`, `order/`, `user/`
+- **业务模块内部 (以 `chat/` 模块为例)**:
+    - `convertor/`: 数据转换器，如DO与领域对象之间的转换 ；使用Mapstruct实现对象转换。
+    - `dataobject/`: 数据库持久化对象 (DO) 。
+    - `gatewayimpl/`: 实现 `domain` 层定义的 `gateway` 接口 。
+    - `mapper/`: MyBatis Mapper 接口 。
+    - **注意点**: 根据对domain层的扫描，发现在 `chat` 业务模块的 `database/` 子目录下可能存在 `converter/` 目录。需明确其与模块级 `convertor/` 目录的职责划分，避免混淆。
+- **公共目录**:
+    - `common/`: (路径: `smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/common/`)
+        - `dao/`: 公共DAO接口和基础DO类 。
+        - `feign/`: Feign客户端接口定义 。
+        - `gateway/`: 共享的Gateway工具或实现 。
+    - `config/`: (路径: `smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/config/`)
+        - `feign/`: Feign相关配置 。
+        - `persist/`: 持久化相关配置，如MyBatis-Plus 。
+        - `websocket/`: WebSocket相关配置 (额外观察到的目录)。
+        - 各种 `*Config.java` 文件: 如 `SpringAIConfig.java`, `MyBatisPlusConfig.java`, `MyBatisPlusMetaObjectHandler.java`, `RestTemplateConfig.java`, `ThreadPoolConfig.java`, `DiamondConfig.java` 。
+- **资源文件**: 
+    - 路径: `smartcs-web-infrastructure/src/main/resources/`
+    - `mapper/`: 存放MyBatis的XML映射文件 。
+    - `sql/`: 存放数据库表结构定义等SQL脚本 。
+- **说明**: `infrastructure` 层提供技术基础设施支持，包括数据持久化、外部服务调用等。其结构按业务模块组织，并包含通用的 `common` 和 `config` 部分。扫描结果显示 `config` 目录下存在 `websocket` 子目录，需要结合代码确认其作用和必要性。
+
+### 2.6. `start` 模块
+
+- **模块路径**: `start/`
+- **主要内容**: Spring Boot 应用的启动模块。
+    - 包含主应用类 `start/src/main/java/com/leyue/smartcs/Application.java`。
+    - 包含其 `pom.xml` 用于管理启动相关依赖和打包配置。
+- **说明**: 此模块负责组装和启动整个 `smartcs-web` 应用。

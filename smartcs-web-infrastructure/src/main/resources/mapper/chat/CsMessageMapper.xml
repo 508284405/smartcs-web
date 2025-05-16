@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.chat.mapper.CsMessageMapper">
+    
+    <!-- 根据消息ID查询消息 -->
+    <select id="selectByMessageId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        SELECT * FROM t_cs_message WHERE msg_id = #{msgId} AND is_deleted = 0
+    </select>
+    
+    <!-- 根据会话ID查询消息列表（按创建时间倒序） -->
+    <select id="findMessagesBySessionId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{limit}
+    </select>
+    
+    <!-- 根据会话ID和消息ID查询该消息之前的消息列表 -->
+    <select id="findMessagesBySessionIdBeforeMessageId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        SELECT * FROM t_cs_message WHERE session_id = #{sessionId}
+        AND is_deleted = 0
+        AND (created_at < (SELECT created_at FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)
+             OR (created_at = (SELECT created_at FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)
+                 AND id < (SELECT id FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)))
+        ORDER BY created_at DESC, id DESC LIMIT #{limit}
+    </select>
+    
+    <!-- 根据会话ID查询消息列表（分页） -->
+    <select id="selectBySessionId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY create_time DESC LIMIT #{size} OFFSET #{offset}
+    </select>
+    
+    <!-- 统计会话消息数量 -->
+    <select id="countBySessionId" resultType="long">
+        SELECT COUNT(*) FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0
+    </select>
+    
+    <!-- 批量插入消息 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO t_cs_message (
+            session_id, msg_id, from_user_id, from_user_type, content, content_type, create_time
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+            #{item.sessionId}, #{item.msgId}, #{item.fromUserId}, #{item.fromUserType},
+            #{item.content}, #{item.contentType}, #{item.createTime}
+            )
+        </foreach>
+    </insert>
+    
+</mapper> 

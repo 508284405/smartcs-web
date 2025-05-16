@@ -1,7 +1,8 @@
 package com.leyue.smartcs.chat.statemachine;
 
-import com.leyue.smartcs.domain.chat.SessionEvent;
-import com.leyue.smartcs.domain.chat.SessionState;
+import com.leyue.smartcs.domain.chat.enums.SessionEvent;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.statemachine.config.EnableStateMachineFactory;
@@ -18,6 +19,7 @@ import java.util.EnumSet;
 /**
  * 会话状态机配置
  */
+@Slf4j
 @Configuration
 @EnableStateMachineFactory(name = "sessionStateMachineFactory")
 public class SessionStateMachineConfig extends EnumStateMachineConfigurerAdapter<SessionState, SessionEvent> {
@@ -63,7 +65,7 @@ public class SessionStateMachineConfig extends EnumStateMachineConfigurerAdapter
             @Override
             public void stateChanged(State<SessionState, SessionEvent> from, State<SessionState, SessionEvent> to) {
                 if (from != null && to != null) {
-                    System.out.println("会话状态变更：" + from.getId() + " -> " + to.getId());
+                    log.info("会话状态变更：{} -> {}", from.getId(), to.getId());
                 }
             }
         };

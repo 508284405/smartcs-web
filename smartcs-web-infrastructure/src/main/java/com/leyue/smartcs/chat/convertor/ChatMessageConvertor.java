@@ -1,8 +1,8 @@
 package com.leyue.smartcs.chat.convertor;
 
-import com.leyue.smartcs.api.chat.dto.MessageVO;
+import com.leyue.smartcs.dto.chat.MessageVO;
 import com.leyue.smartcs.dto.chat.MessageDTO;
-import com.leyue.smartcs.api.chat.dto.SendMessageRequest;
+import com.leyue.smartcs.dto.chat.SendMessageRequest;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;

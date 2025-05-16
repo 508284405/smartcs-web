@@ -2,7 +2,7 @@ package com.leyue.smartcs.knowledge.convertor;
 
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.knowledge.dataobject.EmbeddingDO;
-import com.leyue.smartcs.knowledge.dto.EmbeddingDTO;
+import com.leyue.smartcs.dto.knowledge.EmbeddingDTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;

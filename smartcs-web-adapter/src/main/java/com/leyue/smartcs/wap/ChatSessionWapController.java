@@ -1,13 +1,13 @@
 package com.leyue.smartcs.wap;
 
-import com.leyue.smartcs.api.chat.dto.CreateSessionRequest;
-import com.leyue.smartcs.api.chat.dto.SessionVO;
-import com.leyue.smartcs.dto.chat.CreateSessionCmd;
-import com.leyue.smartcs.dto.chat.SessionDTO;
-import com.leyue.smartcs.chat.service.SessionService;
-import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
+import com.alibaba.cola.dto.SingleResponse;
+import com.leyue.smartcs.api.SessionService;
 import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
+import com.leyue.smartcs.dto.chat.CreateSessionCmd;
+import com.leyue.smartcs.dto.chat.CreateSessionRequest;
+import com.leyue.smartcs.dto.chat.SessionDTO;
+import com.leyue.smartcs.dto.chat.SessionVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/wap/chat/sessions")
 public class ChatSessionWapController {
-    
+
     private final SessionService sessionService;
     private final ChatSessionConvertor sessionConvertor;
 
@@ -34,7 +34,7 @@ public class ChatSessionWapController {
     public SingleResponse<SessionDTO> createSession(@RequestBody CreateSessionRequest request) {
         CreateSessionCmd cmd = new CreateSessionCmd();
         cmd.setCustomerId(request.getCustomerId());
-        
+
         SessionDTO sessionDTO = sessionService.createSession(cmd);
         return SingleResponse.of(sessionDTO);
     }
@@ -43,12 +43,12 @@ public class ChatSessionWapController {
      * 分配客服
      *
      * @param sessionId 会话ID
-     * @param agentId 客服ID
+     * @param agentId   客服ID
      * @return 会话视图对象
      */
     @PostMapping("/{sessionId}/assign")
-    public SingleResponse<SessionVO> assignAgent(@PathVariable Long sessionId, @RequestParam Long agentId) {
-        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId);
+    public SingleResponse<SessionVO> assignAgent(@PathVariable Long sessionId, @RequestParam Long agentId, @RequestParam String agentName) {
+        SessionDTO sessionDTO = sessionService.assignAgent(sessionId, agentId, agentName);
         return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
@@ -60,7 +60,7 @@ public class ChatSessionWapController {
      */
     @PostMapping("/{sessionId}/close")
     public SingleResponse<SessionVO> closeSession(@PathVariable Long sessionId) {
-        SessionDTO sessionDTO = sessionService.closeSession(sessionId);
+        SessionDTO sessionDTO = sessionService.closeSession(sessionId, "");
         return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 
@@ -80,7 +80,7 @@ public class ChatSessionWapController {
      * 获取客户的会话列表
      *
      * @param customerId 客户ID
-     * @param limit 限制数量
+     * @param limit      限制数量
      * @return 会话视图对象列表
      */
     @GetMapping("/customer/{customerId}")

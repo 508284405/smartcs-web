@@ -1,10 +1,10 @@
 package com.leyue.smartcs.config.websocket;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RMap;
 import org.redisson.api.RSet;
 import org.redisson.api.RedissonClient;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class WebSocketSessionManager {
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -35,13 +36,6 @@ public class WebSocketSessionManager {
     private static final String REDIS_AGENT_SET = "ws:agents";
     private static final String REDIS_CUSTOMER_SET = "ws:customers";
     private static final long SESSION_EXPIRE_SECONDS = 24 * 60 * 60; // 会话过期时间，24小时
-
-    @Autowired
-    public WebSocketSessionManager(SimpMessagingTemplate messagingTemplate,
-                                   RedissonClient redissonClient) {
-        this.messagingTemplate = messagingTemplate;
-        this.redissonClient = redissonClient;
-    }
 
     /**
      * 注册用户会话

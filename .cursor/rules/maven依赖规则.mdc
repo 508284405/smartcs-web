@@ -1,11 +1,11 @@
 ---
-description: 
+description: 使用指定框架API时候应该遵守的规则。
 globs: 
 alwaysApply: false
 ---
 # Maven依赖结构
 
-本项目使用Maven管理依赖，采用多模块结构设计。根POM为 [pom.xml](mdc:smartcs-web/smartcs-web/pom.xml)，定义了整体依赖版本与管理策略。
+本项目使用Maven管理依赖，采用多模块结构设计。根POM为 [pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/pom.xml)，定义了整体依赖版本与管理策略。
 
 ## 核心框架版本
 
@@ -34,7 +34,7 @@ start
 
 ## 各模块主要依赖
 
-### 父POM [pom.xml](mdc:smartcs-web/smartcs-web/pom.xml)
+### 父POM [pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/pom.xml)
 
 定义全局依赖版本管理，主要包括：
 - 基础依赖：lombok、junit
@@ -42,7 +42,7 @@ start
 - Nacos相关：服务发现、配置中心
 - 其他工具：MapStruct、FastJSON2、Redisson、Spring AI等
 
-### smartcs-web-app [smartcs-web-app/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-app/pom.xml)
+### smartcs-web-app [smartcs-web-app/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-app/pom.xml)
 
 应用层依赖：
 - smartcs-web-client
@@ -50,7 +50,7 @@ start
 - COLA组件：cola-component-catchlog-starter
 - Jakarta Bean Validation相关组件
 
-### smartcs-web-infrastructure [smartcs-web-infrastructure/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-infrastructure/pom.xml)
+### smartcs-web-infrastructure [smartcs-web-infrastructure/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-infrastructure/pom.xml)
 
 基础设施层依赖：
 - smartcs-web-domain
@@ -64,7 +64,7 @@ start
 - WebSocket
 - Spring State Machine
 
-### smartcs-web-domain [smartcs-web-domain/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-domain/pom.xml)
+### smartcs-web-domain [smartcs-web-domain/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-domain/pom.xml)
 
 领域层依赖：
 - smartcs-web-client
@@ -72,20 +72,20 @@ start
 - SLF4J
 - Lombok
 
-### smartcs-web-client [smartcs-web-client/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-client/pom.xml)
+### smartcs-web-client [smartcs-web-client/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-client/pom.xml)
 
 客户端依赖：
 - COLA DTO
 - Jakarta Validation
 - Jackson
 
-### smartcs-web-adapter [smartcs-web-adapter/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web-adapter/pom.xml)
+### smartcs-web-adapter [smartcs-web-adapter/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-adapter/pom.xml)
 
 适配层依赖：
 - smartcs-web-app
 - Spring Boot Web
 
-### start [start/pom.xml](mdc:smartcs-web/smartcs-web/start/pom.xml)
+### start [start/pom.xml](mdc:smartcs-web/smartcs-web/smartcs-web/start/pom.xml)
 
 启动模块依赖：
 - smartcs-web-adapter

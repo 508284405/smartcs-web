@@ -1,5 +1,7 @@
 package com.leyue.smartcs.domain.chat;
 
+import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import lombok.Data;
 import java.util.List;
 

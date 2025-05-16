@@ -2,7 +2,7 @@ package com.leyue.smartcs.user;
 
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
-import com.leyue.smartcs.api.user.UserService;
+import com.leyue.smartcs.api.UserService;
 import com.leyue.smartcs.context.UserContext;
 import com.leyue.smartcs.user.executor.UserValidateTokenCmdExe;
 import lombok.RequiredArgsConstructor;

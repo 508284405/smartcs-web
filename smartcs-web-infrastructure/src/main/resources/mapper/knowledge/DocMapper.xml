@@ -5,7 +5,7 @@
     <!-- 分页查询文档 -->
     <select id="listByPage" resultType="com.leyue.smartcs.knowledge.dataobject.DocDO">
         SELECT *
-        FROM cs_doc
+        FROM t_cs_doc
         WHERE is_deleted = 0
         <if test="keyword != null and keyword != ''">
             AND title LIKE CONCAT('%', #{keyword}, '%')
@@ -17,7 +17,7 @@
     <!-- 获取总记录数 -->
     <select id="count" resultType="long">
         SELECT COUNT(*)
-        FROM cs_doc
+        FROM t_cs_doc
         WHERE is_deleted = 0
         <if test="keyword != null and keyword != ''">
             AND title LIKE CONCAT('%', #{keyword}, '%')

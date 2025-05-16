@@ -3,7 +3,7 @@ package com.leyue.smartcs.chat.serviceimpl;
 import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.chat.executor.CreateSessionCmdExe;
 import com.leyue.smartcs.chat.executor.query.PageSessionQryExe;
-import com.leyue.smartcs.chat.service.SessionService;
+import com.leyue.smartcs.api.SessionService;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
@@ -36,20 +36,11 @@ public class SessionServiceImpl implements SessionService {
         return createSessionCmdExe.execute(createSessionCmd);
     }
 
-    @Override
-    public SessionDTO assignAgent(Long sessionId, Long agentId) {
-        return assignAgent(sessionId, agentId, null);
-    }
 
     @Override
     public SessionDTO assignAgent(Long sessionId, Long agentId, String agentName) {
         Session session = sessionDomainService.assignAgent(sessionId, agentId, agentName);
         return convertToDTO(session);
-    }
-
-    @Override
-    public SessionDTO closeSession(Long sessionId) {
-        return closeSession(sessionId, null);
     }
 
     @Override

@@ -1,0 +1,110 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Java 17 使用规则
+
+## 概述
+本项目统一使用 Java 17 版本进行开发。所有新代码和代码修改都应遵循 Java 17 的特性和最佳实践。
+
+## 主要特性和使用指南
+
+### 1. Records (记录类型)
+- **用途**: 主要用于创建简单的数据载体类（POJO）。
+- **优点**: 自动生成构造函数、getter、`equals()`、`hashCode()` 和 `toString()` 方法，代码简洁。
+- **使用**: 
+  ```java
+  public record Point(int x, int y) { }
+  ```
+- **注意**: Record 是 final 的，并且其字段也是 final 的。
+
+### 2. Sealed Classes (密封类和接口)
+- **用途**: 限制一个类或接口的子类或实现类。
+- **优点**: 增强代码的可维护性和安全性，明确继承层级。
+- **使用**:
+  ```java
+  public abstract sealed class Shape 
+      permits Circle, Rectangle, Square { ... }
+  
+  public final class Circle extends Shape { ... }
+  public final class Rectangle extends Shape { ... }
+  public final class Square extends Shape { ... }
+  ```
+- **注意**: `permits` 子句中列出的子类必须与父类在同一个模块或包中（如果父类在未命名模块中）。
+
+### 3. Pattern Matching for `instanceof`
+- **用途**: 简化 `instanceof` 检查和类型转换。
+- **优点**: 减少模板代码，提高可读性。
+- **使用**:
+  ```java
+  Object obj = ...;
+  if (obj instanceof String s) {
+      //可以直接使用变量 s，无需显式转换
+      System.out.println(s.toUpperCase());
+  } 
+  ```
+
+### 4. Switch Expressions (Switch 表达式)
+- **用途**: 作为表达式使用 `switch`，可以返回值，语法更简洁。
+- **优点**: 提高代码可读性，减少 `break` 语句的使用。
+- **使用**:
+  ```java
+  String dayType = switch (day) {
+      case MONDAY, FRIDAY, SUNDAY -> "Weekend";
+      case TUESDAY, WEDNESDAY, THURSDAY -> "Weekday";
+      default -> "Invalid day";
+  };
+  ```
+- **注意**: `switch` 表达式要求覆盖所有可能的情况，或者提供一个 `default` 分支。
+
+### 5. Text Blocks (文本块)
+- **用途**: 方便地创建多行字符串字面量。
+- **优点**: 提高包含 JSON、XML、SQL 等多行文本的可读性，无需大量转义字符。
+- **使用**:
+  ```java
+  String html = """
+                <html>
+                    <body>
+                        <p>Hello, Java 17!</p>
+                    </body>
+                </html>
+                """;
+  ```
+
+### 6. Foreign Function & Memory API (Incubator)
+- **用途**: 用于与 Java 运行时之外的代码和数据进行互操作。
+- **注意**: 这是一个孵化功能，API 可能会在未来版本中发生变化。谨慎在生产环境中使用。
+
+### 7. Vector API (Incubator)
+- **用途**: 用于表达在支持的 CPU 架构上能够清晰编译为最佳向量硬件指令的向量计算。
+- **注意**: 同上，孵化功能。
+
+## 其他重要更新
+- **强封装 JDK 内部 API**: 默认情况下，不能再通过反射访问 JDK 的内部 API，除非明确通过 `--add-opens` 命令行选项打开。
+- **移除 AOT 和 JIT 编译器 GraalVM**: 从 JDK 17 开始，实验性的 AOT 和 JIT 编译器已被移除。如有需要，可以考虑使用 GraalVM CE/EE。
+- **弃用 Applet API**: Applet API 已被标记为弃用，并将在未来版本中移除。
+
+## 编码风格和最佳实践
+- 优先使用 Java 17 的新特性来简化代码和提高可读性。
+- 对于 Records，如果需要自定义构造函数或添加静态方法，可以正常添加。
+- 在使用 Sealed Classes 时，仔细考虑继承层次，确保其封闭性符合设计意图。
+- 充分利用 Switch Expressions 减少冗余的 `break` 和临时变量。
+- 编写涉及多行字符串的代码时，优先使用文本块。
+
+## 依赖管理
+- 确保项目依赖的库与 Java 17 兼容。查看库的官方文档以获取兼容性信息。
+- 更新 Maven或 Gradle 构建脚本中的 Java 版本配置为 17。
+  例如，在 `pom.xml` 中：
+  ```xml
+  <properties>
+      <maven.compiler.source>17</maven.compiler.source>
+      <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+  ```
+
+## 参考资料
+- [OpenJDK JDK 17 Features](mdc:smartcs-web/smartcs-web/https:/openjdk.java.net/projects/jdk/17)
+- [Oracle JDK 17 Documentation](mdc:smartcs-web/smartcs-web/https:/docs.oracle.com/en/java/javase/17)
+
+通过遵循这些规则，可以确保项目代码库的现代化、一致性和可维护性。

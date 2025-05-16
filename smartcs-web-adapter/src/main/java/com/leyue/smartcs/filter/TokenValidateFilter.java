@@ -1,14 +1,14 @@
 package com.leyue.smartcs.filter;
 
 import com.alibaba.fastjson2.JSONObject;
-import com.leyue.smartcs.api.user.UserService;
+import com.leyue.smartcs.api.UserService;
 import com.leyue.smartcs.config.WhiteListProperties;
 import com.leyue.smartcs.context.UserContext;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -21,13 +21,11 @@ import java.io.PrintWriter;
 @Slf4j
 @Component
 @Order(1)
+@RequiredArgsConstructor
 public class TokenValidateFilter implements Filter {
 
-    @Autowired
-    private UserService userService;
-    
-    @Autowired
-    private WhiteListProperties whiteListProperties;
+    private final UserService userService;
+    private final WhiteListProperties whiteListProperties;
     
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 

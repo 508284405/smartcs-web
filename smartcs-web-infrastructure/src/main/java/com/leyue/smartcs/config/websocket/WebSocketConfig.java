@@ -1,6 +1,5 @@
 package com.leyue.smartcs.config.websocket;
 
-import com.leyue.smartcs.api.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;

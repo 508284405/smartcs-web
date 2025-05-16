@@ -4,7 +4,7 @@ import com.leyue.smartcs.chat.executor.SendMessageCmdExe;
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import com.leyue.smartcs.dto.chat.GetMessagesQry;
-import com.leyue.smartcs.chat.service.MessageService;
+import com.leyue.smartcs.api.MessageService;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
 import lombok.RequiredArgsConstructor;

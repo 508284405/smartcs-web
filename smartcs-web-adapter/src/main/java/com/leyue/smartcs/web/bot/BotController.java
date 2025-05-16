@@ -1,10 +1,10 @@
 package com.leyue.smartcs.web.bot;
 
 import com.alibaba.cola.dto.SingleResponse;
-import com.leyue.smartcs.bot.api.BotService;
-import com.leyue.smartcs.bot.dto.BotChatRequest;
-import com.leyue.smartcs.bot.dto.BotChatResponse;
-import com.leyue.smartcs.bot.dto.BotContextDTO;
+import com.leyue.smartcs.api.BotService;
+import com.leyue.smartcs.dto.bot.BotChatRequest;
+import com.leyue.smartcs.dto.bot.BotChatResponse;
+import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
