@@ -1,6 +1,9 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
+import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
+import com.leyue.smartcs.dto.knowledge.FaqDTO;
+import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 
 import java.util.List;
 import java.util.Optional;
@@ -44,7 +47,7 @@ public interface FaqGateway {
      * @param pageSize 每页大小
      * @return FAQ列表
      */
-    List<Faq> listByPage(String keyword, int pageNum, int pageSize);
+    PageResponse<FaqDTO> listByPage(KnowledgeSearchQry qry);
     
     /**
      * 获取总记录数

@@ -33,6 +33,12 @@ public class DocDO extends BaseDO {
     private String fileType;
     
     /**
+     * 文件大小（字节）
+     */
+    @TableField("file_size")
+    private Long fileSize;
+    
+    /**
      * 版本号
      */
     @TableField("version_no")

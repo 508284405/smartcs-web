@@ -16,9 +16,9 @@
     <select id="findMessagesBySessionIdBeforeMessageId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
         SELECT * FROM t_cs_message WHERE session_id = #{sessionId}
         AND is_deleted = 0
-        AND (created_at < (SELECT created_at FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)
+        AND (created_at &lt; (SELECT created_at FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)
              OR (created_at = (SELECT created_at FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)
-                 AND id < (SELECT id FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)))
+                 AND id &lt; (SELECT id FROM t_cs_message WHERE msg_id = #{beforeMessageId} AND is_deleted = 0)))
         ORDER BY created_at DESC, id DESC LIMIT #{limit}
     </select>
     

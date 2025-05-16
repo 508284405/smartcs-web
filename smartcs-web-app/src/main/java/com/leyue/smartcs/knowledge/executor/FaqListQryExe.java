@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.PageResponse;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
@@ -28,30 +29,8 @@ public class FaqListQryExe {
      * @return FAQ列表（分页）
      */
     public PageResponse<FaqDTO> execute(KnowledgeSearchQry qry) {
-        log.info("执行FAQ列表查询: {}", qry);
-        
-        // 获取分页参数
-        Integer pageNum = qry.getPageIndex();
-        Integer pageSize = qry.getPageSize();
-        String keyword = qry.getKeyword();
-        
-        if (pageNum == null || pageNum < 1) {
-            pageNum = 1;
-        }
-        
-        if (pageSize == null || pageSize < 1) {
-            pageSize = 10;
-        }
-        
         // 执行查询
-        List<Faq> faqs = faqGateway.listByPage(keyword, pageNum, pageSize);
-        long total = faqGateway.count(keyword);
-        
-        // 转换结果
-        List<FaqDTO> faqDTOs = convertToDTOs(faqs);
-        
-        log.info("FAQ列表查询完成，共 {} 条记录", total);
-        return PageResponse.of(faqDTOs, pageSize, pageNum, (int)total);
+        return faqGateway.listByPage(qry);
     }
     
     /**

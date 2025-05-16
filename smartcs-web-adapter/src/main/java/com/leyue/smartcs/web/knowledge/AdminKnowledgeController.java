@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
  * 知识域REST接口
  */
 @RestController
-@RequestMapping("/api/knowledge")
+@RequestMapping("/api/admin/knowledge")
 @RequiredArgsConstructor
 @Slf4j
 public class AdminKnowledgeController {
@@ -45,18 +45,7 @@ public class AdminKnowledgeController {
      * 查询FAQ列表
      */
     @GetMapping("/faq")
-    public PageResponse<FaqDTO> listFaqs(
-            @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "page", defaultValue = "1") Integer page,
-            @RequestParam(value = "size", defaultValue = "10") Integer size) {
-        
-        log.info("查询FAQ列表请求: keyword={}, page={}, size={}", keyword, page, size);
-        
-        KnowledgeSearchQry qry = new KnowledgeSearchQry();
-        qry.setKeyword(keyword);
-        qry.setPageIndex(page);
-        qry.setPageSize(size);
-        
+    public PageResponse<FaqDTO> listFaqs(KnowledgeSearchQry qry) {
         return knowledgeService.listFaqs(qry);
     }
     

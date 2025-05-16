@@ -31,6 +31,11 @@ public class DocAddCmd extends Command {
     private String fileType;
     
     /**
+     * 文件大小（字节）
+     */
+    private Long fileSize;
+    
+    /**
      * 版本号
      */
     private Integer version = 1;
