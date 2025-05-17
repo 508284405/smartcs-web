@@ -130,7 +130,7 @@ public class DocEmbeddingGenerateListener {
             // 分段
             if (fullText != null && !fullText.isEmpty()) {
                 // TODO: 根据实际业务逻辑确定分段策略名称
-                String strategyName = "defaultStrategy"; // 临时使用默认策略名
+                String strategyName = "Paragraph"; // 临时使用默认策略名
                 SegmentStrategy strategy = segmentStrategyFactory.getStrategy(strategyName);
                 contentChunks = strategy.segment(fullText);
                 log.info("文档内容分段完成，共 {} 段，策略: {}", 
@@ -154,7 +154,7 @@ public class DocEmbeddingGenerateListener {
         
         try {
             // 调用LLM服务生成向量
-            List<String> vectors = llmGateway.generateEmbeddings(contentChunks);
+            List<byte[]> vectors = llmGateway.generateEmbeddings(contentChunks);
             
             // 构建Embedding对象列表
             for (int i = 0; i < contentChunks.size(); i++) {

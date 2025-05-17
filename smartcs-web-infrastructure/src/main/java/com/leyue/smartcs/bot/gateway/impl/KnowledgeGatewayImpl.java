@@ -24,9 +24,9 @@ public class KnowledgeGatewayImpl implements KnowledgeGateway {
     private final KnowledgeService knowledgeService;
     
     @Override
-    public List<Map<String, Object>> searchByVector(String vector, int k, float threshold) {
+    public List<Map<String, Object>> searchByVector(byte[] vector, int k, float threshold) {
         try {
-            log.info("向量检索: vector长度={}, k={}, threshold={}", vector.length(), k, threshold);
+            log.info("向量检索: vector长度={}, k={}, threshold={}", vector.length, k, threshold);
             
             KnowledgeSearchQry qry = new KnowledgeSearchQry();
             qry.setVector(vector);

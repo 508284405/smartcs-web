@@ -3,14 +3,21 @@ package com.leyue.smartcs.knowledge.executor;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqAddCmd;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+
+import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
+
 
 /**
  * FAQ创建/更新命令执行器
@@ -21,6 +28,13 @@ import java.util.Optional;
 public class FaqAddCmdExe {
     
     private final FaqGateway faqGateway;
+    private final TextSearchGateway textSearchGateway;
+    
+
+    @PostConstruct
+    public void init() {
+        log.info("初始化FAQ搜索功能");
+    }
     
     /**
      * 执行FAQ创建/更新命令
@@ -64,10 +78,24 @@ public class FaqAddCmdExe {
             log.info("创建新FAQ");
         }
         
-        // 保存并转换结果
+        // 保存实体
         Faq savedFaq = faqGateway.save(faq);
-        FaqDTO faqDTO = convertToDTO(savedFaq);
         
+        // 同步到搜索索引
+        try {
+            Map<String, Object> searchDocument = convertToSearchDocument(savedFaq);
+            boolean indexed = textSearchGateway.indexDocument(FAQ_INDEX_REDISEARCH, savedFaq.getId(), searchDocument);
+            if (!indexed) {
+                log.warn("FAQ搜索索引同步失败: {}", savedFaq.getId());
+                throw new BizException("FAQ搜索索引同步失败");
+            }
+        } catch (Exception e) {
+            log.error("FAQ搜索索引同步异常: {}", savedFaq.getId(), e);
+            return SingleResponse.of(convertToDTO(savedFaq));
+        }
+        
+        // 转换并返回结果
+        FaqDTO faqDTO = convertToDTO(savedFaq);
         return SingleResponse.of(faqDTO);
     }
     
@@ -89,5 +117,22 @@ public class FaqAddCmdExe {
         dto.setCreatedAt(faq.getCreatedAt());
         dto.setUpdatedAt(faq.getUpdatedAt());
         return dto;
+    }
+
+    /**
+     * 转换为搜索文档
+     * @param faq FAQ实体
+     * @return 搜索文档
+     */
+    private Map<String, Object> convertToSearchDocument(Faq faq) {
+        Map<String, Object> document = new HashMap<>();
+        document.put("question", faq.getQuestion());
+        document.put("answer", faq.getAnswer());
+        document.put("enabled", faq.getEnabled());
+        document.put("hitCount", faq.getHitCount());
+        document.put("version", faq.getVersion());
+        document.put("createdAt", faq.getCreatedAt());
+        document.put("updatedAt", faq.getUpdatedAt());
+        return document;
     }
 } 

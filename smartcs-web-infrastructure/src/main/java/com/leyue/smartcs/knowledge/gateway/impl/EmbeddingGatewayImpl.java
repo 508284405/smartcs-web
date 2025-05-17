@@ -78,7 +78,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
         try {
             List<Embedding> validEmbeddings = result.stream()
                     .filter(Embedding::isValidVector)
-                    .collect(Collectors.toList());
+                    .toList();
             
             if (!validEmbeddings.isEmpty()) {
                 List<Long> ids = validEmbeddings.stream()

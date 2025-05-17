@@ -15,7 +15,7 @@ public interface KnowledgeGateway {
      * @param threshold 相似度阈值
      * @return 检索结果
      */
-    List<Map<String, Object>> searchByVector(String vector, int k, float threshold);
+    List<Map<String, Object>> searchByVector(byte[] vector, int k, float threshold);
     
     /**
      * 文本检索

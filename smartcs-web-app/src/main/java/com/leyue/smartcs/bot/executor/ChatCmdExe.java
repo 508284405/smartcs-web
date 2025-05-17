@@ -137,7 +137,7 @@ public class ChatCmdExe {
         
         // 如果文本检索没有结果，则尝试向量检索（需要先生成嵌入向量）
         try {
-            List<String> embeddings = llmGateway.generateEmbeddings(List.of(question));
+            List<byte[]> embeddings = llmGateway.generateEmbeddings(List.of(question));
             if (!embeddings.isEmpty()) {
                 return knowledgeGateway.searchByVector(embeddings.get(0), k, DEFAULT_THRESHOLD);
             }

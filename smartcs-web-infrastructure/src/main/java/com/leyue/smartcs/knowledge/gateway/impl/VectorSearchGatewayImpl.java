@@ -8,17 +8,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBucket;
 import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
-import org.redisson.api.search.index.IndexOptions;
-import org.redisson.api.search.index.IndexType;
 import org.redisson.api.search.index.FieldIndex;
 import org.redisson.api.search.query.Document;
 import org.redisson.api.search.query.QueryOptions;
-import org.redisson.api.search.query.ReturnAttribute;
 import org.redisson.api.search.query.SearchResult;
 import org.redisson.client.codec.ByteArrayCodec;
-import org.redisson.client.codec.StringCodec;
+import org.redisson.client.codec.DoubleCodec;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -30,90 +28,95 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @Slf4j
 public class VectorSearchGatewayImpl implements VectorSearchGateway {
-    
+
     private final RedissonClient redissonClient;
-    
+
     // 向量数据缓存的过期时间（30天）
-    private static final long VECTOR_CACHE_TTL = 30 * 24 * 60 * 60;
-    
+    private static final long VECTOR_CACHE_TTL = 30;
+
     @Override
     public boolean batchInsert(String collection, List<Long> ids, List<Object> vectors, String partitionKey) {
         if (ids == null || ids.isEmpty() || vectors == null || vectors.isEmpty() || ids.size() != vectors.size()) {
-            log.error("批量写入向量参数无效: collection={}, idsSize={}, vectorsSize={}", 
+            log.error("批量写入向量参数无效: collection={}, idsSize={}, vectorsSize={}",
                     collection, ids == null ? 0 : ids.size(), vectors == null ? 0 : vectors.size());
             return false;
         }
-        
+
         try {
             log.info("批量写入向量: collection={}, size={}, modelType={}", collection, ids.size(), partitionKey);
-            
+
             // 建立元数据索引映射
             RMap<String, String> collectionIndex = redissonClient.getMap(collection + ":index");
-            
+
             // 批量写入
             for (int i = 0; i < ids.size(); i++) {
                 Long id = ids.get(i);
-                byte[] vector = (byte[]) vectors.get(i);
-                
+                Object v = vectors.get(i);
                 // 构建Redis键名（格式: collection:vector:id）
                 String vectorKey = collection + ":vector:" + id;
                 String metadataKey = collection + ":metadata:" + id;
-                
-                // 添加向量数据（使用ByteArrayCodec）
-                RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, ByteArrayCodec.INSTANCE);
-                vectorBucket.set(vector, VECTOR_CACHE_TTL, TimeUnit.SECONDS);
-                
+                if (v instanceof byte[] vector) {
+                    // 添加向量数据（使用ByteArrayCodec）
+                    RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, DoubleCodec.INSTANCE);
+                    vectorBucket.set(vector, Duration.ofDays(VECTOR_CACHE_TTL));
+                }
+                if (v instanceof String) {
+                    byte[] vector = Base64.getDecoder().decode((String) v);
+                    RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, DoubleCodec.INSTANCE);
+                    vectorBucket.set(vector, Duration.ofDays(VECTOR_CACHE_TTL));
+                }
+
                 // 添加元数据
                 RMap<String, String> metadata = redissonClient.getMap(metadataKey);
                 metadata.put("id", id.toString());
                 metadata.put("model_type", partitionKey);
-                metadata.expire(VECTOR_CACHE_TTL, TimeUnit.SECONDS);
-                
+                metadata.expire(Duration.ofDays(VECTOR_CACHE_TTL));
+
                 // 更新索引映射，便于按文档ID查找
                 collectionIndex.put(id.toString(), id.toString());
             }
-            
+
             return true;
         } catch (Exception e) {
             log.error("向量批量写入失败: {}", e.getMessage(), e);
             return false;
         }
     }
-    
+
     @Override
     public boolean delete(String collection, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             log.warn("删除向量的ID列表为空: collection={}", collection);
             return true;
         }
-        
+
         try {
             log.info("删除向量: collection={}, ids.size={}", collection, ids.size());
-            
+
             // 获取索引映射
             RMap<String, String> collectionIndex = redissonClient.getMap(collection + ":index");
-            
+
             // 批量删除
             for (Long id : ids) {
                 // 构建Redis键名
                 String vectorKey = collection + ":vector:" + id;
                 String metadataKey = collection + ":metadata:" + id;
-                
+
                 // 删除向量数据和元数据
                 redissonClient.getBucket(vectorKey).delete();
                 redissonClient.getMap(metadataKey).delete();
-                
+
                 // 从索引中移除
                 collectionIndex.remove(id.toString());
             }
-            
+
             return true;
         } catch (Exception e) {
             log.error("向量删除失败: {}", e.getMessage(), e);
             return false;
         }
     }
-    
+
     /**
      * 创建向量索引。
      * <p>
@@ -124,41 +127,41 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
      * 如果RediSearch索引创建失败，会记录警告日志，并回退到备用搜索方式。
      *
      * @param collection 集合名称，用于构建索引名称和存储相关的元数据。
-     * @param dimension 向量的维度。
-     * @param indexType 索引类型（例如："FLAT", "HNSW"等），目前此参数仅记录在配置中，实际创建的是FLAT向量索引。
+     * @param dimension  向量的维度。
+     * @param indexType  索引类型（例如："FLAT", "HNSW"等），目前此参数仅记录在配置中，实际创建的是FLAT向量索引。
      * @return 如果索引创建（或配置记录）成功，则返回 true；否则返回 false。
      */
     @Override
     public boolean createIndex(String collection, int dimension, String indexType) {
         try {
             log.info("创建索引映射: collection={}, dimension={}, indexType={}", collection, dimension, indexType);
-            
+
             // 记录索引配置信息
             RMap<String, String> indexConfig = redissonClient.getMap(collection + ":config");
             indexConfig.put("dimension", String.valueOf(dimension));
             indexConfig.put("index_type", indexType);
             indexConfig.put("created_at", String.valueOf(System.currentTimeMillis()));
-            
+
             try {
                 // 使用RediSearch创建向量索引
                 String indexName = collection + "_idx";
                 redissonClient.getSearch().createIndex(indexName,
-                    org.redisson.api.search.index.IndexOptions.defaults()
-                        .on(org.redisson.api.search.index.IndexType.HASH)
-                        .prefix(collection + ":vector:"),
+                        org.redisson.api.search.index.IndexOptions.defaults()
+                                .on(org.redisson.api.search.index.IndexType.HASH)
+                                .prefix(collection + ":vector:"),
                         (FieldIndex) FieldIndex.flatVector("vector").as("vector"));
                 log.info("向量索引创建成功: {}", indexName);
             } catch (Exception e) {
                 log.warn("向量索引创建失败，使用备用搜索方式: {}", e.getMessage());
             }
-            
+
             return true;
         } catch (Exception e) {
             log.error("创建索引失败: {}", e.getMessage(), e);
             return false;
         }
     }
-    
+
     /**
      * 在指定集合中搜索与查询向量最相似的Top-K个向量。
      * <p>
@@ -173,24 +176,24 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
      * 方法会记录警告并自动回退到 {@link #legacySearchTopK} 方法，该方法通过迭代集合中的所有向量，
      * 计算余弦相似度来进行搜索。
      *
-     * @param collection 集合名称，从中检索向量。
+     * @param collection  集合名称，从中检索向量。
      * @param queryVector 查询向量的字节数组表示。
-     * @param k 要返回的最相似向量的数量。
-     * @param modelType （可选）模型类型，用于过滤结果。如果为null，则不进行模型类型过滤。
-     * @param threshold 相似度阈值，只有相似度大于或等于此阈值的结果才会被返回。
+     * @param k           要返回的最相似向量的数量。
+     * @param modelType   （可选）模型类型，用于过滤结果。如果为null，则不进行模型类型过滤。
+     * @param threshold   相似度阈值，只有相似度大于或等于此阈值的结果才会被返回。
      * @return 一个Map，其中键是向量的ID（Long类型），值是对应的相似度得分（Float类型）。
-     *         如果发生错误或未找到符合条件的结果，则返回空Map。
+     * 如果发生错误或未找到符合条件的结果，则返回空Map。
      */
     @Override
     public Map<Long, Float> searchTopK(String collection, byte[] queryVector, int k, String modelType, float threshold) {
         try {
-            log.info("向量检索: collection={}, vectorSize={}, k={}, modelType={}, threshold={}", 
+            log.info("向量检索: collection={}, vectorSize={}, k={}, modelType={}, threshold={}",
                     collection, queryVector.length, k, modelType, threshold);
-            
+
             // 使用RediSearch进行向量搜索
             String indexName = collection + "_idx";
             float[] floatVector = bytesToFloats(queryVector);
-            
+
             try {
                 // 尝试使用RediSearch的向量搜索功能
                 String query = "*=>[KNN " + k + " @vector $vector AS score]";
@@ -198,13 +201,13 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
                 Map<String, Object> params = new HashMap<>();
                 params.put("vector", floatVector);
                 SearchResult result = redissonClient.getSearch().search(indexName,
-                    query,
-                    QueryOptions.defaults()
-                            .params(params)
-                            .dialect(2));
-                
+                        query,
+                        QueryOptions.defaults()
+                                .params(params)
+                                .dialect(2));
+
                 Map<Long, Float> similarities = new HashMap<>();
-                
+
                 for (Document document : result.getDocuments()) {
                     // 从文档键中提取ID
                     String key = document.getId();
@@ -213,19 +216,19 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
                         try {
                             Long id = Long.parseLong(parts[parts.length - 1]);
                             float score = Float.parseFloat(document.getScore().toString());
-                            
+
                             // 如果指定了模型类型，则需要检查
                             if (modelType != null) {
                                 String metadataKey = collection + ":metadata:" + id;
                                 RMap<String, String> metadata = redissonClient.getMap(metadataKey);
                                 String storedModelType = metadata.get("model_type");
-                                
+
                                 // 如果模型类型不匹配，则跳过
                                 if (!modelType.equals(storedModelType)) {
                                     continue;
                                 }
                             }
-                            
+
                             // 只保留相似度大于阈值的结果
                             if (score >= threshold) {
                                 similarities.put(id, score);
@@ -235,7 +238,7 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
                         }
                     }
                 }
-                
+
                 return similarities;
             } catch (Exception e) {
                 log.warn("RediSearch向量搜索失败，使用备用方法: {}", e.getMessage());
@@ -247,59 +250,59 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
             return Collections.emptyMap();
         }
     }
-    
+
     /**
      * 原始的备用搜索方法（当RediSearch不可用时使用）
      */
     private Map<Long, Float> legacySearchTopK(String collection, byte[] queryVector, int k, String modelType, float threshold) {
         try {
             log.info("使用备用方法进行向量检索");
-            
+
             // 获取集合索引映射
             RMap<String, String> collectionIndex = redissonClient.getMap(collection + ":index");
-            
+
             // 获取所有ID
             Set<String> idStrings = collectionIndex.keySet();
             if (idStrings.isEmpty()) {
                 log.warn("集合为空，无法进行检索: {}", collection);
                 return Collections.emptyMap();
             }
-            
+
             // 计算与每个向量的相似度
             Map<Long, Float> similarities = new HashMap<>();
-            
+
             for (String idStr : idStrings) {
                 Long id = Long.parseLong(idStr);
-                
+
                 // 获取向量数据
                 String vectorKey = collection + ":vector:" + id;
                 RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, ByteArrayCodec.INSTANCE);
                 byte[] storedVector = vectorBucket.get();
-                
+
                 if (storedVector == null) {
                     log.warn("未找到向量数据: {}", vectorKey);
                     continue;
                 }
-                
+
                 // 获取元数据，检查模型类型
                 String metadataKey = collection + ":metadata:" + id;
                 RMap<String, String> metadata = redissonClient.getMap(metadataKey);
                 String storedModelType = metadata.get("model_type");
-                
+
                 // 如果指定了模型类型且不匹配，则跳过
                 if (modelType != null && !modelType.equals(storedModelType)) {
                     continue;
                 }
-                
+
                 // 计算余弦相似度
                 float similarity = calculateCosineSimilarity(queryVector, storedVector);
-                
+
                 // 只保留相似度大于阈值的结果
                 if (similarity >= threshold) {
                     similarities.put(id, similarity);
                 }
             }
-            
+
             // 根据相似度排序并获取Top-K结果
             return getTopK(similarities, k);
         } catch (Exception e) {
@@ -307,7 +310,7 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
             return Collections.emptyMap();
         }
     }
-    
+
     /**
      * 计算两个向量的余弦相似度
      */
@@ -316,17 +319,17 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
         if (vector1.length != vector2.length) {
             throw new IllegalArgumentException("向量长度不匹配: " + vector1.length + " vs " + vector2.length);
         }
-        
+
         // 将字节数组转换为浮点数数组（假设每个浮点数占用4个字节）
         float[] floatVector1 = bytesToFloats(vector1);
         float[] floatVector2 = bytesToFloats(vector2);
-        
+
         // 计算点积
         float dotProduct = 0.0f;
         for (int i = 0; i < floatVector1.length; i++) {
             dotProduct += floatVector1[i] * floatVector2[i];
         }
-        
+
         // 计算范数
         float norm1 = 0.0f;
         float norm2 = 0.0f;
@@ -336,14 +339,14 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
         }
         norm1 = (float) Math.sqrt(norm1);
         norm2 = (float) Math.sqrt(norm2);
-        
+
         // 计算余弦相似度
         if (norm1 == 0 || norm2 == 0) {
             return 0.0f;
         }
         return dotProduct / (norm1 * norm2);
     }
-    
+
     /**
      * 将字节数组转换为浮点数数组
      */
@@ -355,7 +358,7 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
         }
         return floats;
     }
-    
+
     /**
      * 获取相似度最高的K个结果
      */

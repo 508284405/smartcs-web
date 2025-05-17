@@ -6,6 +6,7 @@ import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -62,4 +63,12 @@ public interface FaqGateway {
      * @return 新的命中次数
      */
     long incrementHitCount(Long id);
+    
+    /**
+     * 根据问题文本进行全文检索
+     * @param keyword 关键词
+     * @param k 返回数量
+     * @return FAQ ID与相关性分数的映射
+     */
+    Map<Long, Float> searchByQuestionFullText(String keyword, int k);
 } 

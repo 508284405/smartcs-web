@@ -21,7 +21,7 @@ public interface LLMGateway {
      * @param texts 文本列表
      * @return 嵌入向量列表（Base64编码）
      */
-    List<String> generateEmbeddings(List<String> texts);
+    List<byte[]> generateEmbeddings(List<String> texts);
     
     /**
      * 获取可用模型列表

@@ -3,10 +3,13 @@ package com.leyue.smartcs.knowledge.executor;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
 
 /**
  * FAQ删除命令执行器
@@ -17,7 +20,8 @@ import org.springframework.stereotype.Component;
 public class FaqDeleteCmdExe {
     
     private final FaqGateway faqGateway;
-    
+
+    private final TextSearchGateway textSearchGateway;
     /**
      * 执行FAQ删除命令
      * @param cmd FAQ ID
@@ -44,6 +48,9 @@ public class FaqDeleteCmdExe {
         if (!success) {
             return Response.buildFailure("FAQ-DELETE-ERROR", "删除FAQ失败");
         }
+
+        // 删除索引
+        textSearchGateway.deleteDocument(FAQ_INDEX_REDISEARCH, faqId);
         
         log.info("成功删除FAQ, ID: {}", faqId);
         return Response.buildSuccess();

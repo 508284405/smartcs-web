@@ -74,25 +74,31 @@ public class LLMGatewayImpl implements LLMGateway {
     }
     
     @Override
-    public List<String> generateEmbeddings(List<String> texts) {
+    public List<byte[]> generateEmbeddings(List<String> texts) {
         try {
             log.info("生成嵌入向量, 文本数量: {}", texts.size());
             
-            EmbeddingResponse response = embeddingModel.embedForResponse(texts);
+            final int BATCH_SIZE = 25; // Maximum batch size for embedding model
+            List<byte[]> encodedEmbeddings = new ArrayList<>(texts.size());
             
-            List<String> encodedEmbeddings = new ArrayList<>(texts.size());
-            for (int i = 0; i < response.getResults().size(); i++) {
-                float[] embedding = response.getResults().get(i).getOutput();
-                byte[] bytes = new byte[embedding.length * 4];
-                for (int j = 0; j < embedding.length; j++) {
-                    int intBits = Float.floatToIntBits(embedding[j]);
-                    bytes[j * 4] = (byte) (intBits & 0xff);
-                    bytes[j * 4 + 1] = (byte) ((intBits >> 8) & 0xff);
-                    bytes[j * 4 + 2] = (byte) ((intBits >> 16) & 0xff);
-                    bytes[j * 4 + 3] = (byte) ((intBits >> 24) & 0xff);
+            for (int i = 0; i < texts.size(); i += BATCH_SIZE) {
+                int endIndex = Math.min(i + BATCH_SIZE, texts.size());
+                List<String> batch = texts.subList(i, endIndex);
+                log.debug("处理嵌入向量批次: {}-{}", i, endIndex);
+                EmbeddingResponse response = embeddingModel.embedForResponse(batch);
+                
+                for (int j = 0; j < response.getResults().size(); j++) {
+                    float[] embedding = response.getResults().get(j).getOutput();
+                    byte[] bytes = new byte[embedding.length * 4];
+                    for (int k = 0; k < embedding.length; k++) {
+                        int intBits = Float.floatToIntBits(embedding[k]);
+                        bytes[k * 4] = (byte) (intBits & 0xff);
+                        bytes[k * 4 + 1] = (byte) ((intBits >> 8) & 0xff);
+                        bytes[k * 4 + 2] = (byte) ((intBits >> 16) & 0xff);
+                        bytes[k * 4 + 3] = (byte) ((intBits >> 24) & 0xff);
+                    }
+                    encodedEmbeddings.add(bytes);
                 }
-                String encodedEmbedding = Base64.getEncoder().encodeToString(bytes);
-                encodedEmbeddings.add(encodedEmbedding);
             }
             
             return encodedEmbeddings;

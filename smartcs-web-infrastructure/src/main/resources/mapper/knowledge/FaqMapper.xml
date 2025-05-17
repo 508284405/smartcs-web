@@ -2,6 +2,11 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.leyue.smartcs.knowledge.mapper.FaqMapper">
     
+    <resultMap id="faqScoreResultMap" type="com.leyue.smartcs.dto.knowledge.FaqScoreVO">
+        <id property="id" column="id"/>
+        <result property="score" column="score"/>
+    </resultMap>
+    
     <!-- 根据问题查询FAQ（模糊匹配） -->
     <select id="findByQuestionLike" resultType="com.leyue.smartcs.knowledge.dataobject.FaqDO">
         SELECT *
@@ -32,12 +37,21 @@
             AND (question LIKE CONCAT('%', #{keyword}, '%') OR answer_text LIKE CONCAT('%', #{keyword}, '%'))
         </if>
     </select>
-    
+    <!-- 根据问题文本进行全文检索 -->
+    <select id="searchByQuestionFullText" resultMap="faqScoreResultMap">
+        SELECT id, MATCH(question, answer_text) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE) AS score
+        FROM t_cs_faq
+        WHERE is_deleted = 0
+        AND MATCH(question, answer_text) AGAINST(#{keyword} IN NATURAL LANGUAGE MODE) > 0
+        ORDER BY score DESC
+        LIMIT #{k}
+    </select>
+
     <!-- 增加命中次数 -->
     <update id="incrementHitCount">
         UPDATE t_cs_faq
         SET hit_count = hit_count + 1,
-            updated_at = #{updatedAt}
+            updated_at = #{now}
         WHERE id = #{id}
           AND is_deleted = 0
     </update>

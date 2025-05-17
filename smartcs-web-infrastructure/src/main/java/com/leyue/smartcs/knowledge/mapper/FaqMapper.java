@@ -2,10 +2,12 @@ package com.leyue.smartcs.knowledge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.leyue.smartcs.knowledge.dataobject.FaqDO;
+import com.leyue.smartcs.dto.knowledge.FaqScoreVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * FAQ Mapper接口
@@ -41,5 +43,13 @@ public interface FaqMapper extends BaseMapper<FaqDO> {
      * @param id FAQ ID
      * @return 受影响行数
      */
-    int incrementHitCount(@Param("id") Long id);
+    int incrementHitCount(@Param("id") Long id,  @Param("now") long now);
+    
+    /**
+     * 根据问题文本进行全文检索
+     * @param keyword 关键词
+     * @param k 返回数量
+     * @return FAQ ID与相关性分数的映射
+     */
+    List<FaqScoreVO> searchByQuestionFullText(@Param("keyword") String keyword, @Param("k") int k);
 } 

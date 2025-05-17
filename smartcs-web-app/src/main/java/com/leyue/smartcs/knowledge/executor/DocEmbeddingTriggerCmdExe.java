@@ -61,7 +61,6 @@ public class DocEmbeddingTriggerCmdExe {
         
         eventPublisher.publishEvent(event);
         log.info("文档向量生成事件已发布: {}", event);
-        
         log.info("文档向量生成任务已触发，文档ID: {}", docId);
         return Response.buildSuccess();
     }

@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
+
 /**
  * 文本检索查询执行器
  */
@@ -72,6 +74,9 @@ public class TextSearchQryExe {
             }
             
             log.info("文本检索查询完成，共 {} 组结果", results.size());
+
+            // embeddingResults 按照分数排序
+            results.forEach(result -> result.getEmbeddingResults().sort((o1, o2) -> o2.getScore().compareTo(o1.getScore())));
             return MultiResponse.of(results);
             
         } catch (Exception e) {
@@ -88,7 +93,7 @@ public class TextSearchQryExe {
      */
     private KnowledgeSearchResult searchFaq(String keyword, int k) {
         // 调用全文检索查询FAQ
-        Map<Long, Float> faqSearchResults = textSearchGateway.searchByKeyword("cs_faq", keyword, k);
+        Map<Long, Float> faqSearchResults = textSearchGateway.searchByKeyword(FAQ_INDEX_REDISEARCH, keyword, k);
         
         // 没有结果则返回null
         if (faqSearchResults == null || faqSearchResults.isEmpty()) {
