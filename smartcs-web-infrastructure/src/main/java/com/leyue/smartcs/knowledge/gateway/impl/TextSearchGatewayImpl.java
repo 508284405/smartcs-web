@@ -1,23 +1,34 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
+import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
+import com.leyue.smartcs.knowledge.gateway.impl.common.SearchResultDecoder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.Redisson;
+import org.redisson.api.RFuture;
 import org.redisson.api.RMap;
 import org.redisson.api.RSearch;
 import org.redisson.api.RedissonClient;
 import org.redisson.api.search.index.FieldIndex;
 import org.redisson.api.search.index.IndexOptions;
 import org.redisson.api.search.index.IndexType;
-import org.redisson.api.search.query.Document;
-import org.redisson.api.search.query.QueryOptions;
-import org.redisson.api.search.query.SearchResult;
+import org.redisson.api.search.query.*;
+import org.redisson.client.codec.Codec;
 import org.redisson.client.codec.StringCodec;
-import org.redisson.codec.JsonJacksonCodec;
-import org.redisson.codec.TypedJsonJacksonCodec;
+import org.redisson.client.protocol.RedisStrictCommand;
+import org.redisson.client.protocol.decoder.ListMultiDecoder2;
+import org.redisson.client.protocol.decoder.ObjectListReplayDecoder;
+import org.redisson.client.protocol.decoder.ObjectMapReplayDecoder;
+import org.redisson.client.protocol.decoder.SearchResultDecoderV2;
+import org.redisson.codec.CompositeCodec;
+import org.redisson.command.CommandAsyncExecutor;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,29 +50,24 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
      * @return ID与分数的映射
      */
     @Override
-    public Map<Long, Float> searchByKeyword(String index, String keyword, int k) {
+    public Map<Long, Double> searchByKeyword(String index, String keyword, int k) {
+//            // 构建查询语句，使用模糊匹配
+        String query = "*" + escapeQueryChars(keyword) + "*";
+//
+        // 设置查询选项
+        QueryOptions options = QueryOptions.defaults()
+                .withScores(true)
+                .limit(0, k);
         try {
-            RSearch search = redissonClient.getSearch();
-
-            // 构建查询语句，使用模糊匹配
-            String query = "*" + keyword + "*";
-
-            // 设置查询选项
-            QueryOptions options = QueryOptions.defaults()
-                    .withScores(true)
-                    .limit(0, k);
-
-            // 执行搜索
-            SearchResult result = search.search(index, query, options);
-
+            SearchResult result = searchAsync(index, query, options).join();
             // 处理搜索结果
-            Map<Long, Float> resultMap = new HashMap<>();
+            Map<Long, Double> resultMap = new HashMap<>();
             for (Document doc : result.getDocuments()) {
                 String docId = doc.getId();
                 try {
-                    float score = doc.getScore().floatValue();
+                    double score = doc.getScore();
                     // docId去除索引前缀
-                    Long id = Long.parseLong(docId.substring(index.indexOf(":") + 1));
+                    Long id = Long.parseLong(docId.substring(index.length() + 1));
                     resultMap.put(id, score);
                 } catch (NumberFormatException e) {
                     log.warn("无法解析文档ID: {}", docId);
@@ -127,15 +133,15 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
      * @return 是否成功
      */
     @Override
-    public boolean indexDocument(String index, Long id, Map<String, Object> source) {
+    public boolean indexDocument(String index, Long id, Object source) {
         // 创建索引
         // 将source的key转成FieldIndex
         try {
             String documentKey = index + ":" + id;
-            RMap<String, Object> map = redissonClient.getMap(documentKey);
+            RMap<String, Object> map = redissonClient.getMap(documentKey, new CompositeCodec(StringCodec.INSTANCE, redissonClient.getConfig().getCodec()));
 
             // 使用RedissonClient存储为哈希 (RediSearch会根据索引配置自动索引)
-            map.putAll(source);
+            map.putAll(JSONObject.parseObject(JSONObject.toJSONString(source)));
 
             log.info("成功索引文档: index={}, id={}", index, id);
             return true;
@@ -234,5 +240,203 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
         }
         // 转义RediSearch查询中的特殊字符
         return input.replaceAll("([,\\\\/\\!\\{\\}\\[\\]\\(\\)\\\"\\^~\\*:])", "\\\\$1");
+    }
+
+
+    public RFuture<SearchResult> searchAsync(String indexName, String query, QueryOptions options) {
+        Codec codec = redissonClient.getConfig().getCodec();
+        Redisson redisson = (Redisson) redissonClient;
+
+// 拿到内部的 CommandAsyncExecutor
+        CommandAsyncExecutor commandExecutor = redisson.getCommandExecutor();
+        List<Object> args = new ArrayList<>();
+        args.add(indexName);
+        args.add(query);
+
+        if (options.isNoContent()) {
+            args.add("NOCONTENT");
+        }
+        if (options.isVerbatim()) {
+            args.add("VERBATIM");
+        }
+        if (options.isNoStopwords()) {
+            args.add("NOSTOPWORDS");
+        }
+        if (options.isWithScores()) {
+            args.add("WITHSCORES");
+        }
+        if (options.isWithSortKeys()) {
+            args.add("WITHSORTKEYS");
+        }
+        for (QueryFilter filter : options.getFilters()) {
+            if (filter instanceof NumericFilterParams) {
+                NumericFilterParams params = (NumericFilterParams) filter;
+                args.add("FILTER");
+                args.add(params.getFieldName());
+                args.add(value(params.getMin(), params.isMinExclusive()));
+                args.add(value(params.getMax(), params.isMaxExclusive()));
+            }
+        }
+        for (QueryFilter filter : options.getFilters()) {
+            if (filter instanceof GeoFilterParams) {
+                GeoFilterParams params = (GeoFilterParams) filter;
+                args.add("GEOFILTER");
+                args.add(params.getFieldName());
+                args.add(params.getLongitude());
+                args.add(params.getLatitude());
+                args.add(params.getRadius());
+                args.add(params.getUnit());
+            }
+        }
+        if (!options.getInKeys().isEmpty()) {
+            args.add("INKEYS");
+            args.add(options.getInKeys().size());
+            args.addAll(options.getInKeys());
+        }
+        if (!options.getInFields().isEmpty()) {
+            args.add("INFIELDS");
+            args.add(options.getInFields().size());
+            args.addAll(options.getInFields());
+        }
+        if (!options.getReturnAttributes().isEmpty()) {
+            args.add("RETURN");
+            args.add(options.getReturnAttributes().size());
+            int pos = args.size() - 1;
+            int amount = 0;
+            for (ReturnAttribute attr : options.getReturnAttributes()) {
+                args.add(attr.getIdentifier());
+                amount++;
+                if (attr.getProperty() != null) {
+                    args.add("AS");
+                    args.add(attr.getProperty());
+                    amount += 2;
+                }
+            }
+            args.set(pos, amount);
+        }
+        if (options.getSummarize() != null) {
+            args.add("SUMMARIZE");
+            if (!options.getSummarize().getFields().isEmpty()) {
+                args.add("FIELDS");
+                args.add(options.getSummarize().getFields().size());
+                args.addAll(options.getSummarize().getFields());
+            }
+            if (options.getSummarize().getFragsNum() != null) {
+                args.add("FRAGS");
+                args.add(options.getSummarize().getFragsNum());
+            }
+            if (options.getSummarize().getFragSize() != null) {
+                args.add("LEN");
+                args.add(options.getSummarize().getFragSize());
+            }
+            if (options.getSummarize().getSeparator() != null) {
+                args.add("SEPARATOR");
+                args.add(options.getSummarize().getSeparator());
+            }
+        }
+        if (options.getHighlight() != null) {
+            args.add("HIGHLIGHT");
+            if (!options.getHighlight().getFields().isEmpty()) {
+                args.add("FIELDS");
+                args.add(options.getHighlight().getFields().size());
+                args.addAll(options.getHighlight().getFields());
+            }
+            if (options.getHighlight().getOpenTag() != null
+                    && options.getHighlight().getCloseTag() != null) {
+                args.add("TAGS");
+                args.add(options.getHighlight().getOpenTag());
+                args.add(options.getHighlight().getCloseTag());
+            }
+        }
+        if (options.getSlop() != null) {
+            args.add("SLOP");
+            args.add(options.getSlop());
+        }
+        if (options.getTimeout() != null) {
+            args.add("TIMEOUT");
+            args.add(options.getTimeout());
+        }
+        if (options.isInOrder()) {
+            args.add("INORDER");
+        }
+        if (options.getLanguage() != null) {
+            args.add("LANGUAGE");
+            args.add(options.getLanguage());
+        }
+        if (options.getExpander() != null) {
+            args.add("EXPANDER");
+            args.add(options.getExpander());
+        }
+        if (options.getScorer() != null) {
+            args.add("SCORER");
+            args.add(options.getScorer());
+        }
+        if (options.isExplainScore()) {
+            args.add("EXPLAINSCORE");
+        }
+        if (options.getSortBy() != null) {
+            args.add("SORTBY");
+            args.add(options.getSortBy());
+            if (options.getSortOrder() != null) {
+                args.add(options.getSortOrder());
+            }
+            if (options.isWithCount()) {
+                args.add("WITHCOUNT");
+            }
+        }
+        if (options.getOffset() != null
+                && options.getCount() != null) {
+            args.add("LIMIT");
+            args.add(options.getOffset());
+            args.add(options.getCount());
+        }
+        if (!options.getParams().isEmpty()) {
+            if (options.getDialect() == null || options.getDialect() < 2) {
+                throw new IllegalArgumentException("When use 'PARAMS', you should set DIALECT to 2 or greater than 2.");
+            }
+            args.add("PARAMS");
+            args.add(options.getParams().size() * 2);
+            for (Map.Entry<String, Object> entry : options.getParams().entrySet()) {
+                args.add(entry.getKey());
+                args.add(entry.getValue());
+            }
+        }
+        if (options.getDialect() != null) {
+            args.add("DIALECT");
+            args.add(options.getDialect());
+        }
+
+        RedisStrictCommand<SearchResult> command;
+        if (commandExecutor.getServiceManager().isResp3()) {
+            command = new RedisStrictCommand<>("FT.SEARCH",
+                    new ListMultiDecoder2(new SearchResultDecoderV2(),
+                            new ObjectListReplayDecoder<>(),
+                            new ObjectMapReplayDecoder<>(),
+                            new ObjectMapReplayDecoder<>(new CompositeCodec(StringCodec.INSTANCE, codec))));
+        } else {
+            command = new RedisStrictCommand<>("FT.SEARCH",
+                    new ListMultiDecoder2(new SearchResultDecoder(options.isWithScores()),
+                            new ObjectMapReplayDecoder<>(new CompositeCodec(StringCodec.INSTANCE, codec)),
+                            new ObjectListReplayDecoder<>()));
+        }
+
+        return commandExecutor.writeAsync(indexName, StringCodec.INSTANCE, command, args.toArray());
+    }
+
+    private String value(double score, boolean exclusive) {
+        StringBuilder element = new StringBuilder();
+        if (Double.isInfinite(score)) {
+            if (score > 0) {
+                element.append("+inf");
+            } else {
+                element.append("-inf");
+            }
+        } else {
+            if (exclusive) {
+                element.append("(");
+            }
+            element.append(BigDecimal.valueOf(score).toPlainString());
+        }
+        return element.toString();
     }
 } 

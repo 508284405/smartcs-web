@@ -2,6 +2,7 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
+import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
@@ -83,8 +84,7 @@ public class FaqAddCmdExe {
         
         // 同步到搜索索引
         try {
-            Map<String, Object> searchDocument = convertToSearchDocument(savedFaq);
-            boolean indexed = textSearchGateway.indexDocument(FAQ_INDEX_REDISEARCH, savedFaq.getId(), searchDocument);
+            boolean indexed = textSearchGateway.indexDocument(FAQ_INDEX_REDISEARCH, savedFaq.getId(), savedFaq);
             if (!indexed) {
                 log.warn("FAQ搜索索引同步失败: {}", savedFaq.getId());
                 throw new BizException("FAQ搜索索引同步失败");
@@ -124,8 +124,8 @@ public class FaqAddCmdExe {
      * @param faq FAQ实体
      * @return 搜索文档
      */
-    private Map<String, Object> convertToSearchDocument(Faq faq) {
-        Map<String, Object> document = new HashMap<>();
+    private Map<Object, Object> convertToSearchDocument(Faq faq) {
+        Map<Object, Object> document = new HashMap<>();
         document.put("question", faq.getQuestion());
         document.put("answer", faq.getAnswer());
         document.put("enabled", faq.getEnabled());

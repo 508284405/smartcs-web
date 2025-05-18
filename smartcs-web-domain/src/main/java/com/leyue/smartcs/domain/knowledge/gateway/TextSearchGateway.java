@@ -1,5 +1,7 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
+import org.springframework.boot.configurationprocessor.json.JSONObject;
+
 import java.util.Map;
 
 /**
@@ -13,7 +15,7 @@ public interface TextSearchGateway {
      * @param k 返回数量
      * @return ID与分数的映射
      */
-    Map<Long, Float> searchByKeyword(String index, String keyword, int k);
+    Map<Long, Double> searchByKeyword(String index, String keyword, int k);
     
     /**
      * 模糊搜索
@@ -32,7 +34,7 @@ public interface TextSearchGateway {
      * @param source 文档内容
      * @return 是否成功
      */
-    boolean indexDocument(String index, Long id, Map<String, Object> source);
+    boolean indexDocument(String index, Long id, Object  source);
     
     /**
      * 删除索引文档

@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.VectorSearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
@@ -28,10 +29,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
     private final EmbeddingMapper embeddingMapper;
     private final EmbeddingConvertor embeddingConvertor;
     private final VectorSearchGateway vectorSearchGateway;
-    
-    // 向量集合名称（RedisSearch索引名）
-    private static final String VECTOR_COLLECTION = "embedding_vectors";
-    
+
     @Override
     public Embedding save(Embedding embedding) {
         EmbeddingDO embeddingDO = embeddingConvertor.toDataObject(embedding);
@@ -44,7 +42,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
                 // 单个写入RedisSearch
                 List<Long> ids = List.of(embeddingDO.getId());
                 List<Object> vectors = List.of(embedding.getVector());
-                vectorSearchGateway.batchInsert(VECTOR_COLLECTION, ids, vectors, embedding.getModelType());
+                vectorSearchGateway.batchInsert(Constants.UMBEDDING_INDEX_REDISEARCH, ids, vectors, embedding.getModelType());
             }
         } else {
             // 更新
@@ -52,8 +50,8 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
             // 更新向量数据（先删除旧的，再插入新的）
             if (embedding.isValidVector()) {
                 Long id = embeddingDO.getId();
-                vectorSearchGateway.delete(VECTOR_COLLECTION, List.of(id));
-                vectorSearchGateway.batchInsert(VECTOR_COLLECTION, List.of(id), List.of(embedding.getVector()), embedding.getModelType());
+                vectorSearchGateway.delete(Constants.UMBEDDING_INDEX_REDISEARCH, List.of(id));
+                vectorSearchGateway.batchInsert(Constants.UMBEDDING_INDEX_REDISEARCH, List.of(id), List.of(embedding.getVector()), embedding.getModelType());
             }
         }
         
@@ -92,11 +90,8 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
                 // 使用第一个Embedding的模型类型作为批量写入的分区键
                 String modelType = validEmbeddings.get(0).getModelType();
                 
-                // 确保RedisSearch索引存在
-                ensureIndexCreated(modelType);
-                
                 // 批量写入向量数据到RedisSearch
-                boolean success = vectorSearchGateway.batchInsert(VECTOR_COLLECTION, ids, vectors, modelType);
+                boolean success = vectorSearchGateway.batchInsert(Constants.UMBEDDING_INDEX_REDISEARCH, ids, vectors, modelType);
                 if (!success) {
                     log.error("批量写入向量数据到RedisSearch失败，Embedding数量: {}", validEmbeddings.size());
                 }
@@ -117,7 +112,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
         int dimension = getVectorDimension(modelType);
         
         // 尝试创建索引（如果索引已存在，该方法应当安全返回）
-        vectorSearchGateway.createIndex(VECTOR_COLLECTION, dimension, "HNSW");
+        vectorSearchGateway.createIndex(Constants.UMBEDDING_INDEX_REDISEARCH, dimension, "HNSW");
     }
     
     /**
@@ -166,7 +161,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
         // 从RedisSearch删除向量数据
         if (!embeddingIds.isEmpty()) {
             try {
-                boolean success = vectorSearchGateway.delete(VECTOR_COLLECTION, embeddingIds);
+                boolean success = vectorSearchGateway.delete(Constants.UMBEDDING_INDEX_REDISEARCH, embeddingIds);
                 if (!success) {
                     log.error("从RedisSearch删除向量数据失败，文档ID: {}, Embedding数量: {}", docId, embeddingIds.size());
                 }

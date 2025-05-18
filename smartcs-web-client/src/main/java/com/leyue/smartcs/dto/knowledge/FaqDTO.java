@@ -31,6 +31,8 @@ public class FaqDTO {
      * 版本号
      */
     private Integer version;
+
+    private Double score;
     
     /**
      * 创建时间（毫秒时间戳）

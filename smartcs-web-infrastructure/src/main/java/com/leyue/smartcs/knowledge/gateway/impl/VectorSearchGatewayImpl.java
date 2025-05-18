@@ -35,26 +35,26 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
     private static final long VECTOR_CACHE_TTL = 30;
 
     @Override
-    public boolean batchInsert(String collection, List<Long> ids, List<Object> vectors, String partitionKey) {
+    public boolean batchInsert(String index, List<Long> ids, List<Object> vectors, String partitionKey) {
         if (ids == null || ids.isEmpty() || vectors == null || vectors.isEmpty() || ids.size() != vectors.size()) {
-            log.error("批量写入向量参数无效: collection={}, idsSize={}, vectorsSize={}",
-                    collection, ids == null ? 0 : ids.size(), vectors == null ? 0 : vectors.size());
+            log.error("批量写入向量参数无效: index={}, idsSize={}, vectorsSize={}",
+                    index, ids == null ? 0 : ids.size(), vectors == null ? 0 : vectors.size());
             return false;
         }
 
         try {
-            log.info("批量写入向量: collection={}, size={}, modelType={}", collection, ids.size(), partitionKey);
+            log.info("批量写入向量: index={}, size={}, modelType={}", index, ids.size(), partitionKey);
 
             // 建立元数据索引映射
-            RMap<String, String> collectionIndex = redissonClient.getMap(collection + ":index");
+            RMap<String, String> collectionIndex = redissonClient.getMap(index + ":index");
 
             // 批量写入
             for (int i = 0; i < ids.size(); i++) {
                 Long id = ids.get(i);
                 Object v = vectors.get(i);
-                // 构建Redis键名（格式: collection:vector:id）
-                String vectorKey = collection + ":vector:" + id;
-                String metadataKey = collection + ":metadata:" + id;
+                // 构建Redis键名（格式: index:vector:id）
+                String vectorKey = index + ":vector:" + id;
+                String metadataKey = index + ":metadata:" + id;
                 if (v instanceof byte[] vector) {
                     // 添加向量数据（使用ByteArrayCodec）
                     RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, DoubleCodec.INSTANCE);

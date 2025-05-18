@@ -2,6 +2,7 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
@@ -76,7 +77,7 @@ public class TextSearchQryExe {
             log.info("文本检索查询完成，共 {} 组结果", results.size());
 
             // embeddingResults 按照分数排序
-            results.forEach(result -> result.getEmbeddingResults().sort((o1, o2) -> o2.getScore().compareTo(o1.getScore())));
+//            results.forEach(result -> result.getEmbeddingResults().sort((o1, o2) -> o2.getScore().compareTo(o1.getScore())));
             return MultiResponse.of(results);
             
         } catch (Exception e) {
@@ -93,7 +94,7 @@ public class TextSearchQryExe {
      */
     private KnowledgeSearchResult searchFaq(String keyword, int k) {
         // 调用全文检索查询FAQ
-        Map<Long, Float> faqSearchResults = textSearchGateway.searchByKeyword(FAQ_INDEX_REDISEARCH, keyword, k);
+        Map<Long, Double> faqSearchResults = textSearchGateway.searchByKeyword(FAQ_INDEX_REDISEARCH, keyword, k);
         
         // 没有结果则返回null
         if (faqSearchResults == null || faqSearchResults.isEmpty()) {
@@ -102,7 +103,7 @@ public class TextSearchQryExe {
         
         // 查询详情
         List<FaqDTO> faqResults = new ArrayList<>();
-        for (Map.Entry<Long, Float> entry : faqSearchResults.entrySet()) {
+        for (Map.Entry<Long, Double> entry : faqSearchResults.entrySet()) {
             Long faqId = entry.getKey();
             Optional<Faq> faqOpt = faqGateway.findById(faqId);
             if (faqOpt.isEmpty()) {
@@ -111,6 +112,7 @@ public class TextSearchQryExe {
             
             Faq faq = faqOpt.get();
             FaqDTO faqDTO = convertToDTO(faq);
+            faqDTO.setScore(entry.getValue());
             faqResults.add(faqDTO);
             
             // 更新命中次数
@@ -137,7 +139,7 @@ public class TextSearchQryExe {
      */
     private KnowledgeSearchResult searchDocEmbeddings(String keyword, int k) {
         // 调用全文检索查询文档段落
-        Map<Long, Float> embSearchResults = textSearchGateway.searchByKeyword("cs_doc_embedding", keyword, k);
+        Map<Long, Double> embSearchResults = textSearchGateway.searchByKeyword(Constants.UMBEDDING_INDEX_REDISEARCH, keyword, k);
         
         // 没有结果则返回null
         if (embSearchResults == null || embSearchResults.isEmpty()) {
@@ -146,9 +148,9 @@ public class TextSearchQryExe {
         
         // 查询详情
         List<KnowledgeSearchResult.EmbeddingWithScore> embeddingResults = new ArrayList<>();
-        for (Map.Entry<Long, Float> entry : embSearchResults.entrySet()) {
+        for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
             Long embId = entry.getKey();
-            Float score = entry.getValue();
+            Double score = entry.getValue();
             
             Optional<Embedding> embOpt = embeddingGateway.findById(embId);
             if (embOpt.isEmpty()) {
@@ -167,7 +169,7 @@ public class TextSearchQryExe {
             
             KnowledgeSearchResult.EmbeddingWithScore resultItem = new KnowledgeSearchResult.EmbeddingWithScore();
             resultItem.setEmbedding(embeddingDTO);
-            resultItem.setScore(score);
+            resultItem.setScore(score.floatValue());
             resultItem.setDocTitle(docTitle);
             
             embeddingResults.add(resultItem);
