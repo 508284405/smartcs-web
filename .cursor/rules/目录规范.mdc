@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # Smartcs-Web 项目实际目录结构扫描详情
 
-本文档是对 `[smartcs-web/project-rules](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/.cursor/rules/smartcs-web/project-rules.md)` 规则的补充，旨在提供一个基于2024年7月（具体扫描日期可能不同，此处为示例）对 `smartcs-web` 项目实际目录结构进行扫描的快照。建议将此文档与主要规则结合阅读，以便更好地理解项目的实际布局与设计规范之间的关系。
+本文档是对 `[smartcs-web/project-rules](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/.cursor/rules/smartcs-web/project-rules.md)` 规则的补充，旨在提供一个基于2024年7月（具体扫描日期可能不同，此处为示例）对 `smartcs-web` 项目实际目录结构进行扫描的快照。建议将此文档与主要规则结合阅读，以便更好地理解项目的实际布局与设计规范之间的关系。
 
 在阅读过程中，请注意各层模块下可能会提及"符合规范"、"额外目录"或"注意点"，这些是为了帮助理解实际结构与COLA架构指导原则的对应关系。
 
@@ -22,9 +22,9 @@ alwaysApply: false
 
 此外，项目根目录下还包含一些重要的 Markdown 文档，可作为深入了解特定模块或整体架构的参考：
 
-- `[Bot模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/Bot模块.md)`
-- `[知识模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/知识模块.md)`
-- `[架构文档.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/架构文档.md)`
+- `[Bot模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/Bot模块.md)`
+- `[知识模块.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/知识模块.md)`
+- `[架构文档.md](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/smartcs-web/架构文档.md)`
 
 ## 2. 各层模块详细结构
 
@@ -39,7 +39,8 @@ alwaysApply: false
     - `web/` 分为客户端和运营端，运营端的Controller命名应该是Admin开头
     - `websocket/` 
 - **说明**: 此层负责处理外部请求的适配，如HTTP API接口。常见DTO有 `MultiResponse`、`SingleResponse`、`PageQuery`、`PageResponse` 等标准预定义的DTO,在COLA架构中已经提供，无需创建。
--- **依赖关系**: 依赖client层，调用client提供的service能力
+-- **依赖关系**: 依赖client层，调用client提供的service能力。
+-- **日志打印**: 控制器不需要打印参数和返回值日志，由RequestLogInterceptor和ResponseLogAdvice支持。
 
 ### 2.2. `smartcs-web-client`
 

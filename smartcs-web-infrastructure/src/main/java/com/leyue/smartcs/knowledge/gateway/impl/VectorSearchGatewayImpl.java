@@ -53,7 +53,7 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
                 if (v instanceof byte[] vector) {
                     // 添加向量数据（使用ByteArrayCodec）
                     RMap<String, Object> rmap = redissonClient.getMap(vectorKey, new CompositeCodec(StringCodec.INSTANCE, redissonClient.getConfig().getCodec()));
-                    rmap.put("embedding", v);
+                    rmap.put("embedding", vector);
                     rmap.put("id", id);
                     rmap.expire(Duration.ofDays(VECTOR_CACHE_TTL));
                 } else {

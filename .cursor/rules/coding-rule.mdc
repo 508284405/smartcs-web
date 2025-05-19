@@ -14,6 +14,8 @@ alwaysApply: false
 - 统一时间戳类型为毫秒（`long`）(优先级最高)
 - 使用`@Slf4j`注解定义日志对象
 - 禁止使用魔法数字，可使用常量或者枚举。
+- 程序逻辑中断，尽可能使用BizException方式。`throw new BizException("NOT_FOUND", "索引不存在: " + indexName);`
+
 
 ### Java规范
 - 命名规范：

@@ -8,6 +8,7 @@ import com.leyue.smartcs.dto.common.SingleClientObject;
 import com.leyue.smartcs.dto.knowledge.*;
 import com.leyue.smartcs.api.KnowledgeService;
 import com.leyue.smartcs.knowledge.executor.*;
+import com.leyue.smartcs.domain.knowledge.gateway.RedisearchGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final EmbeddingAddCmdExe embeddingAddCmdExe;
     private final VectorSearchQryExe vectorSearchQryExe;
     private final TextSearchQryExe textSearchQryExe;
+    private final IndexCreateCmdExe indexCreateCmdExe;
+    private final IndexInfoQryExe indexInfoQryExe;
+    private final IndexDeleteCmdExe indexDeleteCmdExe;
+    private final RedisearchGateway redisearchGateway;
     
     @Override
     public SingleResponse<FaqDTO> addFaq(FaqAddCmd cmd) {
@@ -77,5 +82,25 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     public MultiResponse<KnowledgeSearchResult> searchByText(KnowledgeSearchQry qry) {
         return textSearchQryExe.execute(qry);
+    }
+    
+    @Override
+    public Response createIndex(CreateIndexCmd cmd) {
+        return indexCreateCmdExe.execute(cmd);
+    }
+    
+    @Override
+    public SingleResponse<IndexInfoDTO> getIndexInfo(GetIndexInfoQry qry) {
+        return SingleResponse.of(indexInfoQryExe.execute(qry));
+    }
+    
+    @Override
+    public Response deleteIndex(DeleteIndexCmd cmd) {
+        return indexDeleteCmdExe.execute(cmd);
+    }
+
+    @Override
+    public MultiResponse<String> listIndexes() {
+        return MultiResponse.of(redisearchGateway.listIndexes());
     }
 } 
