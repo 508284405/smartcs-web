@@ -13,12 +13,12 @@ import org.redisson.api.search.query.Document;
 import org.redisson.api.search.query.QueryOptions;
 import org.redisson.api.search.query.SearchResult;
 import org.redisson.client.codec.ByteArrayCodec;
-import org.redisson.client.codec.DoubleCodec;
+import org.redisson.client.codec.StringCodec;
+import org.redisson.codec.CompositeCodec;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 向量检索网关实现类
@@ -44,38 +44,22 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
 
         try {
             log.info("批量写入向量: index={}, size={}, modelType={}", index, ids.size(), partitionKey);
-
-            // 建立元数据索引映射
-            RMap<String, String> collectionIndex = redissonClient.getMap(index + ":index");
-
             // 批量写入
             for (int i = 0; i < ids.size(); i++) {
                 Long id = ids.get(i);
                 Object v = vectors.get(i);
                 // 构建Redis键名（格式: index:vector:id）
-                String vectorKey = index + ":vector:" + id;
-                String metadataKey = index + ":metadata:" + id;
+                String vectorKey = index + id;
                 if (v instanceof byte[] vector) {
                     // 添加向量数据（使用ByteArrayCodec）
-                    RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, DoubleCodec.INSTANCE);
-                    vectorBucket.set(vector, Duration.ofDays(VECTOR_CACHE_TTL));
+                    RMap<String, Object> rmap = redissonClient.getMap(vectorKey, new CompositeCodec(StringCodec.INSTANCE, redissonClient.getConfig().getCodec()));
+                    rmap.put("embedding", v);
+                    rmap.put("id", id);
+                    rmap.expire(Duration.ofDays(VECTOR_CACHE_TTL));
+                } else {
+                    log.error("向量数据类型不支持: {}", v.getClass().getName());
                 }
-                if (v instanceof String) {
-                    byte[] vector = Base64.getDecoder().decode((String) v);
-                    RBucket<byte[]> vectorBucket = redissonClient.getBucket(vectorKey, DoubleCodec.INSTANCE);
-                    vectorBucket.set(vector, Duration.ofDays(VECTOR_CACHE_TTL));
-                }
-
-                // 添加元数据
-                RMap<String, String> metadata = redissonClient.getMap(metadataKey);
-                metadata.put("id", id.toString());
-                metadata.put("model_type", partitionKey);
-                metadata.expire(Duration.ofDays(VECTOR_CACHE_TTL));
-
-                // 更新索引映射，便于按文档ID查找
-                collectionIndex.put(id.toString(), id.toString());
             }
-
             return true;
         } catch (Exception e) {
             log.error("向量批量写入失败: {}", e.getMessage(), e);
@@ -84,30 +68,20 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
     }
 
     @Override
-    public boolean delete(String collection, List<Long> ids) {
+    public boolean delete(String index, List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
-            log.warn("删除向量的ID列表为空: collection={}", collection);
+            log.warn("删除向量的ID列表为空: index={}", index);
             return true;
         }
 
         try {
-            log.info("删除向量: collection={}, ids.size={}", collection, ids.size());
-
-            // 获取索引映射
-            RMap<String, String> collectionIndex = redissonClient.getMap(collection + ":index");
-
+            log.info("删除向量: index={}, ids.size={}", index, ids.size());
             // 批量删除
             for (Long id : ids) {
                 // 构建Redis键名
-                String vectorKey = collection + ":vector:" + id;
-                String metadataKey = collection + ":metadata:" + id;
-
-                // 删除向量数据和元数据
-                redissonClient.getBucket(vectorKey).delete();
-                redissonClient.getMap(metadataKey).delete();
-
-                // 从索引中移除
-                collectionIndex.remove(id.toString());
+                String vectorKey = index + id;
+                // 删除向量数据
+                redissonClient.getMap(vectorKey).deleteAsync();
             }
 
             return true;
@@ -133,33 +107,8 @@ public class VectorSearchGatewayImpl implements VectorSearchGateway {
      */
     @Override
     public boolean createIndex(String collection, int dimension, String indexType) {
-        try {
-            log.info("创建索引映射: collection={}, dimension={}, indexType={}", collection, dimension, indexType);
-
-            // 记录索引配置信息
-            RMap<String, String> indexConfig = redissonClient.getMap(collection + ":config");
-            indexConfig.put("dimension", String.valueOf(dimension));
-            indexConfig.put("index_type", indexType);
-            indexConfig.put("created_at", String.valueOf(System.currentTimeMillis()));
-
-            try {
-                // 使用RediSearch创建向量索引
-                String indexName = collection + "_idx";
-                redissonClient.getSearch().createIndex(indexName,
-                        org.redisson.api.search.index.IndexOptions.defaults()
-                                .on(org.redisson.api.search.index.IndexType.HASH)
-                                .prefix(collection + ":vector:"),
-                        (FieldIndex) FieldIndex.flatVector("vector").as("vector"));
-                log.info("向量索引创建成功: {}", indexName);
-            } catch (Exception e) {
-                log.warn("向量索引创建失败，使用备用搜索方式: {}", e.getMessage());
-            }
-
-            return true;
-        } catch (Exception e) {
-            log.error("创建索引失败: {}", e.getMessage(), e);
-            return false;
-        }
+        //
+        return true;
     }
 
     /**

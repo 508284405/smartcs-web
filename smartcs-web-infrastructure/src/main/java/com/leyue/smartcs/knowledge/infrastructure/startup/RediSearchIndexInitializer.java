@@ -5,6 +5,8 @@ import com.leyue.smartcs.knowledge.gateway.impl.TextSearchGatewayImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.search.index.FieldIndex;
+import org.redisson.api.search.index.VectorDistParam;
+import org.redisson.api.search.index.VectorTypeParam;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -30,7 +32,12 @@ public class RediSearchIndexInitializer implements CommandLineRunner {
 
         // 创建文档段落 embedding 索引
         // 假设文档段落内容存储在 'content' 字段
-        textSearchGatewayImpl.createIndex(UMBEDDING_INDEX_REDISEARCH, FieldIndex.text("content").as("content"));
+        textSearchGatewayImpl.createIndex(UMBEDDING_INDEX_REDISEARCH, FieldIndex.text("id").as("id"),
+                 FieldIndex.hnswVector("embedding")
+                         .type(VectorTypeParam.Type.FLOAT32)
+                         .dim(1536)
+                         .distance(VectorDistParam.DistanceMetric.L2)
+        );
 
         log.info("RediSearch 索引初始化完成.");
     }

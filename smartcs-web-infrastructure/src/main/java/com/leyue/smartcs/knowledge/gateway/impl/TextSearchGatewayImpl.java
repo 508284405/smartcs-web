@@ -51,9 +51,8 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
      */
     @Override
     public Map<Long, Double> searchByKeyword(String index, String keyword, int k) {
-//            // 构建查询语句，使用模糊匹配
+        // 构建查询语句，使用模糊匹配
         String query = "*" + escapeQueryChars(keyword) + "*";
-//
         // 设置查询选项
         QueryOptions options = QueryOptions.defaults()
                 .withScores(true)
@@ -77,6 +76,38 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
             return resultMap;
         } catch (Exception e) {
             log.error("关键词搜索失败: 索引={}, 关键词={}", index, keyword, e);
+            return new HashMap<>();
+        }
+    }
+
+    @Override
+    public Map<Long, Double> searchByVectors(String index, byte[] vectors, int k) {
+        HashMap<String, Object> params = new HashMap<>();
+        params.put("K", k);
+        params.put("BLOB", vectors);
+        try {
+            RFuture<SearchResult> future = searchAsync(index,
+                    "*=>[KNN $K @embedding $BLOB AS distance]",
+                    QueryOptions.defaults().params(params).withScores(true).dialect(2)
+            );
+            SearchResult result = future.get();
+            // 处理搜索结果
+            Map<Long, Double> resultMap = new HashMap<>();
+            for (Document doc : result.getDocuments()) {
+                String docId = doc.getId();
+                try {
+                    double score = doc.getScore();
+                    // docId去除索引前缀
+                    Long id = Long.parseLong(docId.substring(index.length() + 1));
+                    resultMap.put(id, score);
+                } catch (NumberFormatException e) {
+                    log.warn("无法解析文档ID: {}", docId);
+                }
+            }
+
+            return resultMap;
+        } catch (Exception e) {
+            log.error("关键词搜索失败: 索引={}, 关键词={}", index, vectors, e);
             return new HashMap<>();
         }
     }
@@ -247,7 +278,7 @@ public class TextSearchGatewayImpl implements TextSearchGateway {
         Codec codec = redissonClient.getConfig().getCodec();
         Redisson redisson = (Redisson) redissonClient;
 
-// 拿到内部的 CommandAsyncExecutor
+        // 拿到内部的 CommandAsyncExecutor
         CommandAsyncExecutor commandExecutor = redisson.getCommandExecutor();
         List<Object> args = new ArrayList<>();
         args.add(indexName);

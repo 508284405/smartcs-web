@@ -105,17 +105,6 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
     }
     
     /**
-     * 确保向量索引已创建
-     */
-    private void ensureIndexCreated(String modelType) {
-        // 根据模型类型确定向量维度
-        int dimension = getVectorDimension(modelType);
-        
-        // 尝试创建索引（如果索引已存在，该方法应当安全返回）
-        vectorSearchGateway.createIndex(Constants.UMBEDDING_INDEX_REDISEARCH, dimension, "HNSW");
-    }
-    
-    /**
      * 根据模型类型获取向量维度
      */
     private int getVectorDimension(String modelType) {
