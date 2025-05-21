@@ -9,6 +9,7 @@ import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.Document;
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
+import com.leyue.smartcs.domain.utils.RedisearchUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -40,7 +41,7 @@ public class JedisTextSearchGatewayImpl implements VectorSearchGateway {
         String queryString = "(*)=>[KNN $K @embedding $BLOB AS score]";
         Query query = new Query(queryString)
                 .addParam("K", String.valueOf(k))
-                .addParam("BLOB", floatsToBytes(vector))
+                .addParam("BLOB", RedisearchUtils.floatArrayToByteArray(vector))
                 .returnFields("score")
                 .dialect(2);
 
@@ -76,37 +77,12 @@ public class JedisTextSearchGatewayImpl implements VectorSearchGateway {
                 // 构建Redis键名（格式: index:vector:id）
                 String vectorKey = index + id;
                 // 添加向量数据（使用ByteArrayCodec）
-                unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), floatsToBytes(vector));
+                unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.floatArrayToByteArray(vector));
             }
             return true;
         } catch (Exception e) {
             log.error("向量批量写入失败: {}", e.getMessage(), e);
             return false;
         }
-    }
-
-    public static byte[] longsToFloatsByteString(long[] input) {
-        float[] floats = new float[input.length];
-        for (int i = 0; i < input.length; i++) {
-            floats[i] = input[i];
-        }
-
-        byte[] bytes = new byte[Float.BYTES * floats.length];
-        ByteBuffer
-                .wrap(bytes)
-                .order(ByteOrder.LITTLE_ENDIAN)
-                .asFloatBuffer()
-                .put(floats);
-        return bytes;
-    }
-
-    public static byte[] floatsToBytes(float[] input) {
-        byte[] bytes = new byte[Float.BYTES * input.length];
-        ByteBuffer
-                .wrap(bytes)
-                .order(ByteOrder.LITTLE_ENDIAN)
-                .asFloatBuffer()
-                .put(input);
-        return bytes;
     }
 } 
