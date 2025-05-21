@@ -7,6 +7,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import com.leyue.smartcs.dto.knowledge.EmbeddingDTO;
+import com.leyue.smartcs.knowledge.convertor.EmbeddingConvertor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ public class EmbeddingListQryExe {
     
     private final EmbeddingGateway embeddingGateway;
     private final DocumentGateway documentGateway;
+    private final EmbeddingConvertor embeddingConvertor;
     
     /**
      * 执行向量列表查询
@@ -32,8 +34,6 @@ public class EmbeddingListQryExe {
      * @return 向量列表
      */
     public MultiResponse<EmbeddingDTO> execute(SingleClientObject<Long> cmd) {
-        log.info("执行向量列表查询: {}", cmd);
-        
         // 参数校验
         if (cmd.getValue() == null) {
             throw new BizException("文档ID不能为空");
@@ -48,12 +48,7 @@ public class EmbeddingListQryExe {
         
         // 执行查询
         List<Embedding> embeddings = embeddingGateway.findByDocId(docId);
-        
-        // 转换结果
-        List<EmbeddingDTO> embeddingDTOs = convertToDTOs(embeddings);
-        
-        log.info("向量列表查询完成，共 {} 条记录", embeddingDTOs.size());
-        return MultiResponse.of(embeddingDTOs);
+        return MultiResponse.of(embeddingConvertor.toDTOList(embeddings));
     }
     
     /**
@@ -73,16 +68,7 @@ public class EmbeddingListQryExe {
             dto.setDocId(embedding.getDocId());
             dto.setSectionIdx(embedding.getSectionIdx());
             dto.setContentSnip(embedding.getContentSnip());
-            
-            // 转换向量为Base64字符串
-            if (embedding.getVector() != null) {
-                if (embedding.getVector() instanceof byte[]) {
-                    dto.setVector(Base64.getEncoder().encodeToString((byte[]) embedding.getVector()));
-                } else if (embedding.getVector() instanceof String) {
-                    dto.setVector((String) embedding.getVector());
-                }
-            }
-            
+            dto.setVector(embedding.getVector());
             dto.setCreatedAt(embedding.getCreatedAt());
             dto.setUpdatedAt(embedding.getUpdatedAt());
             dtos.add(dto);

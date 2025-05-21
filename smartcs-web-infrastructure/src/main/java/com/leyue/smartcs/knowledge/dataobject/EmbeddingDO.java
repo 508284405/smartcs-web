@@ -3,6 +3,7 @@ package com.leyue.smartcs.knowledge.dataobject;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
+import com.leyue.smartcs.common.typehandler.VectorTypeHandler;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -35,8 +36,8 @@ public class EmbeddingDO extends BaseDO {
     /**
      * 向量数据
      */
-    @TableField("vector")
-    private byte[] vector;
+    @TableField(value = "vector",typeHandler = VectorTypeHandler.class)
+    private float[] vector;
     
     /**
      * 模型类型

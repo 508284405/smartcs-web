@@ -154,7 +154,7 @@ public class DocEmbeddingGenerateListener {
         
         try {
             // 调用LLM服务生成向量
-            List<byte[]> vectors = llmGateway.generateEmbeddings(contentChunks);
+            List<float[]> vectors = llmGateway.generateEmbeddings(contentChunks);
             
             // 构建Embedding对象列表
             for (int i = 0; i < contentChunks.size(); i++) {

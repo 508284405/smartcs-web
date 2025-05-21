@@ -1,10 +1,8 @@
 package com.leyue.smartcs.knowledge.executor;
 
-import com.alibaba.cola.dto.SingleResponse;
-import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.domain.knowledge.gateway.RedisearchGateway;
 import com.leyue.smartcs.dto.knowledge.GetIndexInfoQry;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
+import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class IndexInfoQryExe {
     
-    private final RedisearchGateway redisearchGateway;
+    private final RediSearchMapper rediSearchMapper;
     
     /**
      * 执行索引信息查询
@@ -25,6 +23,6 @@ public class IndexInfoQryExe {
      * @return 索引信息
      */
     public IndexInfoDTO execute(GetIndexInfoQry qry) {
-        return redisearchGateway.getIndexInfo(qry.getIndexName());
+        return rediSearchMapper.getIndexInfo(qry.getIndexName());
     }
 } 

@@ -17,44 +17,45 @@ public class Embedding {
      * 主键ID
      */
     private Long id;
-    
+
     /**
      * 文档ID
      */
     private Long docId;
-    
+
     /**
      * 段落序号
      */
     private Integer sectionIdx;
-    
+
     /**
      * 文本片段
      */
     private String contentSnip;
-    
+
     /**
-     * 向量数据（Base64编码字符串或字节数组）
+     * 向量数据
      */
-    private Object vector;
-    
+    private float[] vector;
+
     /**
      * 模型类型
      */
     private String modelType;
-    
+
     /**
      * 创建时间（毫秒时间戳）
      */
     private Long createdAt;
-    
+
     /**
      * 更新时间（毫秒时间戳）
      */
     private Long updatedAt;
-    
+
     /**
      * 获取文本摘要，用于预览
+     *
      * @param maxLength 最大长度
      * @return 文本摘要
      */
@@ -64,9 +65,10 @@ public class Embedding {
         }
         return contentSnip.substring(0, maxLength) + "...";
     }
-    
+
     /**
      * 是否有效向量
+     *
      * @return 是否有效
      */
     public boolean isValidVector() {

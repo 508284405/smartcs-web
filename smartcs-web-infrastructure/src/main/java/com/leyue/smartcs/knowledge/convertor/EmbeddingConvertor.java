@@ -22,7 +22,6 @@ public interface EmbeddingConvertor {
     /**
  * 将领域模型转换为数据对象
  */
-@Mapping(target = "vector", expression = "java(objectToBytes(embedding.getVector()))")
 EmbeddingDO toDataObject(Embedding embedding);
 
 /**
@@ -49,7 +48,7 @@ default byte[] objectToBytes(Object vector) {
     /**
      * 将领域模型转换为DTO
      */
-    @Mapping(target = "vector", expression = "java(java.util.Base64.getEncoder().encodeToString((byte[])embedding.getVector()))")
+//    @Mapping(target = "vector", expression = "java(java.util.Base64.getEncoder().encodeToString((byte[])embedding.getVector()))")
     EmbeddingDTO toDTO(Embedding embedding);
     
     /**

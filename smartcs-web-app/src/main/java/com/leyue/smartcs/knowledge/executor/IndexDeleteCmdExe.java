@@ -2,8 +2,8 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.domain.knowledge.gateway.RedisearchGateway;
 import com.leyue.smartcs.dto.knowledge.DeleteIndexCmd;
+import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class IndexDeleteCmdExe {
     
-    private final RedisearchGateway redisearchGateway;
+    private final RediSearchMapper rediSearchMapper;
     
     /**
      * 执行索引删除命令
@@ -33,7 +33,7 @@ public class IndexDeleteCmdExe {
         
         try {
             // 删除索引
-            boolean success = redisearchGateway.deleteIndex(cmd.getIndexName());
+            boolean success = rediSearchMapper.deleteIndex(cmd.getIndexName());
             if (!success) {
                 return Response.buildFailure("NOT_FOUND", "索引不存在或删除失败: " + cmd.getIndexName());
             }

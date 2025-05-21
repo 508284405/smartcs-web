@@ -16,11 +16,6 @@ public class KnowledgeSearchQry extends PageQuery {
     private String keyword;
     
     /**
-     * 向量查询（Base64编码）
-     */
-    private byte[] vector;
-    
-    /**
      * 检索TopK结果数量
      */
     private Integer k = 5;

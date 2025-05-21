@@ -74,12 +74,12 @@ public class LLMGatewayImpl implements LLMGateway {
     }
     
     @Override
-    public List<byte[]> generateEmbeddings(List<String> texts) {
+    public List<float[]> generateEmbeddings(List<String> texts) {
         try {
             log.info("生成嵌入向量, 文本数量: {}", texts.size());
             
             final int BATCH_SIZE = 25; // Maximum batch size for embedding model
-            List<byte[]> encodedEmbeddings = new ArrayList<>(texts.size());
+            List<float[]> encodedEmbeddings = new ArrayList<>(texts.size());
             
             for (int i = 0; i < texts.size(); i += BATCH_SIZE) {
                 int endIndex = Math.min(i + BATCH_SIZE, texts.size());
@@ -89,18 +89,10 @@ public class LLMGatewayImpl implements LLMGateway {
                 
                 for (int j = 0; j < response.getResults().size(); j++) {
                     float[] embedding = response.getResults().get(j).getOutput();
-                    byte[] bytes = new byte[embedding.length * 4];
-                    for (int k = 0; k < embedding.length; k++) {
-                        int intBits = Float.floatToIntBits(embedding[k]);
-                        bytes[k * 4] = (byte) (intBits & 0xff);
-                        bytes[k * 4 + 1] = (byte) ((intBits >> 8) & 0xff);
-                        bytes[k * 4 + 2] = (byte) ((intBits >> 16) & 0xff);
-                        bytes[k * 4 + 3] = (byte) ((intBits >> 24) & 0xff);
-                    }
-                    encodedEmbeddings.add(bytes);
+                    encodedEmbeddings.add(embedding);
                 }
             }
-            
+            log.info("生成嵌入向量成功, 嵌入向量数量: {}", encodedEmbeddings);
             return encodedEmbeddings;
         } catch (Exception e) {
             log.error("生成嵌入向量失败: {}", e.getMessage(), e);

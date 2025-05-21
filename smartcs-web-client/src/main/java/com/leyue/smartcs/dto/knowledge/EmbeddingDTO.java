@@ -30,7 +30,7 @@ public class EmbeddingDTO {
     /**
      * 向量数据（Base64编码）
      */
-    private String vector;
+    private float[] vector;
     
     /**
      * 创建时间（毫秒时间戳）

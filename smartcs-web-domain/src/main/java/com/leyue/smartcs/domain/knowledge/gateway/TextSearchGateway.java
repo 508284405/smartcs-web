@@ -1,6 +1,5 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -16,19 +15,6 @@ public interface TextSearchGateway {
      * @return ID与分数的映射
      */
     Map<Long, Double> searchByKeyword(String index, String keyword, int k);
-
-    Map<Long, Double> searchByVectors(String umbeddingIndexRedisearch, byte[] vector, int k);
-
-    /**
-     * 模糊搜索
-     *
-     * @param index 索引名称
-     * @param text  模糊文本
-     * @param field 搜索字段
-     * @param k     返回数量
-     * @return ID与分数的映射
-     */
-    Map<Long, Float> searchFuzzy(String index, String text, String field, int k);
 
     /**
      * 创建或更新索引文档
@@ -48,5 +34,4 @@ public interface TextSearchGateway {
      * @return 是否成功
      */
     boolean deleteDocument(String index, Long id);
-
 }

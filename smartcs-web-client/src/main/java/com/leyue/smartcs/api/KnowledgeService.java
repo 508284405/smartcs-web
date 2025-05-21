@@ -58,31 +58,7 @@ public interface KnowledgeService {
      * @return 文档列表（分页）
      */
     PageResponse<DocDTO> listDocs(KnowledgeSearchQry qry);
-    
-    /**
-     * 根据文档ID获取分段Embedding
-     *
-     * @param docIdCmd 文档ID
-     * @return 文档段落向量列表
-     */
-    MultiResponse<EmbeddingDTO> listEmbeddingsByDoc(SingleClientObject<Long> docIdCmd);
-    
-    /**
-     * 批量添加向量
-     *
-     * @param cmd 向量批量添加命令
-     * @return 操作结果
-     */
-    Response addEmbeddings(EmbeddingAddCmd cmd);
-    
-    /**
-     * 执行向量检索
-     *
-     * @param qry 检索条件（包含vector、k等）
-     * @return 检索结果
-     */
-    MultiResponse<KnowledgeSearchResult> searchByVector(KnowledgeSearchQry qry);
-    
+
     /**
      * 执行全文检索
      *

@@ -86,34 +86,34 @@ public class AdminKnowledgeController {
 
         return knowledgeService.listDocs(qry);
     }
-
-    /**
-     * 查询文档段落向量
-     */
-    @GetMapping("/doc/{id}/embeddings")
-    public MultiResponse<EmbeddingDTO> listEmbeddingsByDoc(@PathVariable("id") Long id) {
-        log.info("查询文档段落向量请求, ID: {}", id);
-        SingleClientObject<Long> cmd = SingleClientObject.of(id);
-        return knowledgeService.listEmbeddingsByDoc(cmd);
-    }
-
-    /**
-     * 批量添加向量
-     */
-    @PostMapping("/embeddings/batch")
-    public Response addEmbeddings(@RequestBody EmbeddingAddCmd cmd) {
-        log.info("批量添加向量请求: docId={}, items={}", cmd.getDocId(), cmd.getItems().size());
-        return knowledgeService.addEmbeddings(cmd);
-    }
-
-    /**
-     * 向量检索
-     */
-    @PostMapping("/search/vector")
-    public MultiResponse<KnowledgeSearchResult> searchByVector(@RequestBody KnowledgeSearchQry qry) {
-        log.info("向量检索请求: modelType={}, k={}", qry.getModelType(), qry.getK());
-        return knowledgeService.searchByVector(qry);
-    }
+//
+//    /**
+//     * 查询文档段落向量
+//     */
+//    @GetMapping("/doc/{id}/embeddings")
+//    public MultiResponse<EmbeddingDTO> listEmbeddingsByDoc(@PathVariable("id") Long id) {
+//        log.info("查询文档段落向量请求, ID: {}", id);
+//        SingleClientObject<Long> cmd = SingleClientObject.of(id);
+//        return knowledgeService.listEmbeddingsByDoc(cmd);
+//    }
+//
+//    /**
+//     * 批量添加向量
+//     */
+//    @PostMapping("/embeddings/batch")
+//    public Response addEmbeddings(@RequestBody EmbeddingAddCmd cmd) {
+//        log.info("批量添加向量请求: docId={}, items={}", cmd.getDocId(), cmd.getItems().size());
+//        return knowledgeService.addEmbeddings(cmd);
+//    }
+//
+//    /**
+//     * 向量检索
+//     */
+//    @PostMapping("/search/vector")
+//    public MultiResponse<KnowledgeSearchResult> searchByVector(@RequestBody KnowledgeSearchQry qry) {
+//        log.info("向量检索请求: modelType={}, k={}", qry.getModelType(), qry.getK());
+//        return knowledgeService.searchByVector(qry);
+//    }
 
     /**
      * 文本检索

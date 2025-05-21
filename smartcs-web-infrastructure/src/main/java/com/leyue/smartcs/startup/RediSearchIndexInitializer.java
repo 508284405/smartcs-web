@@ -1,7 +1,8 @@
-package com.leyue.smartcs.knowledge.infrastructure.startup;
+package com.leyue.smartcs.startup;
 
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.knowledge.gateway.impl.TextSearchGatewayImpl;
+import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.search.index.FieldIndex;
@@ -20,7 +21,7 @@ import static com.leyue.smartcs.domain.common.Constants.UMBEDDING_INDEX_REDISEAR
 @Slf4j
 public class RediSearchIndexInitializer implements CommandLineRunner {
 
-    private final TextSearchGatewayImpl textSearchGatewayImpl;
+    private final RediSearchMapper rediSearchMapper;
 
     @Override
     public void run(String... args) throws Exception {
@@ -28,15 +29,15 @@ public class RediSearchIndexInitializer implements CommandLineRunner {
 
 
         // 创建 FAQ 索引,将Faq作为其索引字段
-        textSearchGatewayImpl.createIndex(Constants.FAQ_INDEX_REDISEARCH, FieldIndex.text("question").as("question"), FieldIndex.text("answer").as("answer"));
+        rediSearchMapper.createIndex(Constants.FAQ_INDEX_REDISEARCH, FieldIndex.text("question").as("question"), FieldIndex.text("answer").as("answer"));
 
         // 创建文档段落 embedding 索引
         // 假设文档段落内容存储在 'content' 字段
-        textSearchGatewayImpl.createIndex(UMBEDDING_INDEX_REDISEARCH, FieldIndex.text("id").as("id"),
-                 FieldIndex.hnswVector("embedding")
-                         .type(VectorTypeParam.Type.FLOAT32)
-                         .dim(1536)
-                         .distance(VectorDistParam.DistanceMetric.L2)
+        rediSearchMapper.createIndex(UMBEDDING_INDEX_REDISEARCH,
+                FieldIndex.hnswVector("embedding")
+                        .type(VectorTypeParam.Type.FLOAT32)
+                        .dim(1536)
+                        .distance(VectorDistParam.DistanceMetric.L2)
         );
 
         log.info("RediSearch 索引初始化完成.");

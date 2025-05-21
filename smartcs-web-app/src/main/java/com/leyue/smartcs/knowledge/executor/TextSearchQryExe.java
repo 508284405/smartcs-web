@@ -4,10 +4,7 @@ import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.*;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
@@ -32,6 +29,7 @@ import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
 public class TextSearchQryExe {
 
     private final TextSearchGateway textSearchGateway;
+    private final VectorSearchGateway vectorSearchGateway;
     private final FaqGateway faqGateway;
     private final EmbeddingGateway embeddingGateway;
     private final DocumentGateway documentGateway;
@@ -141,10 +139,10 @@ public class TextSearchQryExe {
     private KnowledgeSearchResult searchDocEmbeddings(String keyword, int k) {
         // 解析向量
         // 调用LLM服务生成向量
-        List<byte[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
+        List<float[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
 
         // 调用全文检索查询文档段落
-        Map<Long, Double> embSearchResults = textSearchGateway.searchByVectors(Constants.UMBEDDING_INDEX_REDISEARCH, vectors.get(0), k);
+        Map<Long, Double> embSearchResults = vectorSearchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, vectors.get(0), k);
 
         // 没有结果则返回null
         if (embSearchResults == null || embSearchResults.isEmpty()) {
@@ -231,15 +229,7 @@ public class TextSearchQryExe {
         dto.setDocId(embedding.getDocId());
         dto.setSectionIdx(embedding.getSectionIdx());
         dto.setContentSnip(embedding.getContentSnip());
-
-        // 向量数据转Base64
-        if (embedding.getVector() != null) {
-            if (embedding.getVector() instanceof byte[]) {
-                dto.setVector(Base64.getEncoder().encodeToString((byte[]) embedding.getVector()));
-            } else if (embedding.getVector() instanceof String) {
-                dto.setVector((String) embedding.getVector());
-            }
-        }
+        dto.setVector(embedding.getVector());
 
         dto.setCreatedAt(embedding.getCreatedAt());
         dto.setUpdatedAt(embedding.getUpdatedAt());
