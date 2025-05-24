@@ -3,7 +3,7 @@ package com.leyue.smartcs.knowledge.executor;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ public class FaqDeleteCmdExe {
     
     private final FaqGateway faqGateway;
 
-    private final TextSearchGateway textSearchGateway;
+    private final SearchGateway searchGateway;
     /**
      * 执行FAQ删除命令
      * @param cmd FAQ ID
@@ -50,7 +50,7 @@ public class FaqDeleteCmdExe {
         }
 
         // 删除索引
-        textSearchGateway.deleteDocument(FAQ_INDEX_REDISEARCH, faqId);
+        searchGateway.deleteDocument(FAQ_INDEX_REDISEARCH, faqId);
         
         log.info("成功删除FAQ, ID: {}", faqId);
         return Response.buildSuccess();

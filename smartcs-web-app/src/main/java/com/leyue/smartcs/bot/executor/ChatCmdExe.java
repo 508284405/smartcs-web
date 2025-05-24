@@ -11,8 +11,7 @@ import com.leyue.smartcs.domain.bot.model.PromptTemplate;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.VectorSearchGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
 import com.leyue.smartcs.dto.bot.BotChatRequest;
@@ -33,8 +32,7 @@ import java.util.stream.Collectors;
 public class ChatCmdExe {
 
     private final LLMGateway llmGateway;
-    private final TextSearchGateway textSearchGateway;
-    private final VectorSearchGateway vectorSearchGateway;
+    private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
     private final EmbeddingGateway embeddingGateway;
     private final SessionGateway sessionGateway;
@@ -135,7 +133,7 @@ public class ChatCmdExe {
         int k = topK != null && topK > 0 ? topK : DEFAULT_TOP_K;
 
         // 首先尝试文本检索
-        Map<Long, Double> textResults = textSearchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question, k);
+        Map<Long, Double> textResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question, k);
 
         if (!textResults.isEmpty()) {
             return textResults.entrySet().stream()
@@ -158,7 +156,7 @@ public class ChatCmdExe {
         try {
             List<float[]> embeddings = llmGateway.generateEmbeddings(List.of(question));
             if (!embeddings.isEmpty()) {
-                Map<Long, Double> searchTopK = vectorSearchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, embeddings.get(0), k);
+                Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, embeddings.get(0), k);
                 return searchTopK.entrySet().stream()
                         .map(entry -> {
                             Optional<Embedding> optionalEmbedding = embeddingGateway.findById(entry.getKey());

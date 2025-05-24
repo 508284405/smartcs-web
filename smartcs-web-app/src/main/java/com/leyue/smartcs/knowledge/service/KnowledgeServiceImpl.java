@@ -5,10 +5,10 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.KnowledgeService;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import com.leyue.smartcs.dto.knowledge.*;
 import com.leyue.smartcs.knowledge.executor.*;
-import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +29,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final IndexCreateCmdExe indexCreateCmdExe;
     private final IndexInfoQryExe indexInfoQryExe;
     private final IndexDeleteCmdExe indexDeleteCmdExe;
-    private final RediSearchMapper rediSearchMapper;
+    private final SearchGateway searchGateway;
 
     @Override
     public SingleResponse<FaqDTO> addFaq(FaqAddCmd cmd) {
@@ -83,6 +83,6 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Override
     public MultiResponse<String> listIndexes() {
-        return MultiResponse.of(rediSearchMapper.listIndexes());
+        return MultiResponse.of(searchGateway.listIndexes());
     }
 } 

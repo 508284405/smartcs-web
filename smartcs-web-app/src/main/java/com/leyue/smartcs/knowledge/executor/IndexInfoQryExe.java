@@ -1,8 +1,8 @@
 package com.leyue.smartcs.knowledge.executor;
 
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.GetIndexInfoQry;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
-import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class IndexInfoQryExe {
     
-    private final RediSearchMapper rediSearchMapper;
+    private final SearchGateway searchGateway;
     
     /**
      * 执行索引信息查询
@@ -23,6 +23,6 @@ public class IndexInfoQryExe {
      * @return 索引信息
      */
     public IndexInfoDTO execute(GetIndexInfoQry qry) {
-        return rediSearchMapper.getIndexInfo(qry.getIndexName());
+        return searchGateway.getIndexInfo(qry.getIndexName());
     }
 } 

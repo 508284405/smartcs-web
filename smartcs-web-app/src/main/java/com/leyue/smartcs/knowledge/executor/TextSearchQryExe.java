@@ -27,9 +27,7 @@ import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
 @RequiredArgsConstructor
 @Slf4j
 public class TextSearchQryExe {
-
-    private final TextSearchGateway textSearchGateway;
-    private final VectorSearchGateway vectorSearchGateway;
+    private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
     private final EmbeddingGateway embeddingGateway;
     private final DocumentGateway documentGateway;
@@ -92,7 +90,7 @@ public class TextSearchQryExe {
      */
     private KnowledgeSearchResult searchFaq(String keyword, int k) {
         // 调用全文检索查询FAQ
-        Map<Long, Double> faqSearchResults = textSearchGateway.searchByKeyword(FAQ_INDEX_REDISEARCH, keyword, k);
+        Map<Long, Double> faqSearchResults = searchGateway.searchByKeyword(FAQ_INDEX_REDISEARCH, keyword, k);
 
         // 没有结果则返回null
         if (faqSearchResults == null || faqSearchResults.isEmpty()) {
@@ -142,7 +140,7 @@ public class TextSearchQryExe {
         List<float[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
 
         // 调用全文检索查询文档段落
-        Map<Long, Double> embSearchResults = vectorSearchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, vectors.get(0), k);
+        Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, vectors.get(0), k);
 
         // 没有结果则返回null
         if (embSearchResults == null || embSearchResults.isEmpty()) {

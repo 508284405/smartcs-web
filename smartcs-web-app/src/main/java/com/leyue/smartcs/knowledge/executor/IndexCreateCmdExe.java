@@ -2,8 +2,8 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.CreateIndexCmd;
-import com.leyue.smartcs.knowledge.mapper.RediSearchMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -15,9 +15,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class IndexCreateCmdExe {
-    
-    private final RediSearchMapper rediSearchMapper;
-    
+
+    private final SearchGateway searchGateway;
+
     /**
      * 执行索引创建命令
      * @param cmd 索引创建命令
@@ -37,7 +37,7 @@ public class IndexCreateCmdExe {
         
         try {
             // 创建索引
-//            rediSearchMapper.createIndex(cmd.getIndexName(), cmd.getPrefix(), cmd.getSchema(), cmd.isReplaceIfExists());
+            searchGateway.createIndex(cmd.getIndexName(), cmd.getPrefix(), cmd.getSchema(), cmd.isReplaceIfExists());
             log.info("索引创建成功: {}", cmd.getIndexName());
             return Response.buildSuccess();
         } catch (Exception e) {

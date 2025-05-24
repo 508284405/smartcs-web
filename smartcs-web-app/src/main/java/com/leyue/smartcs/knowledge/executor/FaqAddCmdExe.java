@@ -4,7 +4,7 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.TextSearchGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqAddCmd;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
@@ -29,7 +29,7 @@ import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
 public class FaqAddCmdExe {
     
     private final FaqGateway faqGateway;
-    private final TextSearchGateway textSearchGateway;
+    private final SearchGateway searchGateway;
     
 
     @PostConstruct
@@ -84,7 +84,7 @@ public class FaqAddCmdExe {
         
         // 同步到搜索索引
         try {
-            boolean indexed = textSearchGateway.indexDocument(FAQ_INDEX_REDISEARCH, savedFaq.getId(), savedFaq);
+            boolean indexed = searchGateway.indexDocument(FAQ_INDEX_REDISEARCH, savedFaq.getId(), savedFaq);
             if (!indexed) {
                 log.warn("FAQ搜索索引同步失败: {}", savedFaq.getId());
                 throw new BizException("FAQ搜索索引同步失败");

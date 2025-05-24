@@ -37,4 +37,19 @@ public class RedisearchUtils {
     return bb.array();
   }
 
+      // 将 long[] 转换为 float[]，然后编码为小端字节数组
+      public static byte[] longsToFloatsByteString(long[] input) {
+        float[] floats = new float[input.length];
+        for (int i = 0; i < input.length; i++) {
+            floats[i] = input[i];
+        }
+
+        byte[] bytes = new byte[Float.BYTES * floats.length];
+        ByteBuffer
+                .wrap(bytes)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .asFloatBuffer()
+                .put(floats);
+        return bytes;
+    }
 } 
