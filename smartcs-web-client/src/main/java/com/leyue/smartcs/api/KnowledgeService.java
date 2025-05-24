@@ -46,10 +46,10 @@ public interface KnowledgeService {
     /**
      * 触发文档分段与向量生成任务
      *
-     * @param docIdCmd 文档ID
+     * @param cmd 触发文档向量生成命令，包含文档ID和解析器名称
      * @return 操作结果
      */
-    Response triggerDocEmbedding(SingleClientObject<Long> docIdCmd);
+    Response triggerDocEmbedding(TriggerDocEmbeddingCmd cmd);
     
     /**
      * 查询文档列表

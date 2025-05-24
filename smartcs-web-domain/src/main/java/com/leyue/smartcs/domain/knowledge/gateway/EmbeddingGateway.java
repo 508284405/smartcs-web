@@ -46,9 +46,10 @@ public interface EmbeddingGateway {
     Optional<Embedding> findByDocIdAndSectionIdx(Long docId, Integer sectionIdx);
     
     /**
-     * 根据文档ID删除所有向量
+     * 根据文档ID和策略名称删除向量
      * @param docId 文档ID
+     * @param strategyName 解析策略名称
      * @return 是否成功
      */
-    boolean deleteByDocId(Long docId);
+    boolean deleteByDocId(Long docId, String strategyName);
 } 

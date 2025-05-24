@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.factory.impl;
 
-import com.leyue.smartcs.knowledge.factory.SegmentStrategyFactory;
+import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;

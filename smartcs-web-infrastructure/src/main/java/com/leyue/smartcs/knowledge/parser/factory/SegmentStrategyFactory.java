@@ -1,4 +1,4 @@
-package com.leyue.smartcs.knowledge.factory;
+package com.leyue.smartcs.knowledge.parser.factory;
 
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 

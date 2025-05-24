@@ -52,8 +52,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     @Override
-    public Response triggerDocEmbedding(SingleClientObject<Long> docIdCmd) {
-        return docEmbeddingTriggerCmdExe.execute(docIdCmd);
+    public Response triggerDocEmbedding(TriggerDocEmbeddingCmd cmd) {
+        return docEmbeddingTriggerCmdExe.execute(cmd);
     }
 
     @Override

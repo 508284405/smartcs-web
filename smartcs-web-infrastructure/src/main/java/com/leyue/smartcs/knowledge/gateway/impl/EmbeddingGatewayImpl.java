@@ -1,5 +1,6 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
@@ -121,29 +122,12 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean deleteByDocId(Long docId) {
-        // 获取要删除的Embedding ID列表
-        List<EmbeddingDO> embeddingDOs = embeddingMapper.findByDocId(docId);
-        List<Long> embeddingIds = embeddingDOs.stream()
-                .map(EmbeddingDO::getId)
-                .collect(Collectors.toList());
-
+    public boolean deleteByDocId(Long docId, String strategyName) {
         // 从MySQL删除
-        int rows = embeddingMapper.deleteByDocId(docId);
-
-        // 从RedisSearch删除向量数据
-        if (!embeddingIds.isEmpty()) {
-            try {
-//                boolean success = searchGateway.delete(Constants.UMBEDDING_INDEX_REDISEARCH, embeddingIds);
-//                if (!success) {
-//                    log.error("从RedisSearch删除向量数据失败，文档ID: {}, Embedding数量: {}", docId, embeddingIds.size());
-//                }
-            } catch (Exception e) {
-                log.error("从RedisSearch删除向量数据时发生错误: {}", e.getMessage(), e);
-                // 考虑是否需要回滚MySQL事务
-            }
-        }
-
+        int rows = embeddingMapper.delete(Wrappers.<EmbeddingDO>lambdaQuery()
+                .eq(EmbeddingDO::getDocId, docId)
+                .eq(EmbeddingDO::getStrategyName, strategyName)
+        );
         return rows > 0;
     }
 }

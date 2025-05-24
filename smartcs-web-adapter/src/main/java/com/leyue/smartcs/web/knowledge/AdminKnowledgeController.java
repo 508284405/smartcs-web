@@ -62,9 +62,11 @@ public class AdminKnowledgeController {
      * 触发文档向量生成
      */
     @PostMapping("/doc/{id}/trigger-embedding")
-    public Response triggerDocEmbedding(@PathVariable("id") Long id) {
-        log.info("触发文档向量生成请求, ID: {}", id);
-        SingleClientObject<Long> cmd = SingleClientObject.of(id);
+    public Response triggerDocEmbedding(@PathVariable("id") Long id, @RequestBody TriggerDocEmbeddingCmd request) {
+        log.info("触发文档向量生成请求, ID: {}, strategyName: {}", id, request.getStrategyName());
+        TriggerDocEmbeddingCmd cmd = new TriggerDocEmbeddingCmd();
+        cmd.setDocId(id);
+        cmd.setStrategyName(request.getStrategyName());
         return knowledgeService.triggerDocEmbedding(cmd);
     }
 

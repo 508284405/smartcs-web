@@ -44,6 +44,11 @@ public class Embedding {
     private String modelType;
 
     /**
+     * 分段策略名称
+     */
+    private String strategyName;
+
+    /**
      * 创建时间（毫秒时间戳）
      */
     private Long createdAt;

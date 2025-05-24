@@ -6,6 +6,7 @@ import com.leyue.smartcs.domain.knowledge.event.DocEmbeddingGenerateEvent;
 import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.dto.common.SingleClientObject;
+import com.leyue.smartcs.dto.knowledge.TriggerDocEmbeddingCmd;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,18 +27,18 @@ public class DocEmbeddingTriggerCmdExe {
     
     /**
      * 执行文档向量生成触发命令
-     * @param cmd 文档ID
+     * @param cmd 触发文档向量生成命令，包含文档ID和解析器名称
      * @return 处理结果
      */
-    public Response execute(SingleClientObject<Long> cmd) {
+    public Response execute(TriggerDocEmbeddingCmd cmd) {
         log.info("执行文档向量生成触发命令: {}", cmd);
         
         // 参数校验
-        if (cmd.getValue() == null) {
+        if (cmd.getDocId() == null) {
             throw new BizException("文档ID不能为空");
         }
         
-        Long docId = cmd.getValue();
+        Long docId = cmd.getDocId();
         
         // 查询文档
         Optional<Document> docOpt = documentGateway.findById(docId);
@@ -55,6 +56,7 @@ public class DocEmbeddingTriggerCmdExe {
         // 发布文档向量生成事件，触发异步处理
         DocEmbeddingGenerateEvent event = DocEmbeddingGenerateEvent.builder()
                 .docId(docId)
+                .strategyName(cmd.getStrategyName())
                 .timestamp(System.currentTimeMillis())
                 .source("DocEmbeddingTriggerCmdExe")
                 .build();
