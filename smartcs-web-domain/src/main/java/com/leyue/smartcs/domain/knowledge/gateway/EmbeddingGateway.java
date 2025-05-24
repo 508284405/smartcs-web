@@ -19,10 +19,12 @@ public interface EmbeddingGateway {
     
     /**
      * 批量保存向量
-     * @param embeddings 向量列表
+     *
+     * @param embeddings   向量列表
+     * @param strategyName
      * @return 保存后的向量列表
      */
-    List<Embedding> saveBatch(List<Embedding> embeddings);
+    List<Embedding> saveBatch(Long docId, List<String> contentChunks, StrategyNameEnum strategyName);
     
     /**
      * 根据ID查询向量

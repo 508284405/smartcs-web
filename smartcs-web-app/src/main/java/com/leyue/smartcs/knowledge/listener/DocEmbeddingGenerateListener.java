@@ -78,13 +78,10 @@ public class DocEmbeddingGenerateListener {
             // 3. 清除文档现有的向量数据
             embeddingGateway.deleteByDocId(docId, strategyName);
 
-            // 4. 为每个段落生成向量
-            List<Embedding> embeddings = generateEmbeddings(docId, contentChunks, strategyName);
-
             // 5. 保存向量到数据库
-            if (!embeddings.isEmpty()) {
-                embeddingGateway.saveBatch(embeddings);
-                log.info("文档向量生成完成，共 {} 个向量，文档ID: {}", embeddings.size(), docId);
+            if (!contentChunks.isEmpty()) {
+                embeddingGateway.saveBatch(docId, contentChunks,strategyName);
+                log.info("文档向量生成完成，共 {} 个向量，文档ID: {}", contentChunks.size(), docId);
             }
         } catch (Exception e) {
             log.error("文档向量生成失败: {}", e.getMessage(), e);

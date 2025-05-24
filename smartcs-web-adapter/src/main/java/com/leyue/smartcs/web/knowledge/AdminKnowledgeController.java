@@ -91,37 +91,7 @@ public class AdminKnowledgeController {
         return knowledgeService.searchByText(qry);
     }
 
-    /**
-     * 创建Redisearch索引
-     */
-    @PostMapping("/index")
-    public Response createIndex(@RequestBody CreateIndexCmd cmd) {
-        return knowledgeService.createIndex(cmd);
-    }
 
-    /**
-     * 查询索引信息
-     */
-    @GetMapping("/index")
-    public SingleResponse<IndexInfoDTO> getIndexInfo(GetIndexInfoQry qry) {
-        return knowledgeService.getIndexInfo(qry);
-    }
-
-    /**
-     * 删除索引
-     */
-    @DeleteMapping("/index")
-    public Response deleteIndex(@RequestBody DeleteIndexCmd cmd) {
-        return knowledgeService.deleteIndex(cmd);
-    }
-
-    /**
-     * 获取所有RediSearch索引列表
-     */
-    @GetMapping("/indexes")
-    public MultiResponse<String> listIndexes() {
-        return knowledgeService.listIndexes();
-    }
 
     /**
      * 查询向量数据列表

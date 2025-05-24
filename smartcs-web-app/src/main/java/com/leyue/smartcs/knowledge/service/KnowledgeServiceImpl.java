@@ -26,9 +26,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final DocEmbeddingTriggerCmdExe docEmbeddingTriggerCmdExe;
     private final DocListQryExe docListQryExe;
     private final TextSearchQryExe textSearchQryExe;
-    private final IndexCreateCmdExe indexCreateCmdExe;
-    private final IndexInfoQryExe indexInfoQryExe;
-    private final IndexDeleteCmdExe indexDeleteCmdExe;
+
     private final EmbeddingListQryExe embeddingListQryExe;
     private final SearchGateway searchGateway;
 
@@ -67,25 +65,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return textSearchQryExe.execute(qry);
     }
 
-    @Override
-    public Response createIndex(CreateIndexCmd cmd) {
-        return indexCreateCmdExe.execute(cmd);
-    }
 
-    @Override
-    public SingleResponse<IndexInfoDTO> getIndexInfo(GetIndexInfoQry qry) {
-        return SingleResponse.of(indexInfoQryExe.execute(qry));
-    }
-
-    @Override
-    public Response deleteIndex(DeleteIndexCmd cmd) {
-        return indexDeleteCmdExe.execute(cmd);
-    }
-
-    @Override
-    public MultiResponse<String> listIndexes() {
-        return MultiResponse.of(searchGateway.listIndexes());
-    }
 
     @Override
     public PageResponse<EmbeddingDTO> listEmbeddings(EmbeddingListQry qry) {

@@ -67,36 +67,7 @@ public interface KnowledgeService {
      */
     MultiResponse<KnowledgeSearchResult> searchByText(KnowledgeSearchQry qry);
     
-    /**
-     * 创建RediSearch索引
-     *
-     * @param cmd 创建索引命令
-     * @return 操作结果
-     */
-    Response createIndex(CreateIndexCmd cmd);
-    
-    /**
-     * 获取索引信息
-     *
-     * @param qry 索引信息查询条件
-     * @return 索引信息
-     */
-    SingleResponse<IndexInfoDTO> getIndexInfo(GetIndexInfoQry qry);
-    
-    /**
-     * 删除索引
-     *
-     * @param cmd 删除索引命令
-     * @return 操作结果
-     */
-    Response deleteIndex(DeleteIndexCmd cmd);
-    
-    /**
-     * 获取所有RediSearch索引列表
-     *
-     * @return 索引名称列表
-     */
-    MultiResponse<String> listIndexes();
+
     
     /**
      * 查询向量数据列表

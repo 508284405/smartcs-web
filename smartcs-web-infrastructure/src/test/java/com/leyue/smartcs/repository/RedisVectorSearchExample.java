@@ -82,7 +82,7 @@ public class RedisVectorSearchExample {
                 Map.of("maxLength", "768", "modelMaxLength", "768")
         );
 
-        String sentence1 = "That is a very happy person";
+        String sentence1 = "hello i am dog";
         jedis.hset("doc:1", Map.of("content", sentence1, "genre", "persons"));
         jedis.hset(
                 "doc:1".getBytes(),
@@ -90,7 +90,7 @@ public class RedisVectorSearchExample {
                 longsToFloatsByteString(sentenceTokenizer.encode(sentence1).getIds())
         );
 
-        String sentence2 = "That is a happy dog";
+        String sentence2 = "hello i am cat";
         jedis.hset("doc:2", Map.of("content", sentence2, "genre", "pets"));
         jedis.hset(
                 "doc:2".getBytes(),
@@ -98,7 +98,7 @@ public class RedisVectorSearchExample {
                 longsToFloatsByteString(sentenceTokenizer.encode(sentence2).getIds())
         );
 
-        String sentence3 = "Today is a sunny day";
+        String sentence3 = "hello i am pig";
         jedis.hset("doc:3", Map.of("content", sentence3, "genre", "weather"));
         jedis.hset(
                 "doc:3".getBytes(),
@@ -107,9 +107,9 @@ public class RedisVectorSearchExample {
         );
 
         // 搜索
-        String sentence = "That is a happy person";
+        String sentence = "pig";
 
-        int K = 3;
+        int K = 1;
         Query q = new Query("*=>[KNN $K @embedding $BLOB AS distance]")
                 .returnFields("content", "distance","score")
                 .addParam("K", K)

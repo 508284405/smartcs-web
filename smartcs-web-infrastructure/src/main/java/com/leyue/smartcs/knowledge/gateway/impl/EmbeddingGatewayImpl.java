@@ -50,37 +50,36 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<Embedding> saveBatch(List<Embedding> embeddings) {
-        if (embeddings == null || embeddings.isEmpty()) {
+    public List<Embedding> saveBatch(Long docId, List<String> contentChunks, StrategyNameEnum strategyName) {
+        if (contentChunks == null || contentChunks.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<Embedding> result = new ArrayList<>(embeddings.size());
+        List<Embedding> result = new ArrayList<>(contentChunks.size());
 
         // 批量保存到MySQL，获取自增ID
-        for (Embedding embedding : embeddings) {
+        for (String content : contentChunks) {
             // 保存到数据库
+            Embedding embedding = new Embedding();
+            embedding.setDocId(docId);
+            embedding.setSectionIdx(contentChunks.indexOf(content));
+            embedding.setContentSnip(content);
+            embedding.setStrategyName(strategyName);
             result.add(save(embedding));
         }
 
         // 批量写入向量数据到RedisSearch
         try {
-            List<Embedding> validEmbeddings = result.stream()
-                    .filter(Embedding::isValidVector)
-                    .toList();
-
-            if (!validEmbeddings.isEmpty()) {
-                // 批量写入向量数据到RedisSearch
-                List<EmbeddingCmd> embeddingCmdList = embeddings.stream().map(x -> {
-                    EmbeddingCmd cmd = new EmbeddingCmd();
-                    cmd.setId(x.getId());
-                    cmd.setText(x.getContentSnip());
-                    return cmd;
-                }).collect(Collectors.toList());
-                boolean success = searchGateway.batchEmbeddingInsert(Constants.UMBEDDING_INDEX_REDISEARCH, embeddingCmdList);
-                if (!success) {
-                    log.error("批量写入向量数据到RedisSearch失败，Embedding数量: {}", validEmbeddings.size());
-                }
+            // 批量写入向量数据到RedisSearch
+            List<EmbeddingCmd> embeddingCmdList = result.stream().map(x -> {
+                EmbeddingCmd cmd = new EmbeddingCmd();
+                cmd.setId(x.getId());
+                cmd.setText(x.getContentSnip());
+                return cmd;
+            }).collect(Collectors.toList());
+            boolean success = searchGateway.batchEmbeddingInsert(Constants.UMBEDDING_INDEX_REDISEARCH, embeddingCmdList);
+            if (!success) {
+                log.error("批量写入向量数据到RedisSearch失败，Embedding数量: {}", result.size());
             }
         } catch (Exception e) {
             log.error("写入向量数据到RedisSearch时发生错误: {}", e.getMessage(), e);

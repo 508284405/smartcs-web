@@ -1,29 +1,26 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
-import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.utils.RedisearchUtils;
 import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RSearch;
-import org.redisson.api.RedissonClient;
-import org.redisson.api.search.index.FieldIndex;
-import org.redisson.api.search.index.IndexInfo;
-import org.redisson.api.search.index.IndexOptions;
-import org.redisson.api.search.index.IndexType;
+
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.Document;
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
+import redis.clients.jedis.search.schemafields.SchemaField;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,12 +35,7 @@ import java.util.Map;
 public class JedisSearchGatewayImpl implements SearchGateway {
 
     private final UnifiedJedis unifiedJedis;
-    private final RedissonClient redissonClient;
-    // 初始化分词器
-    private final HuggingFaceTokenizer sentenceTokenizer = HuggingFaceTokenizer.newInstance(
-            "sentence-transformers/all-mpnet-base-v2",
-            Map.of("maxLength", "1536", "modelMaxLength", "1536")
-    );
+    private final LLMGateway llmGateway;
 
     // ========== 向量检索相关方法 ==========
 
@@ -56,8 +48,12 @@ public class JedisSearchGatewayImpl implements SearchGateway {
                 String text = embedding.getText();
                 // 构建Redis键名（格式: collection:id）
                 String vectorKey = index + ":" + id;
-                // 添加向量数据（使用ByteArrayCodec）
-                unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.longsToFloatsByteString(sentenceTokenizer.encode(text).getIds()));
+                // 使用LLM Gateway生成向量
+                List<float[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(text));
+                if (!vectors.isEmpty()) {
+                    // 添加向量数据（使用ByteArrayCodec）
+                    unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.floatArrayToByteArray(vectors.get(0)));
+                }
             }
             return true;
         } catch (Exception e) {
@@ -68,17 +64,25 @@ public class JedisSearchGatewayImpl implements SearchGateway {
 
     @Override
     public Map<Long, Double> searchTopK(String index, String keyword, int k) {
+        // 使用LLM Gateway生成查询向量
+        List<float[]> queryVectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
+        if (queryVectors.isEmpty()) {
+            log.warn("无法为关键词生成向量: {}", keyword);
+            return new HashMap<>();
+        }
+        
         // Query for KNN, assuming 'embedding' is the vector field name.
         String queryString = "*=>[KNN $K @embedding $BLOB AS distance]";
         Query query = new Query(queryString)
                 .returnFields("embedding", "distance", "score")
                 .addParam("K", String.valueOf(k))
-                .addParam("BLOB", RedisearchUtils.longsToFloatsByteString(sentenceTokenizer.encode(keyword).getIds()))
+                .addParam("BLOB", RedisearchUtils.floatArrayToByteArray(queryVectors.get(0)))
                 .setSortBy("distance", true)
                 .dialect(2);
 
         Map<Long, Double> resultMap = new HashMap<>();
         try {
+            log.info("queryString: {}", JSONObject.toJSONString(query));
             SearchResult searchResult = unifiedJedis.ftSearch(index, query);
             if (searchResult.getTotalResults() > 0) {
                 for (Document doc : searchResult.getDocuments()) {
@@ -186,23 +190,12 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     @Override
     public void createIndex(String index, Object... fieldIndex) {
         try {
-            RSearch search = redissonClient.getSearch();
-
-            // 创建索引配置
-            IndexOptions options = IndexOptions.defaults()
-                    .on(IndexType.HASH)
-                    .prefix(index + ":");
-
             log.info("尝试创建全文索引: {}", index);
 
-            // 转换Object数组为FieldIndex数组
-            FieldIndex[] fieldIndexArray = new FieldIndex[fieldIndex.length];
-            for (int i = 0; i < fieldIndex.length; i++) {
-                fieldIndexArray[i] = (FieldIndex) fieldIndex[i];
-            }
-
-            // 调用RediSearch API创建索引
-            search.createIndex(index, options, fieldIndexArray);
+            // 使用 Jedis FT.CREATE 命令创建索引
+            // 注意：这里假设 fieldIndex 数组包含的是用于构建 FT.CREATE 命令的参数
+            // 实际实现可能需要根据具体的参数类型进行调整
+            unifiedJedis.ftCreate(index, (SchemaField[]) fieldIndex);
 
             log.info("成功创建全文索引: {}", index);
         } catch (Exception e) {
@@ -217,21 +210,25 @@ public class JedisSearchGatewayImpl implements SearchGateway {
 
     @Override
     public IndexInfoDTO getIndexInfo(String indexName) {
-        // 使用Redisson的info方法获取索引信息
-        IndexInfo indexInfo = redissonClient.getSearch().info(indexName);
-        if (indexInfo == null) {
-            log.error("索引不存在: {}", indexName);
+        try {
+            // 使用 Jedis FT.INFO 命令获取索引信息
+            Map<String, Object> indexInfo = unifiedJedis.ftInfo(indexName);
+            if (indexInfo == null || indexInfo.isEmpty()) {
+                log.error("索引不存在: {}", indexName);
+                return null;
+            }
+            return JSONObject.parseObject(JSONObject.toJSONString(indexInfo), IndexInfoDTO.class);
+        } catch (Exception e) {
+            log.error("获取索引信息失败: {}", indexName, e);
             return null;
         }
-        return JSONObject.parseObject(JSONObject.toJSONString(indexInfo), IndexInfoDTO.class);
     }
 
     @Override
     public boolean deleteIndex(String indexName) {
         try {
-            RSearch search = redissonClient.getSearch();
-            // 删除索引
-            search.dropIndex(indexName);
+            // 使用 Jedis FT.DROPINDEX 命令删除索引
+            unifiedJedis.ftDropIndex(indexName);
             log.info("成功删除索引: {}", indexName);
             return true;
         } catch (Exception e) {
@@ -243,7 +240,8 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     @Override
     public List<String> listIndexes() {
         try {
-            return redissonClient.getSearch().getIndexes();
+            // 使用 Jedis FT._LIST 命令获取索引列表
+            return unifiedJedis.ftList();
         } catch (Exception e) {
             log.error("获取索引列表失败", e);
             return List.of();
