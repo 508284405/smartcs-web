@@ -1,9 +1,11 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
+import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.TypeReference;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.utils.RedisearchUtils;
+import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,8 @@ import redis.clients.jedis.search.Document;
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,20 +39,25 @@ public class JedisSearchGatewayImpl implements SearchGateway {
 
     private final UnifiedJedis unifiedJedis;
     private final RedissonClient redissonClient;
+    // 初始化分词器
+    private final HuggingFaceTokenizer sentenceTokenizer = HuggingFaceTokenizer.newInstance(
+            "sentence-transformers/all-mpnet-base-v2",
+            Map.of("maxLength", "1536", "modelMaxLength", "1536")
+    );
 
     // ========== 向量检索相关方法 ==========
 
     @Override
-    public boolean batchInsert(String collection, List<Embedding> embeddings) {
+    public boolean batchEmbeddingInsert(String index, List<EmbeddingCmd> embeddings) {
         try {
             // 批量写入
-            for (Embedding embedding : embeddings) {
+            for (EmbeddingCmd embedding : embeddings) {
                 Long id = embedding.getId();
-                float[] vector = embedding.getVector();
+                String text = embedding.getText();
                 // 构建Redis键名（格式: collection:id）
-                String vectorKey = collection + ":" + id;
+                String vectorKey = index + ":" + id;
                 // 添加向量数据（使用ByteArrayCodec）
-                unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.floatArrayToByteArray(vector));
+                unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.longsToFloatsByteString(sentenceTokenizer.encode(text).getIds()));
             }
             return true;
         } catch (Exception e) {
@@ -58,13 +67,14 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public Map<Long, Double> searchTopK(String index, float[] vector, int k) {
+    public Map<Long, Double> searchTopK(String index, String keyword, int k) {
         // Query for KNN, assuming 'embedding' is the vector field name.
-        String queryString = "(*)=>[KNN $K @embedding $BLOB AS score]";
+        String queryString = "*=>[KNN $K @embedding $BLOB AS distance]";
         Query query = new Query(queryString)
+                .returnFields("embedding", "distance", "score")
                 .addParam("K", String.valueOf(k))
-                .addParam("BLOB", RedisearchUtils.floatArrayToByteArray(vector))
-                .returnFields("score")
+                .addParam("BLOB", RedisearchUtils.longsToFloatsByteString(sentenceTokenizer.encode(keyword).getIds()))
+                .setSortBy("distance", true)
                 .dialect(2);
 
         Map<Long, Double> resultMap = new HashMap<>();
@@ -75,8 +85,12 @@ public class JedisSearchGatewayImpl implements SearchGateway {
                     try {
                         String docId = doc.getId();
                         Long id = Long.parseLong(docId.substring(index.length() + 1));
-                        // The score is returned in the 'score' field due to "AS score"
-                        resultMap.put(id, Double.parseDouble(doc.getString("score")));
+                        // The score is returned in the 'score' field due to "AS score" score -> 527579744
+                        doc.getProperties().forEach(entry -> {
+                            if ("distance".equals(entry.getKey())) {
+                                resultMap.put(id, Double.parseDouble((String) entry.getValue()));
+                            }
+                        });
                     } catch (Exception e) {
                         log.warn("解析向量搜索结果失败 for docId: {}", doc.getId(), e);
                     }
@@ -124,7 +138,8 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     public boolean indexDocument(String index, Long id, Object source) {
         try {
             String documentKey = index + ":" + id;
-            Map<String, String> documentMap = JSONObject.parseObject(JSONObject.toJSONString(source), Map.class);
+            Map<String, String> documentMap = JSONObject.parseObject(JSONObject.toJSONString(source), new TypeReference<Map<String, String>>() {
+            });
 
             // 使用Jedis存储为哈希 (RediSearch会根据索引配置自动索引)
             unifiedJedis.hset(documentKey, documentMap);

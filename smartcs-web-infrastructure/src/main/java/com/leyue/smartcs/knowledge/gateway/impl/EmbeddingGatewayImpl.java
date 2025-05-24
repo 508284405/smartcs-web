@@ -4,6 +4,7 @@ import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.knowledge.convertor.EmbeddingConvertor;
 import com.leyue.smartcs.knowledge.dataobject.EmbeddingDO;
 import com.leyue.smartcs.knowledge.mapper.EmbeddingMapper;
@@ -13,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -69,7 +69,13 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
 
             if (!validEmbeddings.isEmpty()) {
                 // 批量写入向量数据到RedisSearch
-                boolean success = searchGateway.batchInsert(Constants.UMBEDDING_INDEX_REDISEARCH, embeddings);
+                List<EmbeddingCmd> embeddingCmdList = embeddings.stream().map(x -> {
+                    EmbeddingCmd cmd = new EmbeddingCmd();
+                    cmd.setId(x.getId());
+                    cmd.setText(x.getContentSnip());
+                    return cmd;
+                }).collect(Collectors.toList());
+                boolean success = searchGateway.batchEmbeddingInsert(Constants.UMBEDDING_INDEX_REDISEARCH, embeddingCmdList);
                 if (!success) {
                     log.error("批量写入向量数据到RedisSearch失败，Embedding数量: {}", validEmbeddings.size());
                 }

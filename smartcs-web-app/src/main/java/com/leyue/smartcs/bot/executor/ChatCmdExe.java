@@ -154,24 +154,21 @@ public class ChatCmdExe {
 
         // 如果文本检索没有结果，则尝试向量检索（需要先生成嵌入向量）
         try {
-            List<float[]> embeddings = llmGateway.generateEmbeddings(List.of(question));
-            if (!embeddings.isEmpty()) {
-                Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, embeddings.get(0), k);
-                return searchTopK.entrySet().stream()
-                        .map(entry -> {
-                            Optional<Embedding> optionalEmbedding = embeddingGateway.findById(entry.getKey());
-                            if (optionalEmbedding.isPresent()) {
-                                Embedding embedding = optionalEmbedding.get();
-                                Map<String, Object> result = new HashMap<>();
-                                result.put("id", embedding.getId());
-                                result.put("contentSnip", embedding.getContentSnip());
-                                result.put("score", entry.getValue());
-                                return result;
-                            }
-                            return new HashMap<String,Object>();
-                        })
-                        .collect(Collectors.toList());
-            }
+            Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, question, k);
+            return searchTopK.entrySet().stream()
+                    .map(entry -> {
+                        Optional<Embedding> optionalEmbedding = embeddingGateway.findById(entry.getKey());
+                        if (optionalEmbedding.isPresent()) {
+                            Embedding embedding = optionalEmbedding.get();
+                            Map<String, Object> result = new HashMap<>();
+                            result.put("id", embedding.getId());
+                            result.put("contentSnip", embedding.getContentSnip());
+                            result.put("score", entry.getValue());
+                            return result;
+                        }
+                        return new HashMap<String, Object>();
+                    })
+                    .collect(Collectors.toList());
         } catch (Exception e) {
             log.warn("向量检索失败: {}", e.getMessage());
         }

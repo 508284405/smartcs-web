@@ -129,7 +129,6 @@ public class DocEmbeddingGenerateListener {
             
             // 分段
             if (fullText != null && !fullText.isEmpty()) {
-                // TODO: 根据实际业务逻辑确定分段策略名称
                 String strategyName = "Paragraph"; // 临时使用默认策略名
                 SegmentStrategy strategy = segmentStrategyFactory.getStrategy(strategyName);
                 contentChunks = strategy.segment(fullText);

@@ -34,14 +34,13 @@ public class EmbeddingDO extends BaseDO {
     private String contentSnip;
     
     /**
-     * 向量数据
-     */
-    @TableField(value = "vector",typeHandler = VectorTypeHandler.class)
-    private float[] vector;
-    
-    /**
      * 模型类型
      */
     @TableField("model_type")
     private String modelType;
+
+    /**
+     * 解析器类型
+     */
+    private String strategyName;
 } 

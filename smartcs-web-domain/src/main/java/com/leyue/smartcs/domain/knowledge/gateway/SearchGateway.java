@@ -1,6 +1,7 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 
 import java.util.List;
@@ -23,7 +24,7 @@ public interface SearchGateway {
      * @param partitionKey 分区键（可选）
      * @return 是否成功
      */
-    boolean batchInsert(String collection, List<Embedding> embeddings);
+    boolean batchEmbeddingInsert(String collection, List<EmbeddingCmd> embeddings);
 
     /**
      * 执行Top-K检索
@@ -35,7 +36,7 @@ public interface SearchGateway {
      * @param threshold   相似度阈值
      * @return ID与相似度分数的映射
      */
-    Map<Long, Double> searchTopK(String index, float[] vector, int k);
+    Map<Long, Double> searchTopK(String index, String keyword, int k);
     
     // ========== 全文检索相关方法 ==========
     

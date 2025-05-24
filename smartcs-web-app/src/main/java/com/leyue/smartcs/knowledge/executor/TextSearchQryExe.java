@@ -135,12 +135,8 @@ public class TextSearchQryExe {
      * @return 段落结果
      */
     private KnowledgeSearchResult searchDocEmbeddings(String keyword, int k) {
-        // 解析向量
-        // 调用LLM服务生成向量
-        List<float[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
-
         // 调用全文检索查询文档段落
-        Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, vectors.get(0), k);
+        Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, keyword, k);
 
         // 没有结果则返回null
         if (embSearchResults == null || embSearchResults.isEmpty()) {

@@ -1,9 +1,11 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.utils.RedisearchUtils;
+import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,7 @@ import org.redisson.codec.CompositeCodec;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +34,7 @@ import java.util.Map;
 public class RedissonSearchGatewayImpl implements SearchGateway {
 
     private final RedissonClient redissonClient;
+    private final LLMGateway llmGateway;
 
     // 向量数据缓存的过期时间（30天）
     private static final long VECTOR_CACHE_TTL = 30;
@@ -38,17 +42,17 @@ public class RedissonSearchGatewayImpl implements SearchGateway {
     // ========== 向量检索相关方法 ==========
 
     @Override
-    public boolean batchInsert(String collection, List<Embedding> embeddings) {
+    public boolean batchEmbeddingInsert(String collection, List<EmbeddingCmd> embeddings) {
         try {
             // 批量写入
-            for (Embedding embedding : embeddings) {
+            for (EmbeddingCmd embedding : embeddings) {
                 Long id = embedding.getId();
-                float[] vector = embedding.getVector();
                 // 构建Redis键名（格式: collection:id）
                 String vectorKey = collection + ":" + id;
                 // 添加向量数据（使用ByteArrayCodec）
                 RMap<String, byte[]> rmap = redissonClient.getMap(vectorKey, new CompositeCodec(StringCodec.INSTANCE, ByteArrayCodec.INSTANCE));
-                rmap.put("embedding", RedisearchUtils.floatArrayToByteArray(vector));
+                List<float[]> vector = llmGateway.generateEmbeddings(Collections.singletonList(embedding.getText()));
+                rmap.put("embedding", RedisearchUtils.floatArrayToByteArray(vector.get(0)));
                 rmap.expire(Duration.ofDays(VECTOR_CACHE_TTL));
             }
             return true;
@@ -59,12 +63,16 @@ public class RedissonSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public Map<Long, Double> searchTopK(String index, float[] vector, int k) {
+    public Map<Long, Double> searchTopK(String index, String keyword, int k) {
+        List<float[]> floats = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
+        if (floats.isEmpty()) {
+            return Collections.emptyMap();
+        }
         // 尝试使用RediSearch的向量搜索功能
         String query = "*=>[KNN " + k + " @embedding $vector AS score]";
 
         Map<String, Object> params = new HashMap<>();
-        params.put("vector", RedisearchUtils.floatArrayToByteArray(vector));
+        params.put("vector", RedisearchUtils.floatArrayToByteArray(floats.get(0)));
 
         Map<Long, Double> resultMap = new HashMap<>();
         try {

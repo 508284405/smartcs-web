@@ -106,12 +106,12 @@ public class RedisVectorSearchExample {
                 longsToFloatsByteString(sentenceTokenizer.encode(sentence3).getIds())
         );
 
-
+        // 搜索
         String sentence = "That is a happy person";
 
         int K = 3;
         Query q = new Query("*=>[KNN $K @embedding $BLOB AS distance]")
-                .returnFields("content", "distance")
+                .returnFields("content", "distance","score")
                 .addParam("K", K)
                 .addParam("BLOB", longsToFloatsByteString(sentenceTokenizer.encode(sentence).getIds()))
                 .setSortBy("distance", true)
@@ -122,10 +122,11 @@ public class RedisVectorSearchExample {
         for (Document doc: docs) {
             System.out.println(
                     String.format(
-                            "ID: %s, Distance: %s, Content: %s",
+                            "ID: %s, Distance: %s, Content: %s, score: %s",
                             doc.getId(),
                             doc.get("distance"),
-                            doc.get("content")
+                            doc.get("content"),
+                            doc.getScore()
                     )
             );
         }
