@@ -1,79 +1,66 @@
 package com.leyue.smartcs.knowledge.executor;
 
-import com.alibaba.cola.dto.MultiResponse;
-import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
-import com.leyue.smartcs.domain.knowledge.model.Embedding;
-import com.leyue.smartcs.dto.common.SingleClientObject;
+import com.alibaba.cola.dto.PageResponse;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leyue.smartcs.dto.knowledge.EmbeddingDTO;
-import com.leyue.smartcs.knowledge.convertor.EmbeddingConvertor;
+import com.leyue.smartcs.dto.knowledge.EmbeddingListQry;
+import com.leyue.smartcs.knowledge.dataobject.EmbeddingDO;
+import com.leyue.smartcs.knowledge.mapper.EmbeddingMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
- * 向量列表查询执行器
+ * 向量数据分页查询执行器
  */
 @Component
 @RequiredArgsConstructor
-@Slf4j
 public class EmbeddingListQryExe {
-    
-    private final EmbeddingGateway embeddingGateway;
-    private final DocumentGateway documentGateway;
-    private final EmbeddingConvertor embeddingConvertor;
-    
+
+    private final EmbeddingMapper embeddingMapper;
+
     /**
-     * 执行向量列表查询
-     * @param cmd 文档ID
-     * @return 向量列表
+     * 执行向量数据分页查询
+     *
+     * @param qry 查询条件
+     * @return 分页响应
      */
-    public MultiResponse<EmbeddingDTO> execute(SingleClientObject<Long> cmd) {
-        // 参数校验
-        if (cmd.getValue() == null) {
-            throw new BizException("文档ID不能为空");
-        }
+    public PageResponse<EmbeddingDTO> execute(EmbeddingListQry qry) {
+        // 创建分页对象
+        Page<EmbeddingDO> page = new Page<>(qry.getPageIndex(), qry.getPageSize());
         
-        Long docId = cmd.getValue();
+        // 执行分页查询
+        IPage<EmbeddingDO> result = embeddingMapper.listByDocIdAndStrategyName(page, qry);
         
-        // 检查文档是否存在
-        if (documentGateway.findById(docId).isEmpty()) {
-            throw new BizException("文档不存在，ID: " + docId);
-        }
+        // 转换DO到DTO
+        List<EmbeddingDTO> embeddingDTOList = result.getRecords()
+                .stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
         
-        // 执行查询
-        List<Embedding> embeddings = embeddingGateway.findByDocId(docId);
-        return MultiResponse.of(embeddingConvertor.toDTOList(embeddings));
+        // 构建分页响应
+        return PageResponse.of(
+                embeddingDTOList,
+                (int) result.getTotal(),
+                qry.getPageSize(),
+                qry.getPageIndex()
+        );
     }
-    
+
     /**
-     * 批量转换为DTO
-     * @param embeddings 向量实体列表
-     * @return 向量DTO列表
+     * 将EmbeddingDO转换为EmbeddingDTO
      */
-    private List<EmbeddingDTO> convertToDTOs(List<Embedding> embeddings) {
-        if (embeddings == null || embeddings.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        List<EmbeddingDTO> dtos = new ArrayList<>(embeddings.size());
-        for (Embedding embedding : embeddings) {
-            EmbeddingDTO dto = new EmbeddingDTO();
-            dto.setId(embedding.getId());
-            dto.setDocId(embedding.getDocId());
-            dto.setSectionIdx(embedding.getSectionIdx());
-            dto.setContentSnip(embedding.getContentSnip());
-            dto.setVector(embedding.getVector());
-            dto.setCreatedAt(embedding.getCreatedAt());
-            dto.setUpdatedAt(embedding.getUpdatedAt());
-            dtos.add(dto);
-        }
-        
-        return dtos;
+    private EmbeddingDTO convertToDTO(EmbeddingDO embeddingDO) {
+        EmbeddingDTO dto = new EmbeddingDTO();
+        dto.setId(embeddingDO.getId());
+        dto.setDocId(embeddingDO.getDocId());
+        dto.setSectionIdx(embeddingDO.getSectionIdx());
+        dto.setContentSnip(embeddingDO.getContentSnip());
+        dto.setCreatedAt(embeddingDO.getCreatedAt());
+        dto.setUpdatedAt(embeddingDO.getUpdatedAt());
+        return dto;
     }
 } 

@@ -1,6 +1,8 @@
 package com.leyue.smartcs.knowledge.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.leyue.smartcs.dto.knowledge.EmbeddingListQry;
 import com.leyue.smartcs.knowledge.dataobject.EmbeddingDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -34,4 +36,12 @@ public interface EmbeddingMapper extends BaseMapper<EmbeddingDO> {
      * @return 删除行数
      */
     int deleteByDocId(@Param("docId") Long docId);
+    
+    /**
+     * 分页查询向量数据
+     * @param page 分页对象
+     * @param qry 查询条件
+     * @return 分页结果
+     */
+    IPage<EmbeddingDO> listByDocIdAndStrategyName(IPage<EmbeddingDO> page, @Param("qry") EmbeddingListQry qry);
 } 

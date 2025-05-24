@@ -29,6 +29,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final IndexCreateCmdExe indexCreateCmdExe;
     private final IndexInfoQryExe indexInfoQryExe;
     private final IndexDeleteCmdExe indexDeleteCmdExe;
+    private final EmbeddingListQryExe embeddingListQryExe;
     private final SearchGateway searchGateway;
 
     @Override
@@ -84,5 +85,10 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     public MultiResponse<String> listIndexes() {
         return MultiResponse.of(searchGateway.listIndexes());
+    }
+
+    @Override
+    public PageResponse<EmbeddingDTO> listEmbeddings(EmbeddingListQry qry) {
+        return embeddingListQryExe.execute(qry);
     }
 } 

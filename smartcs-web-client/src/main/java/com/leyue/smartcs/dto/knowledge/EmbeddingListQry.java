@@ -1,24 +1,28 @@
 package com.leyue.smartcs.dto.knowledge;
 
+import com.alibaba.cola.dto.PageQuery;
 import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
 
 /**
- * 触发文档向量生成命令
+ * 向量数据分页查询
  */
 @Data
-public class TriggerDocEmbeddingCmd {
+@EqualsAndHashCode(callSuper = true)
+public class EmbeddingListQry extends PageQuery {
+    
     /**
-     * 文档ID
+     * 文档ID（必填）
      */
     @NotNull(message = "文档ID不能为空")
     private Long docId;
     
     /**
-     * 解析器名称
+     * 策略名称（必填）
      */
-    @NotNull(message = "解析器名称不能为空")
+    @NotNull(message = "策略名称不能为空")
     private StrategyNameEnum strategyName;
 } 

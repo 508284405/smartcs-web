@@ -7,6 +7,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.model.Document;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
@@ -65,7 +66,7 @@ public class DocEmbeddingGenerateListener {
             log.info("开始处理文档: {}, URL: {}", document.getTitle(), document.getOssUrl());
 
             // 2. 下载并解析文档内容
-            String strategyName = event.getStrategyName();
+            StrategyNameEnum strategyName = event.getStrategyName();
             List<String> contentChunks = parseDocumentContent(document, strategyName);
             if (contentChunks.isEmpty()) {
                 log.warn("文档内容为空或解析失败，文档ID: {}", docId);
@@ -97,7 +98,7 @@ public class DocEmbeddingGenerateListener {
      * @param strategyName 解析策略名称
      * @return 分段后的内容列表
      */
-    private List<String> parseDocumentContent(Document document, String strategyName) {
+    private List<String> parseDocumentContent(Document document, StrategyNameEnum strategyName) {
         log.info("开始解析文档内容: {}", document.getTitle());
 
         List<String> contentChunks = new ArrayList<>();
@@ -134,8 +135,7 @@ public class DocEmbeddingGenerateListener {
             // 分段
             if (fullText != null && !fullText.isEmpty()) {
                 // 使用传入的策略名称，如果为空则使用默认策略
-                String actualStrategyName = (strategyName != null && !strategyName.isEmpty()) ? strategyName : "Paragraph";
-                SegmentStrategy strategy = segmentStrategyFactory.getStrategy(actualStrategyName);
+                SegmentStrategy strategy = segmentStrategyFactory.getStrategy(strategyName);
                 contentChunks = strategy.segment(fullText);
                 log.info("文档内容分段完成，共 {} 段，策略: {}",
                         contentChunks.size(), strategy.getStrategyName());
@@ -155,7 +155,7 @@ public class DocEmbeddingGenerateListener {
      * @param strategyName  解析策略名称
      * @return 向量对象列表
      */
-    private List<Embedding> generateEmbeddings(Long docId, List<String> contentChunks, String strategyName) {
+    private List<Embedding> generateEmbeddings(Long docId, List<String> contentChunks, StrategyNameEnum strategyName) {
         List<Embedding> embeddings = new ArrayList<>();
 
         try {

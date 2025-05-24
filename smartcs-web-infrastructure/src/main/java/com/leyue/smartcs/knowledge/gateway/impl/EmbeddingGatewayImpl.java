@@ -6,6 +6,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.convertor.EmbeddingConvertor;
 import com.leyue.smartcs.knowledge.dataobject.EmbeddingDO;
 import com.leyue.smartcs.knowledge.mapper.EmbeddingMapper;
@@ -122,7 +123,7 @@ public class EmbeddingGatewayImpl implements EmbeddingGateway {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean deleteByDocId(Long docId, String strategyName) {
+    public boolean deleteByDocId(Long docId, StrategyNameEnum strategyName) {
         // 从MySQL删除
         int rows = embeddingMapper.delete(Wrappers.<EmbeddingDO>lambdaQuery()
                 .eq(EmbeddingDO::getDocId, docId)

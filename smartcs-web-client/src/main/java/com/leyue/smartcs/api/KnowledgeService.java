@@ -97,4 +97,12 @@ public interface KnowledgeService {
      * @return 索引名称列表
      */
     MultiResponse<String> listIndexes();
+    
+    /**
+     * 查询向量数据列表
+     *
+     * @param qry 查询条件
+     * @return 向量数据列表（分页）
+     */
+    PageResponse<EmbeddingDTO> listEmbeddings(EmbeddingListQry qry);
 } 

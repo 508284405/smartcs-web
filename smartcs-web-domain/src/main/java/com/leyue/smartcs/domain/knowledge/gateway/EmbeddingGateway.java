@@ -1,6 +1,7 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
 import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 
 import java.util.List;
 import java.util.Optional;
@@ -51,5 +52,5 @@ public interface EmbeddingGateway {
      * @param strategyName 解析策略名称
      * @return 是否成功
      */
-    boolean deleteByDocId(Long docId, String strategyName);
+    boolean deleteByDocId(Long docId, StrategyNameEnum strategyName);
 } 

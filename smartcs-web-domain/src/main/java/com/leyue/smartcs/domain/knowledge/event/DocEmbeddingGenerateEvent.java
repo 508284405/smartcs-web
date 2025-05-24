@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.knowledge.event;
 
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -33,5 +34,5 @@ public class DocEmbeddingGenerateEvent {
     /**
      * 解析策略名称，用于指定文档解析方式
      */
-    private String strategyName;
+    private StrategyNameEnum strategyName;
 } 

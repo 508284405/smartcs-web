@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.knowledge.model;
 
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,7 +47,7 @@ public class Embedding {
     /**
      * 分段策略名称
      */
-    private String strategyName;
+    private StrategyNameEnum strategyName;
 
     /**
      * 创建时间（毫秒时间戳）

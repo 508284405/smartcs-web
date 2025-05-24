@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
 import com.leyue.smartcs.common.typehandler.VectorTypeHandler;
+import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -42,5 +43,5 @@ public class EmbeddingDO extends BaseDO {
     /**
      * 解析器类型
      */
-    private String strategyName;
+    private StrategyNameEnum strategyName;
 } 

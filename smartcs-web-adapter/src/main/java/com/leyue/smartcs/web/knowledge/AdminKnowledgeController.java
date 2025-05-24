@@ -7,6 +7,8 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.KnowledgeService;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import com.leyue.smartcs.dto.knowledge.*;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -54,19 +56,14 @@ public class AdminKnowledgeController {
      */
     @PostMapping("/doc")
     public SingleResponse<DocDTO> addDoc(@RequestBody DocAddCmd cmd) {
-        log.info("上传文档请求: {}", cmd);
         return knowledgeService.addDoc(cmd);
     }
 
     /**
      * 触发文档向量生成
      */
-    @PostMapping("/doc/{id}/trigger-embedding")
-    public Response triggerDocEmbedding(@PathVariable("id") Long id, @RequestBody TriggerDocEmbeddingCmd request) {
-        log.info("触发文档向量生成请求, ID: {}, strategyName: {}", id, request.getStrategyName());
-        TriggerDocEmbeddingCmd cmd = new TriggerDocEmbeddingCmd();
-        cmd.setDocId(id);
-        cmd.setStrategyName(request.getStrategyName());
+    @PostMapping("/doc/trigger-embedding")
+    public Response triggerDocEmbedding(@RequestBody @Valid TriggerDocEmbeddingCmd cmd) {
         return knowledgeService.triggerDocEmbedding(cmd);
     }
 
@@ -78,9 +75,6 @@ public class AdminKnowledgeController {
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "page", defaultValue = "1") Integer page,
             @RequestParam(value = "size", defaultValue = "10") Integer size) {
-
-        log.info("查询文档列表请求: keyword={}, page={}, size={}", keyword, page, size);
-
         KnowledgeSearchQry qry = new KnowledgeSearchQry();
         qry.setKeyword(keyword);
         qry.setPageIndex(page);
@@ -94,7 +88,6 @@ public class AdminKnowledgeController {
      */
     @PostMapping("/search/text")
     public MultiResponse<KnowledgeSearchResult> searchByText(@RequestBody KnowledgeSearchQry qry) {
-        log.info("文本检索请求: keyword={}, k={}", qry.getKeyword(), qry.getK());
         return knowledgeService.searchByText(qry);
     }
 
@@ -103,7 +96,6 @@ public class AdminKnowledgeController {
      */
     @PostMapping("/index")
     public Response createIndex(@RequestBody CreateIndexCmd cmd) {
-        log.info("创建Redisearch索引请求: indexName={}, fields={}", cmd.getIndexName(), cmd.getSchema().size());
         return knowledgeService.createIndex(cmd);
     }
 
@@ -128,7 +120,14 @@ public class AdminKnowledgeController {
      */
     @GetMapping("/indexes")
     public MultiResponse<String> listIndexes() {
-        log.info("获取所有RediSearch索引列表请求");
         return knowledgeService.listIndexes();
+    }
+
+    /**
+     * 查询向量数据列表
+     */
+    @GetMapping("/embedding")
+    public PageResponse<EmbeddingDTO> listEmbeddings(EmbeddingListQry qry) {
+        return knowledgeService.listEmbeddings(qry);
     }
 } 
