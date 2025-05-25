@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * LLM网关实现
@@ -70,6 +71,55 @@ public class LLMGatewayImpl implements LLMGateway {
         } catch (Exception e) {
             log.error("生成回答失败: {}", e.getMessage(), e);
             throw new BizException("生成回答失败: " + e.getMessage(), e);
+        }
+    }
+    
+    @Override
+    public void generateAnswerStream(String prompt, Map<String, Object> options, Consumer<String> chunkConsumer) {
+        try {
+            log.info("流式生成回答, prompt长度: {}", prompt.length());
+            
+            // 创建用户消息
+            UserMessage userMessage = new UserMessage(prompt);
+            
+            // 创建选项
+            ChatOptions.Builder builder = ChatOptions.builder();
+            
+            // 应用选项
+            if (options != null) {
+                if (options.containsKey("temperature")) {
+                    builder.temperature((Double) options.get("temperature"));
+                }
+                
+                if (options.containsKey("maxTokens")) {
+                    builder.maxTokens((Integer) options.get("maxTokens"));
+                }
+                
+                if (options.containsKey("model")) {
+                    builder.model((String) options.get("model"));
+                }
+            }
+            
+            ChatOptions chatOptions = builder.build();
+            
+            // 创建提示
+            Prompt prompt1 = new Prompt(List.of(userMessage), chatOptions);
+            
+            // 调用LLM流式生成
+            openAiChatModel.stream(prompt1)
+                    .doOnNext(chatResponse -> {
+                        String content = chatResponse.getResult().getOutput().getText();
+                        if (content != null && !content.isEmpty()) {
+                            chunkConsumer.accept(content);
+                        }
+                    })
+                    .doOnComplete(() -> log.info("流式生成回答完成"))
+                    .doOnError(error -> log.error("流式生成回答失败: {}", error.getMessage()))
+                    .blockLast(); // 等待流完成
+                    
+        } catch (Exception e) {
+            log.error("流式生成回答失败: {}", e.getMessage(), e);
+            throw new BizException("流式生成回答失败: " + e.getMessage(), e);
         }
     }
     

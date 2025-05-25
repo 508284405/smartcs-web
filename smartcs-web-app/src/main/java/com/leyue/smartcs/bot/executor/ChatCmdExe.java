@@ -2,12 +2,13 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.api.MessageService;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import com.leyue.smartcs.domain.bot.gateway.SessionGateway;
 import com.leyue.smartcs.domain.bot.model.Conversation;
 import com.leyue.smartcs.domain.bot.model.Message;
 import com.leyue.smartcs.domain.bot.model.PromptTemplate;
+import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
@@ -16,6 +17,9 @@ import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.knowledge.model.Faq;
 import com.leyue.smartcs.dto.bot.BotChatRequest;
 import com.leyue.smartcs.dto.bot.BotChatResponse;
+
+import com.leyue.smartcs.dto.chat.MessageDTO;
+import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -35,7 +39,7 @@ public class ChatCmdExe {
     private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
     private final EmbeddingGateway embeddingGateway;
-    private final SessionGateway sessionGateway;
+    private final MessageService messageService;
     private final PromptTemplateGateway promptTemplateGateway;
 
     // 默认检索数量
@@ -69,26 +73,35 @@ public class ChatCmdExe {
                 sessionId = UUID.randomUUID().toString();
             }
 
-            // 从会话中获取历史消息
-            Conversation conversation;
-            Optional<Conversation> conversationOpt = sessionGateway.getConversation(sessionId);
-
-            if (conversationOpt.isPresent()) {
-                conversation = conversationOpt.get();
-            } else {
-                conversation = new Conversation();
-                conversation.setSessionId(sessionId);
-                conversation.setCreatedAt(System.currentTimeMillis());
+            // 转换sessionId为Long类型
+            Long sessionIdLong;
+            try {
+                sessionIdLong = Long.parseLong(sessionId);
+            } catch (NumberFormatException e) {
+                // 如果无法转换，生成一个新的Long类型ID
+                sessionIdLong = System.currentTimeMillis();
+                sessionId = sessionIdLong.toString();
             }
 
-            // 添加用户问题
-            conversation.addUserMessage(request.getQuestion());
+            // 从chat message服务获取历史消息
+            List<MessageDTO> historyMessages = new ArrayList<>();
+            if (Boolean.TRUE.equals(request.getIncludeHistory())) {
+                historyMessages = messageService.getSessionMessagesWithPagination(sessionIdLong, 0, MAX_HISTORY_MESSAGES);
+            }
+
+            // 存储用户问题到chat message服务
+            SendMessageCmd userMessageCmd = new SendMessageCmd();
+            userMessageCmd.setSessionId(sessionIdLong);
+            userMessageCmd.setSenderRole(0); // 用户角色
+            userMessageCmd.setMsgType(0); // 文本消息
+            userMessageCmd.setContent(request.getQuestion());
+            MessageDTO userMessage = messageService.sendMessage(userMessageCmd);
 
             // 获取知识检索结果
             List<Map<String, Object>> searchResults = getSearchResults(request.getQuestion(), request.getTopK());
 
             // 构建Prompt
-            String prompt = buildPrompt(request, conversation, searchResults);
+            String prompt = buildPrompt(request, historyMessages, searchResults);
 
             // 调用LLM生成回答
             Map<String, Object> options = new HashMap<>();
@@ -104,11 +117,13 @@ public class ChatCmdExe {
 
             String answer = llmGateway.generateAnswer(prompt, options);
 
-            // 添加助手回答
-            conversation.addAssistantMessage(answer);
-
-            // 保存会话
-            sessionGateway.saveConversation(conversation);
+            // 存储bot回答到chat message服务
+            SendMessageCmd botMessageCmd = new SendMessageCmd();
+            botMessageCmd.setSessionId(sessionIdLong);
+            botMessageCmd.setSenderRole(2); // 机器人角色
+            botMessageCmd.setMsgType(0); // 文本消息
+            botMessageCmd.setContent(answer);
+            MessageDTO botMessage = messageService.sendMessage(botMessageCmd);
 
             // 构建响应
             BotChatResponse response = buildResponse(sessionId, answer, searchResults, request.getModel(), startTime);
@@ -180,11 +195,11 @@ public class ChatCmdExe {
      * 构建Prompt
      *
      * @param request       聊天请求
-     * @param conversation  对话
+     * @param historyMessages 历史消息
      * @param searchResults 检索结果
      * @return Prompt
      */
-    private String buildPrompt(BotChatRequest request, Conversation conversation, List<Map<String, Object>> searchResults) {
+    private String buildPrompt(BotChatRequest request, List<MessageDTO> historyMessages, List<Map<String, Object>> searchResults) {
         // 获取Prompt模板
         PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(DEFAULT_TEMPLATE_KEY)
                 .orElseGet(() -> {
@@ -204,18 +219,16 @@ public class ChatCmdExe {
         variables.put("question", request.getQuestion());
 
         // 设置历史消息
-        if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-            List<Message> recentMessages = conversation.getRecentMessages(MAX_HISTORY_MESSAGES);
-            if (recentMessages.size() > 1) {
-                // 移除最后一条消息（当前用户问题）
-                recentMessages = recentMessages.subList(0, recentMessages.size() - 1);
-                String history = recentMessages.stream()
-                        .map(msg -> msg.getRole() + ": " + msg.getContent())
-                        .collect(Collectors.joining("\n"));
-                variables.put("history", history);
-            } else {
-                variables.put("history", "");
-            }
+        if (Boolean.TRUE.equals(request.getIncludeHistory()) && !historyMessages.isEmpty()) {
+            // 构建历史对话记录，包含用户和bot的对话
+            String history = historyMessages.stream()
+                    .map(msg -> {
+                        String role = msg.getSenderRole() == 0 ? "user" : 
+                                     msg.getSenderRole() == 2 ? "assistant" : "agent";
+                        return role + ": " + msg.getContent();
+                    })
+                    .collect(Collectors.joining("\n"));
+            variables.put("history", history);
         } else {
             variables.put("history", "");
         }

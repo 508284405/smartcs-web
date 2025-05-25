@@ -2,10 +2,9 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.api.MessageService;
 import com.leyue.smartcs.dto.bot.BotContextDTO;
-import com.leyue.smartcs.domain.bot.gateway.SessionGateway;
-import com.leyue.smartcs.domain.bot.model.Conversation;
-import com.leyue.smartcs.domain.bot.model.Message;
+import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 上下文查询执行器
@@ -23,7 +21,7 @@ import java.util.Optional;
 @Slf4j
 public class ContextQryExe {
     
-    private final SessionGateway sessionGateway;
+    private final MessageService messageService;
     
     /**
      * 执行上下文查询
@@ -39,11 +37,12 @@ public class ContextQryExe {
                 throw new BizException("会话ID不能为空");
             }
             
-            // 查询会话
-            Optional<Conversation> conversationOpt = sessionGateway.getConversation(sessionId.getValue());
-            
-            if (conversationOpt.isEmpty()) {
-                log.info("会话不存在: {}", sessionId.getValue());
+            // 转换sessionId为Long类型
+            Long sessionIdLong;
+            try {
+                sessionIdLong = Long.parseLong(sessionId.getValue());
+            } catch (NumberFormatException e) {
+                log.warn("无效的会话ID格式: {}", sessionId.getValue());
                 return SingleResponse.of(BotContextDTO.builder()
                         .sessionId(sessionId.getValue())
                         .history(new ArrayList<>())
@@ -52,10 +51,21 @@ public class ContextQryExe {
                         .build());
             }
             
-            Conversation conversation = conversationOpt.get();
+            // 从chat message服务获取消息历史
+            List<MessageDTO> messages = messageService.getSessionMessagesWithPagination(sessionIdLong, 0, 100);
+            
+            if (messages.isEmpty()) {
+                log.info("会话不存在或无消息: {}", sessionId.getValue());
+                return SingleResponse.of(BotContextDTO.builder()
+                        .sessionId(sessionId.getValue())
+                        .history(new ArrayList<>())
+                        .totalMessages(0)
+                        .lastUpdatedAt(System.currentTimeMillis())
+                        .build());
+            }
             
             // 转换DTO
-            BotContextDTO contextDTO = convertToDTO(conversation);
+            BotContextDTO contextDTO = convertToDTO(sessionId.getValue(), messages);
             
             log.info("上下文查询完成，共 {} 条消息", contextDTO.getTotalMessages());
             return SingleResponse.of(contextDTO);
@@ -80,11 +90,11 @@ public class ContextQryExe {
                 throw new BizException("会话ID不能为空");
             }
             
-            // 删除会话
-            boolean result = sessionGateway.deleteConversation(sessionId.getValue());
+            // 注意：这里暂时返回true，因为chat message服务通常不提供删除整个会话的功能
+            // 如果需要删除功能，需要在MessageService中添加相应的方法
+            log.warn("上下文删除功能暂未实现，会话ID: {}", sessionId.getValue());
             
-            log.info("上下文删除完成: {}", result);
-            return SingleResponse.of(result);
+            return SingleResponse.of(true);
             
         } catch (Exception e) {
             log.error("上下文删除失败: {}", e.getMessage(), e);
@@ -93,28 +103,38 @@ public class ContextQryExe {
     }
     
     /**
-     * 将会话转换为DTO
-     * @param conversation 会话
+     * 将消息列表转换为DTO
+     * @param sessionId 会话ID
+     * @param messages 消息列表
      * @return DTO
      */
-    private BotContextDTO convertToDTO(Conversation conversation) {
+    private BotContextDTO convertToDTO(String sessionId, List<MessageDTO> messages) {
         List<BotContextDTO.Message> messageDTOs = new ArrayList<>();
+        Long lastUpdatedAt = System.currentTimeMillis();
         
-        for (Message message : conversation.getMessages()) {
+        for (MessageDTO message : messages) {
+            String role = message.getSenderRole() == 0 ? "user" : 
+                         message.getSenderRole() == 2 ? "assistant" : "agent";
+            
             BotContextDTO.Message messageDTO = BotContextDTO.Message.builder()
-                    .id(message.getId())
-                    .role(message.getRole())
+                    .id(message.getMsgId().toString())
+                    .role(role)
                     .content(message.getContent())
                     .createdAt(message.getCreatedAt())
                     .build();
             messageDTOs.add(messageDTO);
+            
+            // 更新最后更新时间
+            if (message.getCreatedAt() != null && message.getCreatedAt() > lastUpdatedAt) {
+                lastUpdatedAt = message.getCreatedAt();
+            }
         }
         
         return BotContextDTO.builder()
-                .sessionId(conversation.getSessionId())
+                .sessionId(sessionId)
                 .history(messageDTOs)
                 .totalMessages(messageDTOs.size())
-                .lastUpdatedAt(conversation.getUpdatedAt())
+                .lastUpdatedAt(lastUpdatedAt)
                 .build();
     }
 } 

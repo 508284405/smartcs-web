@@ -14,7 +14,7 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent;
  * WebSocket事件监听器
  */
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
