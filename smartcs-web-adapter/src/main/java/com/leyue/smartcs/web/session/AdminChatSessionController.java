@@ -3,12 +3,12 @@ package com.leyue.smartcs.web.session;
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.SingleResponse;
-import com.leyue.smartcs.dto.chat.SessionVO;
-import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
 import com.leyue.smartcs.api.SessionService;
+import com.leyue.smartcs.chat.convertor.ChatSessionConvertor;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
+import com.leyue.smartcs.dto.chat.SessionVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -121,13 +121,6 @@ public class AdminChatSessionController {
     /**
      * 分页搜索会话列表
      *
-     * @param sessionId  会话ID
-     * @param customerId 客户ID
-     * @param agentId    客服ID
-     * @param agentName  客服名称
-     * @param status     会话状态
-     * @param pageNo     页码
-     * @param pageSize   每页大小
      * @return 分页会话列表
      */
     @GetMapping("/page")
