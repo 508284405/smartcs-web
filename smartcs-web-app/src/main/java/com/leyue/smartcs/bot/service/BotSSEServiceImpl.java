@@ -12,6 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * Bot SSE服务实现类
@@ -22,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 public class BotSSEServiceImpl implements BotSSEService {
 
     private final ChatSSECmdExe chatSSECmdExe;
+
+    private final Executor commonThreadPoolExecutor;
 
     @Override
     public Object chatSSE(BotChatSSERequest request) {
@@ -89,7 +92,7 @@ public class BotSSEServiceImpl implements BotSSEService {
                 }
                 emitter.complete();
             }
-        });
+        }, commonThreadPoolExecutor);
 
         return emitter;
     }

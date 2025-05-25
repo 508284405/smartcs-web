@@ -1,6 +1,6 @@
 package com.leyue.smartcs.chat.executor;
 
-import com.leyue.smartcs.context.UserContext;
+import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
 import com.leyue.smartcs.domain.chat.enums.SenderRole;

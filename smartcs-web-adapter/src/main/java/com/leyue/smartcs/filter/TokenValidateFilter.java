@@ -3,7 +3,7 @@ package com.leyue.smartcs.filter;
 import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.api.UserService;
 import com.leyue.smartcs.config.WhiteListProperties;
-import com.leyue.smartcs.context.UserContext;
+import com.leyue.smartcs.config.context.UserContext;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

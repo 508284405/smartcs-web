@@ -48,7 +48,6 @@ alwaysApply: true
 - **主要子目录**: 
     - `api/` (符合规范，定义服务接口)
     - `dto/` (符合规范，定义数据传输对象)
-    - `context/` (存放`@UserContext.java` 用户信息存储在这里。)
 - **说明**: `client` 层定义了应用对外提供的服务接口（`api/`）及其使用的数据传输对象（`dto/`）。实际扫描发现存在 `context` 目录，需要结合代码确认其具体作用和必要性。
 
 ### 2.3. `smartcs-web-app`
@@ -102,6 +101,8 @@ alwaysApply: true
         - `feign/`: Feign相关配置 。
         - `persist/`: 持久化相关配置，如MyBatis-Plus 。
         - `websocket/`: WebSocket相关配置 (额外观察到的目录)。
+        - `context/` (存放`@UserContext.java` 用户信息存储在这里。)
+        - `ThreadPoolConfig`: 异步线程池，支持父子线程内容传递。
         - 各种 `*Config.java` 文件: 如 `SpringAIConfig.java`, `MyBatisPlusConfig.java`, `MyBatisPlusMetaObjectHandler.java`, `RestTemplateConfig.java`, `ThreadPoolConfig.java`, `DiamondConfig.java` 。
 - **资源文件**: 
     - 路径: `smartcs-web-infrastructure/src/main/resources/`

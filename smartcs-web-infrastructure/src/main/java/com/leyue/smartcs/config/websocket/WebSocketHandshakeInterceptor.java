@@ -2,7 +2,7 @@ package com.leyue.smartcs.config.websocket;
 
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.api.UserService;
-import com.leyue.smartcs.context.UserContext;
+import com.leyue.smartcs.config.context.UserContext;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

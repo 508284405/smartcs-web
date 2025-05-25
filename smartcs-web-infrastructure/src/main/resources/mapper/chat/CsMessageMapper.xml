@@ -24,7 +24,7 @@
     
     <!-- 根据会话ID查询消息列表（分页） -->
     <select id="selectBySessionId" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
-        SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY create_time DESC LIMIT #{size} OFFSET #{offset}
+        SELECT * FROM t_cs_message WHERE session_id = #{sessionId} AND is_deleted = 0 ORDER BY created_at DESC LIMIT #{size} OFFSET #{offset}
     </select>
     
     <!-- 统计会话消息数量 -->
@@ -35,7 +35,7 @@
     <!-- 批量插入消息 -->
     <insert id="batchInsert" parameterType="java.util.List">
         INSERT INTO t_cs_message (
-            session_id, msg_id, from_user_id, from_user_type, content, content_type, create_time
+            session_id, msg_id, from_user_id, from_user_type, content, content_type, created_at
         ) VALUES
         <foreach collection="list" item="item" separator=",">
             (

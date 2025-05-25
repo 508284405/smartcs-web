@@ -2,12 +2,14 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
-import com.leyue.smartcs.api.MessageService;
+import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import com.leyue.smartcs.domain.bot.model.Conversation;
-import com.leyue.smartcs.domain.bot.model.Message;
 import com.leyue.smartcs.domain.bot.model.PromptTemplate;
+import com.leyue.smartcs.domain.chat.Message;
+import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
+import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
@@ -36,7 +38,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ChatSSECmdExe {
 
-    private final MessageService messageService;
+    private final MessageDomainService messageDomainService;
     private final LLMGateway llmGateway;
     private final PromptTemplateGateway promptTemplateGateway;
     private final SearchGateway searchGateway;
@@ -52,7 +54,7 @@ public class ChatSSECmdExe {
     public void execute(BotChatSSERequest request, SseEmitter emitter) throws IOException {
         long startTime = System.currentTimeMillis();
         Long sessionId = request.getSessionId();
-        
+
         try {
             // 参数校验
             if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
@@ -63,18 +65,20 @@ public class ChatSSECmdExe {
             sendProgressMessage(emitter, sessionId, "开始处理您的问题...");
 
             // 从chat message服务获取历史消息
-            List<MessageDTO> historyMessages = new ArrayList<>();
+            List<Message> historyMessages = new ArrayList<>();
             if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-                historyMessages = messageService.getSessionMessagesWithPagination(sessionId, 0, MAX_HISTORY_MESSAGES);
+                historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0, MAX_HISTORY_MESSAGES);
             }
 
             // 存储用户问题到chat message服务
-            SendMessageCmd userMessageCmd = new SendMessageCmd();
-            userMessageCmd.setSessionId(sessionId);
-            userMessageCmd.setSenderRole(0); // 用户角色
-            userMessageCmd.setMsgType(0); // 文本消息
-            userMessageCmd.setContent(request.getQuestion());
-            MessageDTO userMessage = messageService.sendMessage(userMessageCmd);
+            messageDomainService.sendMessage(
+                    sessionId,
+                    UserContext.getCurrentUser().getId(),
+                    SenderRole.BOT,
+                    MessageType.TEXT,
+                    request.getQuestion(),
+                    null
+            );
 
             // 发送进度消息：检索知识
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
@@ -108,7 +112,7 @@ public class ChatSSECmdExe {
             llmGateway.generateAnswerStream(prompt, options, (chunk) -> {
                 try {
                     fullAnswer.append(chunk);
-                    
+
                     // 发送流式数据
                     BotChatSSEResponse response = BotChatSSEResponse.builder()
                             .sessionId(sessionId)
@@ -116,7 +120,7 @@ public class ChatSSECmdExe {
                             .finished(false)
                             .modelId(request.getModel())
                             .build();
-                    
+
                     sendDataMessage(emitter, sessionId, response);
                 } catch (IOException e) {
                     log.error("发送流式数据失败: {}", e.getMessage());
@@ -130,7 +134,17 @@ public class ChatSSECmdExe {
             botMessageCmd.setSenderRole(2); // 机器人角色
             botMessageCmd.setMsgType(0); // 文本消息
             botMessageCmd.setContent(fullAnswer.toString());
-            MessageDTO botMessage = messageService.sendMessage(botMessageCmd);
+
+            // 发送消息
+            messageDomainService.sendMessage(
+                    sessionId,
+                    null,
+                    SenderRole.BOT,
+                    MessageType.TEXT,
+                    fullAnswer.toString(),
+                    null
+            );
+
 
             // 构建最终响应
             BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults, request.getModel(), startTime);
@@ -151,10 +165,10 @@ public class ChatSSECmdExe {
      */
     private List<Map<String, Object>> getSearchResults(String question, Integer topK) {
         List<Map<String, Object>> results = new ArrayList<>();
-        
+
         try {
             int searchTopK = topK != null ? topK : 5;
-            
+
             // 先尝试FAQ检索
             Map<Long, Double> faqSearchResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question, searchTopK);
             for (Map.Entry<Long, Double> entry : faqSearchResults.entrySet()) {
@@ -170,7 +184,7 @@ public class ChatSSECmdExe {
                     results.add(result);
                 }
             }
-            
+
             // 如果FAQ结果不足，进行向量检索
             if (results.size() < searchTopK) {
                 int remainingCount = searchTopK - results.size();
@@ -189,18 +203,18 @@ public class ChatSSECmdExe {
                     }
                 }
             }
-            
+
         } catch (Exception e) {
             log.error("知识检索失败: {}", e.getMessage(), e);
         }
-        
+
         return results;
     }
 
     /**
      * 构建Prompt
      */
-    private String buildPrompt(BotChatSSERequest request, List<MessageDTO> historyMessages, List<Map<String, Object>> searchResults) {
+    private String buildPrompt(BotChatSSERequest request, List<Message> historyMessages, List<Map<String, Object>> searchResults) {
         try {
             // 获取Prompt模板
             Optional<PromptTemplate> templateOpt = promptTemplateGateway.findByTemplateKey("RAG_QUERY");
@@ -217,8 +231,8 @@ public class ChatSSECmdExe {
             // 构建历史对话
             StringBuilder history = new StringBuilder();
             if (request.getIncludeHistory() && historyMessages.size() > 0) {
-                for (MessageDTO messageDTO : historyMessages) {
-                    history.append(messageDTO.getSenderRole() == 0 ? "用户" : "机器人").append("：").append(messageDTO.getContent()).append("\n");
+                for (Message messageDTO : historyMessages) {
+                    history.append(messageDTO.getSenderRole().name()).append("：").append(messageDTO.getContent()).append("\n");
                 }
             }
 

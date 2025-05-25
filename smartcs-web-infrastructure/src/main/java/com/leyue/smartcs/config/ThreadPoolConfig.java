@@ -1,5 +1,6 @@
 package com.leyue.smartcs.config;
 
+import com.alibaba.ttl.threadpool.TtlExecutors;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -25,7 +26,7 @@ public class ThreadPoolConfig {
             t.setName("common-exec-" + t.getId());
             return t;
         };
-        return new ThreadPoolExecutor(
+        return TtlExecutors.getTtlExecutorService(new ThreadPoolExecutor(
                 corePoolSize,
                 maxPoolSize,
                 keepAliveTime,
@@ -33,6 +34,6 @@ public class ThreadPoolConfig {
                 new java.util.concurrent.LinkedBlockingQueue<>(queueCapacity),
                 threadFactory,
                 new ThreadPoolExecutor.AbortPolicy()
-        );
+        ));
     }
 }

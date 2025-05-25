@@ -1,5 +1,6 @@
-package com.leyue.smartcs.context;
+package com.leyue.smartcs.config.context;
 
+import com.alibaba.ttl.TransmittableThreadLocal;
 import lombok.Data;
 
 import java.security.Principal;
@@ -13,7 +14,7 @@ import java.util.stream.Collectors;
  */
 @Data
 public class UserContext {
-    private static final ThreadLocal<UserInfo> userHolder = new ThreadLocal<>();
+    private static final TransmittableThreadLocal<UserInfo> userHolder = new TransmittableThreadLocal<>();
 
     /**
      * 设置当前用户信息
