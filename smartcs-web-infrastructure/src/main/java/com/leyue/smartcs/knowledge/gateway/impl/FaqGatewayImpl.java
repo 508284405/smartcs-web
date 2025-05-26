@@ -4,7 +4,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.model.Faq;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import com.leyue.smartcs.knowledge.convertor.FaqConvertor;

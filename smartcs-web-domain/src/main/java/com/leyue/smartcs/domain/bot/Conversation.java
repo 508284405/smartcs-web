@@ -1,4 +1,4 @@
-package com.leyue.smartcs.domain.bot.model;
+package com.leyue.smartcs.domain.bot;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

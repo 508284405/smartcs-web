@@ -1,4 +1,4 @@
-package com.leyue.smartcs.domain.bot.model;
+package com.leyue.smartcs.domain.bot;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -50,6 +50,11 @@ public class PromptTemplate {
      * 最后更新时间（毫秒时间戳）
      */
     private Long updatedAt;
+    
+    /**
+     * 是否删除
+     */
+    private Integer isDeleted;
     
     /**
      * 根据变量填充模板

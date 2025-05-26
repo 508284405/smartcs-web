@@ -3,7 +3,7 @@ package com.leyue.smartcs.knowledge.executor;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 import com.leyue.smartcs.dto.knowledge.DocAddCmd;
 import com.leyue.smartcs.dto.knowledge.DocDTO;
 import lombok.RequiredArgsConstructor;

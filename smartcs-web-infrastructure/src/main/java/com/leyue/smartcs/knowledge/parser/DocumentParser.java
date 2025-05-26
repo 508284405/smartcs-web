@@ -1,9 +1,8 @@
 package com.leyue.smartcs.knowledge.parser;
 
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 
 import java.io.File;
-import java.util.List;
 
 /**
  * 文档解析器接口

@@ -5,7 +5,6 @@ import com.leyue.smartcs.domain.bot.BotProfile;
 import com.leyue.smartcs.dto.bot.BotProfileCreateCmd;
 import com.leyue.smartcs.dto.bot.BotProfileDTO;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
 
 /**
  * 机器人配置转换器

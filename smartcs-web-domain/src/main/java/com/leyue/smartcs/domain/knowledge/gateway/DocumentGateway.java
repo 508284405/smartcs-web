@@ -1,6 +1,6 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 
 import java.util.List;
 import java.util.Optional;

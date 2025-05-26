@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;

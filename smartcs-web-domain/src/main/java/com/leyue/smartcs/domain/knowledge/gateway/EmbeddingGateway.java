@@ -1,6 +1,6 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
-import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.domain.knowledge.Embedding;
 import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 
 import java.util.List;

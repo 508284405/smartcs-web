@@ -2,7 +2,7 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 import com.leyue.smartcs.dto.knowledge.DocDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import lombok.RequiredArgsConstructor;

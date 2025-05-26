@@ -31,7 +31,7 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
     public Long createBotProfile(BotProfile botProfile) {
         BotProfileDO botProfileDO = botProfileConvertor.toDO(botProfile);
         botProfileMapper.insert(botProfileDO);
-        return botProfileDO.getBotId();
+        return botProfileDO.getId();
     }
     
     @Override
@@ -44,7 +44,7 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
     @Override
     public Optional<BotProfile> findById(Long botId) {
         LambdaQueryWrapper<BotProfileDO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(BotProfileDO::getBotId, botId)
+        wrapper.eq(BotProfileDO::getId, botId)
                .eq(BotProfileDO::getIsDeleted, 0);
         
         BotProfileDO botProfileDO = botProfileMapper.selectOne(wrapper);
@@ -59,7 +59,7 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
     @Override
     public boolean deleteById(Long botId) {
         LambdaUpdateWrapper<BotProfileDO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(BotProfileDO::getBotId, botId)
+        wrapper.eq(BotProfileDO::getId, botId)
                .set(BotProfileDO::getIsDeleted, 1)
                .set(BotProfileDO::getUpdatedAt, System.currentTimeMillis());
         
@@ -126,7 +126,7 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
                .eq(BotProfileDO::getIsDeleted, 0);
         
         if (excludeBotId != null) {
-            wrapper.ne(BotProfileDO::getBotId, excludeBotId);
+            wrapper.ne(BotProfileDO::getId, excludeBotId);
         }
         
         Long count = botProfileMapper.selectCount(wrapper);

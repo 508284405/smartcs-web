@@ -1,7 +1,7 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
 import com.alibaba.cola.dto.PageResponse;
-import com.leyue.smartcs.domain.knowledge.model.Faq;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 

@@ -2,10 +2,9 @@ package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
-import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.model.Faq;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqAddCmd;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import jakarta.annotation.PostConstruct;

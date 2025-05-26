@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.convertor;
 
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 import com.leyue.smartcs.knowledge.dataobject.DocDO;
 import com.leyue.smartcs.dto.knowledge.DocDTO;
 import org.mapstruct.Mapper;

@@ -1,7 +1,7 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
 import com.leyue.smartcs.domain.knowledge.gateway.DocumentGateway;
-import com.leyue.smartcs.domain.knowledge.model.Document;
+import com.leyue.smartcs.domain.knowledge.Document;
 import com.leyue.smartcs.knowledge.convertor.DocConvertor;
 import com.leyue.smartcs.knowledge.dataobject.DocDO;
 import com.leyue.smartcs.knowledge.mapper.DocMapper;

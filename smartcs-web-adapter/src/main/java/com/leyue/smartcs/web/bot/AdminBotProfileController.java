@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * 管理端机器人配置控制器
  */
 @RestController
-@RequestMapping("/admin/bot/profile")
+@RequestMapping("/api/admin/bot/profile")
 @RequiredArgsConstructor
 @Slf4j
 public class AdminBotProfileController {

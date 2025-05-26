@@ -1,4 +1,4 @@
-package com.leyue.smartcs.customer.feign;
+package com.leyue.smartcs.common.dao;
 
 import lombok.Data;
 

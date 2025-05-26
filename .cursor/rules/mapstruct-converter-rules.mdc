@@ -14,7 +14,7 @@ MapStruct 是一个代码生成器，它极大地简化了 Java Bean 之间的�
 1.  **定义 Converter 接口:**
     创建一个 Java 接口，并使用 `@Mapper` 注解标记。例如：
     ```java
-    @Mapper
+    @Mapper(componentModel = "spring")
     public interface SessionConverter {
         // 定义转换方法
         SessionDO toDO(Session session);

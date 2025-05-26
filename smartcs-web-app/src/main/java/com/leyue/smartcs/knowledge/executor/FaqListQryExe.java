@@ -1,9 +1,8 @@
 package com.leyue.smartcs.knowledge.executor;
 
 import com.alibaba.cola.dto.PageResponse;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.model.Faq;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import lombok.RequiredArgsConstructor;

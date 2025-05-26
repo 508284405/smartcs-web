@@ -1,15 +1,15 @@
 package com.leyue.smartcs.user.gateway;
 
 import com.leyue.smartcs.domain.user.gateway.UserGateway;
-import com.leyue.smartcs.user.feign.UserValidateClient;
+import com.leyue.smartcs.common.feign.UserCenterClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class UserGatewayImpl implements UserGateway {
-    private final UserValidateClient userValidateClient;
+    private final UserCenterClient userCenterClient;
     public String validateUserToken(String token){
-       return userValidateClient.validateUserToken(token);
+       return userCenterClient.validateUserToken(token);
     }
 }

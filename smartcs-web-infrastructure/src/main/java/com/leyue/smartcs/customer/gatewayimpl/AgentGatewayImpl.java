@@ -1,8 +1,8 @@
 package com.leyue.smartcs.customer.gatewayimpl;
 
+import com.leyue.smartcs.common.dao.UserCenterCustomerServiceDTO;
+import com.leyue.smartcs.common.feign.UserCenterClient;
 import com.leyue.smartcs.customer.convertor.CustomerServiceConvertor;
-import com.leyue.smartcs.customer.feign.UserCenterCustomerServiceDTO;
-import com.leyue.smartcs.customer.feign.UserCenterFeignClient;
 import com.leyue.smartcs.domain.customer.CustomerService;
 import com.leyue.smartcs.domain.customer.gateway.AgentGateway;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
 public class AgentGatewayImpl implements AgentGateway {
     
     @Autowired
-    private UserCenterFeignClient userCenterFeignClient;
+    private UserCenterClient userCenterClient;
     @Override
     public List<CustomerService> getAgentFromUserCenter(List<String> serviceIds) {
-        List<UserCenterCustomerServiceDTO> dtoList = userCenterFeignClient.getCustomerServiceByIds(serviceIds);
+        List<UserCenterCustomerServiceDTO> dtoList = userCenterClient.getCustomerServiceByIds(serviceIds);
         return dtoList.stream()
                 .map(CustomerServiceConvertor.INSTANCE::toCustomerService)
                 .collect(Collectors.toList());
@@ -36,6 +36,6 @@ public class AgentGatewayImpl implements AgentGateway {
     
     @Override
     public List<String> getAllAgentIds() {
-        return userCenterFeignClient.getAllCustomerServiceIds();
+        return userCenterClient.getAllCustomerServiceIds();
     }
 } 

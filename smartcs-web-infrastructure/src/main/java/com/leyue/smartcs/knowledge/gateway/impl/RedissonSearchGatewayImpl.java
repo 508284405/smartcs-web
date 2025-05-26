@@ -3,7 +3,6 @@ package com.leyue.smartcs.knowledge.gateway.impl;
 import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.model.Embedding;
 import com.leyue.smartcs.domain.utils.RedisearchUtils;
 import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;

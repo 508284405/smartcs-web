@@ -1,4 +1,4 @@
-package com.leyue.smartcs.domain.knowledge.model;
+package com.leyue.smartcs.domain.knowledge;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.model.Embedding;
+import com.leyue.smartcs.domain.knowledge.Embedding;
 import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.convertor.EmbeddingConvertor;
