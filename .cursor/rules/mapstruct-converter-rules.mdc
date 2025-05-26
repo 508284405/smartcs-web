@@ -1,0 +1,58 @@
+---
+description: 对象映射
+globs: 
+alwaysApply: false
+---
+# 对象转换规则 (MapStruct)
+
+在项目中，为了实现不同层（如基础设施层、应用层和客户端层）之间对象（例如持久化对象 DO, 数据传输对象 DTO, 以及领域层对象）的顺畅交互，我们需要进行对象转换。为了减少手动编写转换代码可能引入的错误和提高开发效率，本项目采用 [MapStruct](mdc:smartcs-web/https:/mapstruct.org) 作为对象转换工具。
+
+MapStruct 是一个代码生成器，它极大地简化了 Java Bean 之间的映射实现。根据接口定义和约定，MapStruct 会在编译时自动生成高效且类型安全的映射代码。
+
+## MapStruct 使用方法
+
+1.  **定义 Converter 接口:**
+    创建一个 Java 接口，并使用 `@Mapper` 注解标记。例如：
+    ```java
+    @Mapper
+    public interface SessionConverter {
+        // 定义转换方法
+        SessionDO toDO(Session session);
+        Session toDomain(SessionDO sessionDO);
+        SessionDTO toDTO(Session session);
+    }
+    ```
+    通常，Converter 接口会定义双向转换方法，将领域对象转换为 DO 或 DTO，反之亦然。
+
+2.  **属性映射 (`@Mapping`):**
+    当源对象和目标对象的属性名称不一致时，可以使用 `@Mapping` 注解指定映射关系。例如：
+    ```java
+    @Mapping(source = "domainSessionId", target = "sessionId")
+    SessionDO toDO(Session session);
+    ```
+    可以使用多个 `@Mapping` 注解处理复杂映射。
+
+3.  **处理嵌套对象和列表:**
+    MapStruct 可以自动处理嵌套对象的映射，前提是嵌套对象也定义了相应的 Converter 或自身结构匹配。对于列表，MapStruct 也能自动生成列表元素之间的转换代码。
+
+4.  **Spring 集成:**
+    MapStruct 生成的 Converter 实现类通常会被配置为 Spring Bean，可以直接在需要进行对象转换的类中通过 `@Autowired` 或构造函数注入使用。
+
+## Converter 文件位置
+
+所有 MapStruct Converter 接口文件应严格放置在 `smartcs-web-infrastructure` 模块中对应业务领域的 `convertor` 包下。遵循以下路径结构：
+
+`smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/{业务模块}/convertor/`
+
+例如，与聊天业务相关的 Converter 应位于 `smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/` 目录下。
+
+## 示例参考
+
+可以参考项目中已有的 MapStruct Converter 实现：
+
+*   [SessionConverter.java](mdc:smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/SessionConverter.java)
+*   [MessageConverter.java](mdc:smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/MessageConverter.java)
+*   [ChatMessageConvertor.java](mdc:smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/ChatMessageConvertor.java)
+*   [ChatSessionConvertor.java](mdc:smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/ChatSessionConvertor.java)
+
+通过遵循这些规则和使用 MapStruct，我们可以确保项目中的对象转换代码简洁、高效且易于维护。

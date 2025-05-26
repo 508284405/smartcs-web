@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # 知识模块 RESTful 接口规范
 
-本规则适用于 [KnowledgeController.java](mdc:smartcs-web/smartcs-web/smartcs-web-adapter/src/main/java/com/leyue/smartcs/web/knowledge/KnowledgeController.java) 及知识域相关API设计。
+本规则适用于 [KnowledgeController.java](mdc:smartcs-web/smartcs-web/smartcs-web/smartcs-web-adapter/src/main/java/com/leyue/smartcs/web/knowledge/KnowledgeController.java) 及知识域相关API设计。
 
 ## 1. 路径与资源命名
 - 路径统一以 `/api/knowledge` 为前缀。
