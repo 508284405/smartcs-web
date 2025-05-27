@@ -117,4 +117,6 @@ public interface SessionGateway {
      * @return 分页会话列表
      */
     PageResponse<Session> pageSessions(SessionPageQuery query);
+
+    Optional<Session> getWaitingSession(Long customerId);
 }

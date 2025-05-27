@@ -1,5 +1,6 @@
 package com.leyue.smartcs.chat.executor;
 
+import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.domain.chat.Session;
@@ -23,6 +24,12 @@ public class CreateSessionCmdExe {
      * @return 会话DTO
      */
     public SessionDTO execute(CreateSessionCmd cmd) {
+        // 等待中会话最多只能有一条
+        Session waitingSession = sessionDomainService.getWaitingSession(cmd.getCustomerId());
+        if (waitingSession != null) {
+            throw new BizException("客户等待中会话最多只能有一条");
+        }
+
         // 创建会话
         Session session = sessionDomainService.createSession(cmd.getCustomerId());
         

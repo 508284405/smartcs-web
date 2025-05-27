@@ -137,4 +137,12 @@ public class SessionDomainService {
         session.updateLastMessageTime(time);
         sessionGateway.updateSession(session);
     }
+
+    public Session getWaitingSession(Long customerId) {
+        Optional<Session> sessionOpt = sessionGateway.getWaitingSession(customerId);
+        if (sessionOpt.isPresent()) {
+            return sessionOpt.get();
+        }
+        return null;
+    }
 }

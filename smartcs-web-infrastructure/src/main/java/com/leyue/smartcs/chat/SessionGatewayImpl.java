@@ -302,4 +302,11 @@ public class SessionGatewayImpl implements SessionGateway {
         // 返回分页结果
         return PageResponse.of(sessions, (int) result.getTotal(), query.getPageSize(), query.getPageIndex());
     }
+
+    @Override
+    public Optional<Session> getWaitingSession(Long customerId) {
+        CsSessionDO sessionDO = sessionMapper.selectOne(new LambdaQueryWrapper<CsSessionDO>()
+        .eq(CsSessionDO::getCustomerId, customerId).eq(CsSessionDO::getSessionState, 0));
+        return Optional.ofNullable(sessionConverter.toDomain(sessionDO));
+    }
 }

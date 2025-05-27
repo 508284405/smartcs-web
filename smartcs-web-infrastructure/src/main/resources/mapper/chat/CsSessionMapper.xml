@@ -31,5 +31,4 @@
     <select id="findSessionsByStatus" resultType="com.leyue.smartcs.chat.dataobject.CsSessionDO">
         SELECT * FROM t_cs_session WHERE status = #{status} AND is_deleted = 0 ORDER BY create_time ASC LIMIT #{limit} OFFSET #{offset}
     </select>
-    
 </mapper> 
