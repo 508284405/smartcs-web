@@ -4,9 +4,13 @@ CREATE TABLE IF NOT EXISTS `t_cs_bot_profile` (
     `bot_name`          VARCHAR(128)    NOT NULL COMMENT '机器人名称',
     `model_name`        VARCHAR(128)    NOT NULL COMMENT '使用的 LLM / 模型标识，如 gpt-4o、bge-large',
     `prompt_key`        VARCHAR(64)     NOT NULL COMMENT '默认 Prompt 模板 key，关联 bot_prompt_template',
-    `max_qps`           INT             NOT NULL DEFAULT 10 COMMENT '该 Bot 对外允许的最大 QPS',
-    `temperature`       DECIMAL(3,2)    NOT NULL DEFAULT 0.7 COMMENT 'LLM 采样温度',
-    `extra_config`      JSON            DEFAULT NULL COMMENT '额外配置（如系统指令、插件开关等）',
+    `remark`            VARCHAR(500)    DEFAULT NULL COMMENT '备注信息',
+    `vendor`            VARCHAR(32)     NOT NULL COMMENT '模型厂商，如openai、deepseek等',
+    `model_type`        VARCHAR(32)     NOT NULL COMMENT '模型类型，如chat、embedding、image、audio等',
+    `api_key`           VARCHAR(512)    NOT NULL COMMENT 'API密钥',
+    `base_url`          VARCHAR(256)    NOT NULL COMMENT 'API基础URL',
+    `options`           JSON            DEFAULT NULL COMMENT '模型具体配置（JSON格式），如具体模型4o-mini等',
+    `enabled`           TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '是否启用',
     
     -- 通用字段
     `is_deleted`        TINYINT(1)      NOT NULL DEFAULT 0,

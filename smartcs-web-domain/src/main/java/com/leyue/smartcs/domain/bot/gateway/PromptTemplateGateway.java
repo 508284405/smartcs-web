@@ -40,6 +40,14 @@ public interface PromptTemplateGateway {
     List<PromptTemplate> findAll();
     
     /**
+     * 根据条件查询Prompt模板列表
+     * @param templateKey 模板标识（模糊搜索）
+     * @param context 模板内容（模糊搜索）
+     * @return Prompt模板列表
+     */
+    List<PromptTemplate> findByCriteria(String templateKey, String context);
+    
+    /**
      * 删除Prompt模板
      * @param id Prompt模板ID
      * @return 是否成功

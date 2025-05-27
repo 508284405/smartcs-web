@@ -3,6 +3,7 @@ package com.leyue.smartcs.bot.serviceimpl;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
+import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.bot.api.BotPromptTemplateService;
 import com.leyue.smartcs.bot.convertor.PromptTemplateConvertor;
@@ -106,12 +107,23 @@ public class BotPromptTemplateServiceImpl implements BotPromptTemplateService {
     @Override
     public SingleResponse<BotPromptTemplateDTO> getById(Long id) {
         Optional<PromptTemplate> templateOpt = promptTemplateGateway.findById(id);
-        if (!templateOpt.isPresent()) {
+        if (templateOpt.isEmpty()) {
             throw new BizException("模板不存在: " + id);
         }
         
         PromptTemplate template = templateOpt.get();
         BotPromptTemplateDTO dto = promptTemplateConvertor.toDTO(template);
         return SingleResponse.of(dto);
+    }
+    
+    @Override
+    public MultiResponse<BotPromptTemplateDTO> listTemplates(String templateKey, String context) {
+        List<PromptTemplate> templates = promptTemplateGateway.findByCriteria(templateKey, context);
+        
+        List<BotPromptTemplateDTO> dtoList = templates.stream()
+                .map(promptTemplateConvertor::toDTO)
+                .collect(Collectors.toList());
+        
+        return MultiResponse.of(dtoList);
     }
 } 

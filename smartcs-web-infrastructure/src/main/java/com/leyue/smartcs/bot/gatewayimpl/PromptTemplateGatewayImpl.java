@@ -103,4 +103,25 @@ public class PromptTemplateGatewayImpl implements PromptTemplateGateway {
         int count = botProfileMapper.countByPromptKey(templateKey);
         return count > 0;
     }
+    
+    @Override
+    public List<PromptTemplate> findByCriteria(String templateKey, String context) {
+        LambdaQueryWrapper<BotPromptTemplateDO> wrapper = new LambdaQueryWrapper<>();
+        
+        if (StringUtils.hasText(templateKey)) {
+            wrapper.like(BotPromptTemplateDO::getTemplateKey, templateKey);
+        }
+        
+        if (StringUtils.hasText(context)) {
+            wrapper.like(BotPromptTemplateDO::getTemplateContent, context);
+        }
+        
+        wrapper.eq(BotPromptTemplateDO::getIsDeleted, 0);
+        wrapper.orderByDesc(BotPromptTemplateDO::getCreatedAt);
+        
+        List<BotPromptTemplateDO> botPromptTemplateDOs = botPromptTemplateMapper.selectList(wrapper);
+        return botPromptTemplateDOs.stream()
+                .map(promptTemplateConvertor::toDomain)
+                .collect(Collectors.toList());
+    }
 } 

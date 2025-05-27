@@ -12,7 +12,7 @@ import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
-import com.leyue.smartcs.knowledge.util.OssFileDownloader;
+import com.leyue.smartcs.domain.utils.OssFileDownloader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

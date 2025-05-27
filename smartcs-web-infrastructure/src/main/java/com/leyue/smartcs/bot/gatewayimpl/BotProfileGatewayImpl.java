@@ -9,6 +9,8 @@ import com.leyue.smartcs.bot.dataobject.BotProfileDO;
 import com.leyue.smartcs.bot.mapper.BotProfileMapper;
 import com.leyue.smartcs.domain.bot.BotProfile;
 import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -131,5 +133,43 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
         
         Long count = botProfileMapper.selectCount(wrapper);
         return count > 0;
+    }
+    
+    @Override
+    public List<BotProfile> findByVendorAndModelType(VendorTypeEnum vendor, ModelTypeEnum modelType) {
+        LambdaQueryWrapper<BotProfileDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(BotProfileDO::getVendor, vendor.getCode())
+               .eq(BotProfileDO::getModelType, modelType.getCode())
+               .eq(BotProfileDO::getIsDeleted, 0)
+               .orderByDesc(BotProfileDO::getCreatedAt);
+        
+        List<BotProfileDO> botProfileDOs = botProfileMapper.selectList(wrapper);
+        return botProfileDOs.stream()
+                .map(botProfileConvertor::toDomain)
+                .collect(Collectors.toList());
+    }
+    
+    @Override
+    public boolean enableById(Long botId) {
+        LambdaUpdateWrapper<BotProfileDO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(BotProfileDO::getId, botId)
+               .eq(BotProfileDO::getIsDeleted, 0)
+               .set(BotProfileDO::getEnabled, true)
+               .set(BotProfileDO::getUpdatedAt, System.currentTimeMillis());
+        
+        int result = botProfileMapper.update(null, wrapper);
+        return result > 0;
+    }
+    
+    @Override
+    public boolean disableById(Long botId) {
+        LambdaUpdateWrapper<BotProfileDO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(BotProfileDO::getId, botId)
+               .eq(BotProfileDO::getIsDeleted, 0)
+               .set(BotProfileDO::getEnabled, false)
+               .set(BotProfileDO::getUpdatedAt, System.currentTimeMillis());
+        
+        int result = botProfileMapper.update(null, wrapper);
+        return result > 0;
     }
 } 

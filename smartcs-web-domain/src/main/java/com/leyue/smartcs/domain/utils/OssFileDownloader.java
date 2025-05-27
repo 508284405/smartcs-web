@@ -1,4 +1,4 @@
-package com.leyue.smartcs.knowledge.util;
+package com.leyue.smartcs.domain.utils;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

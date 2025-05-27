@@ -9,6 +9,7 @@ import com.leyue.smartcs.dto.bot.BotProfileDeleteCmd;
 import com.leyue.smartcs.dto.bot.BotProfileGetQry;
 import com.leyue.smartcs.dto.bot.BotProfilePageQry;
 import com.leyue.smartcs.dto.bot.BotProfileUpdateCmd;
+import com.leyue.smartcs.dto.bot.BotProfileEnableCmd;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,5 +68,13 @@ public class AdminBotProfileController {
         BotProfileDeleteCmd cmd = new BotProfileDeleteCmd();
         cmd.setBotId(botId);
         return botProfileService.deleteBotProfile(cmd);
+    }
+    
+    /**
+     * 启用禁用机器人配置
+     */
+    @PutMapping("/enable")
+    public SingleResponse<Boolean> enableBotProfile(@RequestBody @Valid BotProfileEnableCmd cmd) {
+        return botProfileService.enableBotProfile(cmd);
     }
 } 

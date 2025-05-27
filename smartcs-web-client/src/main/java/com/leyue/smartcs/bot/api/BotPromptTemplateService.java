@@ -3,6 +3,7 @@ package com.leyue.smartcs.bot.api;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
+import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.bot.dto.BotPromptTemplateCreateCmd;
 import com.leyue.smartcs.bot.dto.BotPromptTemplateDTO;
 import com.leyue.smartcs.bot.dto.BotPromptTemplatePageQry;
@@ -19,6 +20,14 @@ public interface BotPromptTemplateService {
      * @return 分页结果
      */
     SingleResponse<PageResponse<BotPromptTemplateDTO>> pageQuery(BotPromptTemplatePageQry qry);
+
+    /**
+     * 查询Prompt模板列表
+     * @param templateKey 模板标识（模糊搜索）
+     * @param context 模板内容（模糊搜索）
+     * @return 模板列表
+     */
+    MultiResponse<BotPromptTemplateDTO> listTemplates(String templateKey, String context);
 
     /**
      * 新增Prompt模板

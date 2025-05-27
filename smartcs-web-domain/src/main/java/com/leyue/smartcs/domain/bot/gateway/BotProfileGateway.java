@@ -2,6 +2,8 @@ package com.leyue.smartcs.domain.bot.gateway;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
 
 import java.util.List;
 import java.util.Optional;
@@ -69,4 +71,26 @@ public interface BotProfileGateway {
      * @return 是否存在
      */
     boolean existsByBotName(String botName, Long excludeBotId);
+    
+    /**
+     * 根据厂商和模型类型查询机器人配置
+     * @param vendor 厂商类型
+     * @param modelType 模型类型
+     * @return 机器人配置列表
+     */
+    List<BotProfile> findByVendorAndModelType(VendorTypeEnum vendor, ModelTypeEnum modelType);
+    
+    /**
+     * 启用机器人配置
+     * @param botId 机器人ID
+     * @return 是否成功
+     */
+    boolean enableById(Long botId);
+    
+    /**
+     * 禁用机器人配置
+     * @param botId 机器人ID
+     * @return 是否成功
+     */
+    boolean disableById(Long botId);
 } 

@@ -23,7 +23,7 @@ public interface LLMGateway {
      * @param options 选项参数
      * @param chunkConsumer 流式数据消费者
      */
-    void generateAnswerStream(String prompt, Map<String, Object> options, Consumer<String> chunkConsumer);
+    void generateAnswerStream(String prompt, Long botId, Consumer<String> chunkConsumer);
     
     /**
      * 生成嵌入向量

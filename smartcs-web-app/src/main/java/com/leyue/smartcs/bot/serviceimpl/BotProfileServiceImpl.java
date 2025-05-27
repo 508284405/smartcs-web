@@ -8,12 +8,14 @@ import com.leyue.smartcs.bot.executor.BotProfileDeleteCmdExe;
 import com.leyue.smartcs.bot.executor.BotProfileGetQryExe;
 import com.leyue.smartcs.bot.executor.BotProfilePageQryExe;
 import com.leyue.smartcs.bot.executor.BotProfileUpdateCmdExe;
+import com.leyue.smartcs.bot.executor.BotProfileEnableCmdExe;
 import com.leyue.smartcs.dto.bot.BotProfileCreateCmd;
 import com.leyue.smartcs.dto.bot.BotProfileDTO;
 import com.leyue.smartcs.dto.bot.BotProfileDeleteCmd;
 import com.leyue.smartcs.dto.bot.BotProfileGetQry;
 import com.leyue.smartcs.dto.bot.BotProfilePageQry;
 import com.leyue.smartcs.dto.bot.BotProfileUpdateCmd;
+import com.leyue.smartcs.dto.bot.BotProfileEnableCmd;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,7 @@ public class BotProfileServiceImpl implements BotProfileService {
     private final BotProfileDeleteCmdExe botProfileDeleteCmdExe;
     private final BotProfileGetQryExe botProfileGetQryExe;
     private final BotProfilePageQryExe botProfilePageQryExe;
+    private final BotProfileEnableCmdExe botProfileEnableCmdExe;
     
     @Override
     public SingleResponse<BotProfileDTO> createBotProfile(BotProfileCreateCmd cmd) {
@@ -53,5 +56,10 @@ public class BotProfileServiceImpl implements BotProfileService {
     @Override
     public PageResponse<BotProfileDTO> pageBotProfiles(BotProfilePageQry qry) {
         return botProfilePageQryExe.execute(qry);
+    }
+    
+    @Override
+    public SingleResponse<Boolean> enableBotProfile(BotProfileEnableCmd cmd) {
+        return botProfileEnableCmdExe.execute(cmd);
     }
 } 

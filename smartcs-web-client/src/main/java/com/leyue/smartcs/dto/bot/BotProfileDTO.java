@@ -4,7 +4,7 @@ import com.alibaba.cola.dto.DTO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
+
 
 /**
  * 机器人配置数据传输对象
@@ -34,19 +34,9 @@ public class BotProfileDTO extends DTO {
     private String promptKey;
     
     /**
-     * 该 Bot 对外允许的最大 QPS
+     * 备注信息
      */
-    private Integer maxQps;
-    
-    /**
-     * LLM 采样温度
-     */
-    private BigDecimal temperature;
-    
-    /**
-     * 额外配置（如系统指令、插件开关等）
-     */
-    private String extraConfig;
+    private String remark;
     
     /**
      * 创建人
@@ -67,4 +57,34 @@ public class BotProfileDTO extends DTO {
      * 更新时间 ms
      */
     private Long updatedAt;
+    
+    /**
+     * 模型厂商
+     */
+    private String vendor;
+    
+    /**
+     * 模型类型
+     */
+    private String modelType;
+    
+    /**
+     * API密钥（敏感信息，返回时脱敏）
+     */
+    private String apiKey;
+    
+    /**
+     * API基础URL
+     */
+    private String baseUrl;
+    
+    /**
+     * 模型具体配置（JSON格式）
+     */
+    private String options;
+    
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
 } 

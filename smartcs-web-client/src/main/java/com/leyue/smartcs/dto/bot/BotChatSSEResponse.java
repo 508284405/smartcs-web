@@ -37,11 +37,6 @@ public class BotChatSSEResponse {
     private List<KnowledgeSource> sources;
     
     /**
-     * 使用的模型ID
-     */
-    private String modelId;
-    
-    /**
      * 处理时间（毫秒）
      */
     private Long processTime;

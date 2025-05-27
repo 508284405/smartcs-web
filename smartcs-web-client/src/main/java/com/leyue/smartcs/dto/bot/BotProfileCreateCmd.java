@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
+
 
 /**
  * 创建机器人配置命令
@@ -34,17 +34,41 @@ public class BotProfileCreateCmd extends Command {
     private String promptKey;
     
     /**
-     * 该 Bot 对外允许的最大 QPS
+     * 备注信息
      */
-    private Integer maxQps;
+    private String remark;
     
     /**
-     * LLM 采样温度
+     * 模型厂商
      */
-    private BigDecimal temperature = BigDecimal.valueOf(0.7);
+    @NotEmpty(message = "模型厂商不能为空")
+    private String vendor;
     
     /**
-     * 额外配置（如系统指令、插件开关等）
+     * 模型类型
      */
-    private String extraConfig;
+    @NotEmpty(message = "模型类型不能为空")
+    private String modelType;
+    
+    /**
+     * API密钥
+     */
+    @NotEmpty(message = "API密钥不能为空")
+    private String apiKey;
+    
+    /**
+     * API基础URL
+     */
+    @NotEmpty(message = "API基础URL不能为空")
+    private String baseUrl;
+    
+    /**
+     * 模型具体配置（JSON格式）
+     */
+    private String options;
+    
+    /**
+     * 是否启用，默认为true
+     */
+    private Boolean enabled = true;
 } 

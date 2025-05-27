@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
+
 
 /**
  * 更新机器人配置命令
@@ -36,17 +36,37 @@ public class BotProfileUpdateCmd extends Command {
     private String promptKey;
     
     /**
-     * 该 Bot 对外允许的最大 QPS
+     * 备注信息
      */
-    private Integer maxQps;
+    private String remark;
     
     /**
-     * LLM 采样温度
+     * 模型厂商
      */
-    private BigDecimal temperature;
+    private String vendor;
     
     /**
-     * 额外配置（如系统指令、插件开关等）
+     * 模型类型
      */
-    private String extraConfig;
+    private String modelType;
+    
+    /**
+     * API密钥
+     */
+    private String apiKey;
+    
+    /**
+     * API基础URL
+     */
+    private String baseUrl;
+    
+    /**
+     * 模型具体配置（JSON格式）
+     */
+    private String options;
+    
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
 } 

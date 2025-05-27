@@ -8,6 +8,7 @@ import com.leyue.smartcs.dto.bot.BotProfileDeleteCmd;
 import com.leyue.smartcs.dto.bot.BotProfilePageQry;
 import com.leyue.smartcs.dto.bot.BotProfileGetQry;
 import com.leyue.smartcs.dto.bot.BotProfileDTO;
+import com.leyue.smartcs.dto.bot.BotProfileEnableCmd;
 
 /**
  * 机器人配置管理服务接口
@@ -48,4 +49,11 @@ public interface BotProfileService {
      * @return 分页结果
      */
     PageResponse<BotProfileDTO> pageBotProfiles(BotProfilePageQry qry);
+    
+    /**
+     * 启用禁用机器人配置
+     * @param cmd 启用禁用命令
+     * @return 操作结果
+     */
+    SingleResponse<Boolean> enableBotProfile(BotProfileEnableCmd cmd);
 } 

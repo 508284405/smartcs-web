@@ -7,7 +7,7 @@ import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
+
 import java.util.Optional;
 
 /**
@@ -39,11 +39,8 @@ public class BotProfileDomainService {
         botProfile.setIsDeleted(0);
         
         // 设置默认值
-        if (botProfile.getMaxQps() == null) {
-            botProfile.setMaxQps(10);
-        }
-        if (botProfile.getTemperature() == null) {
-            botProfile.setTemperature(new BigDecimal("0.7"));
+        if (botProfile.getEnabled() == null) {
+            botProfile.setEnabled(true);
         }
         
         long currentTime = System.currentTimeMillis();
@@ -146,15 +143,9 @@ public class BotProfileDomainService {
             throw new BizException("Prompt Key长度不能超过64字符");
         }
         
-        // 验证QPS范围
-        if (botProfile.getMaxQps() <= 0 || botProfile.getMaxQps() > 10000) {
-            throw new BizException("最大QPS必须在1-10000之间");
-        }
-        
-        // 验证温度范围
-        if (botProfile.getTemperature().compareTo(BigDecimal.ZERO) < 0 || 
-            botProfile.getTemperature().compareTo(BigDecimal.ONE) > 0) {
-            throw new BizException("温度值必须在0.0-1.0之间");
+        // 验证备注长度
+        if (botProfile.getRemark() != null && botProfile.getRemark().length() > 500) {
+            throw new BizException("备注信息长度不能超过500字符");
         }
     }
 } 

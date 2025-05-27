@@ -33,6 +33,16 @@ public class AdminBotPromptTemplateController {
     }
     
     /**
+     * 查询Prompt模板列表
+     */
+    @GetMapping("/list")
+    public MultiResponse<BotPromptTemplateDTO> listTemplates(
+            @RequestParam(required = false) String templateKey,
+            @RequestParam(required = false) String context) {
+        return botPromptTemplateService.listTemplates(templateKey, context);
+    }
+    
+    /**
      * 新增Prompt模板
      */
     @PostMapping

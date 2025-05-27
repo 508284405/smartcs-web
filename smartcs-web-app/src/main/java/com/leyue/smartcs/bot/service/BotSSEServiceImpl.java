@@ -35,7 +35,7 @@ public class BotSSEServiceImpl implements BotSSEService {
         }
 
         // 创建SSE发射器
-        SseEmitter emitter = new SseEmitter(request.getTimeout());
+        SseEmitter emitter = new SseEmitter(50000L);
 
         // 设置完成和超时回调
         emitter.onCompletion(() -> {

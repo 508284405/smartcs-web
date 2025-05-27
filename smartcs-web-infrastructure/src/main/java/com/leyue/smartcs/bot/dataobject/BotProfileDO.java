@@ -5,7 +5,7 @@ import com.leyue.smartcs.common.dao.BaseDO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.math.BigDecimal;
+
 
 /**
  * 机器人配置数据对象，对应cs_bot_profile表
@@ -31,17 +31,37 @@ public class BotProfileDO extends BaseDO {
     private String promptKey;
 
     /**
-     * 该 Bot 对外允许的最大 QPS
+     * 备注信息
      */
-    private Integer maxQps;
+    private String remark;
 
     /**
-     * LLM 采样温度
+     * 模型厂商，如openai、deepseek等
      */
-    private BigDecimal temperature;
+    private String vendor;
 
     /**
-     * 额外配置（如系统指令、插件开关等）
+     * 模型类型，如chat、embedding、image、audio等
      */
-    private String extraConfig;
+    private String modelType;
+
+    /**
+     * API密钥
+     */
+    private String apiKey;
+
+    /**
+     * API基础URL
+     */
+    private String baseUrl;
+
+    /**
+     * 模型具体配置（JSON格式），如具体模型4o-mini等
+     */
+    private String options;
+
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
 } 

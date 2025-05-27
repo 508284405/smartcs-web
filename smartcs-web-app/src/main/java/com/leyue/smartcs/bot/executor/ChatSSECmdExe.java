@@ -2,26 +2,30 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
+import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.config.context.UserContext;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.PromptTemplate;
+import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
 import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.common.Constants;
+import com.leyue.smartcs.domain.knowledge.Embedding;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.Embedding;
-import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
 import com.leyue.smartcs.dto.bot.SSEMessage;
 import com.leyue.smartcs.dto.chat.SendMessageCmd;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -43,6 +47,8 @@ public class ChatSSECmdExe {
     private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
     private final EmbeddingGateway embeddingGateway;
+    private final ModelBeanManagerService modelBeanManagerService;
+    private final BotProfileGateway botProfileGateway;
 
     // 历史消息数量限制
     private static final int MAX_HISTORY_MESSAGES = 10;
@@ -83,7 +89,7 @@ public class ChatSSECmdExe {
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
 
             // 获取知识检索结果
-            List<Map<String, Object>> searchResults = getSearchResults(request.getQuestion(), request.getTopK());
+            List<Map<String, Object>> searchResults = getSearchResults(request.getQuestion(), 5);
 
             // 发送进度消息：构建提示
             sendProgressMessage(emitter, sessionId, "正在构建AI提示...");
@@ -94,21 +100,9 @@ public class ChatSSECmdExe {
             // 发送进度消息：调用AI
             sendProgressMessage(emitter, sessionId, "正在调用AI生成回答...");
 
-            // 调用LLM生成回答（流式）
-            Map<String, Object> options = new HashMap<>();
-            if (request.getTemperature() != null) {
-                options.put("temperature", request.getTemperature().doubleValue());
-            }
-            if (request.getMaxTokens() != null) {
-                options.put("maxTokens", request.getMaxTokens());
-            }
-            if (request.getModel() != null && !request.getModel().isEmpty()) {
-                options.put("model", request.getModel());
-            }
-
             // 使用流式生成
             StringBuilder fullAnswer = new StringBuilder();
-            llmGateway.generateAnswerStream(prompt, options, (chunk) -> {
+            llmGateway.generateAnswerStream(prompt, request.getTargetBotId(), (chunk) -> {
                 try {
                     fullAnswer.append(chunk);
 
@@ -117,7 +111,6 @@ public class ChatSSECmdExe {
                             .sessionId(sessionId)
                             .answer(chunk)
                             .finished(false)
-                            .modelId(request.getModel())
                             .build();
 
                     sendDataMessage(emitter, sessionId, response);
@@ -146,7 +139,7 @@ public class ChatSSECmdExe {
 
 
             // 构建最终响应
-            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults, request.getModel(), startTime);
+            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults, startTime);
 
             // 发送完成消息
             sendCompleteMessage(emitter, sessionId, finalResponse);
@@ -252,7 +245,7 @@ public class ChatSSECmdExe {
     /**
      * 构建最终响应
      */
-    private BotChatSSEResponse buildFinalResponse(Long sessionId, String answer, List<Map<String, Object>> searchResults, String model, long startTime) {
+    private BotChatSSEResponse buildFinalResponse(Long sessionId, String answer, List<Map<String, Object>> searchResults, long startTime) {
         List<BotChatSSEResponse.KnowledgeSource> sources = searchResults.stream()
                 .map(result -> BotChatSSEResponse.KnowledgeSource.builder()
                         .type((String) result.get("type"))
@@ -268,7 +261,6 @@ public class ChatSSECmdExe {
                 .answer(answer)
                 .finished(true)
                 .sources(sources)
-                .modelId(model)
                 .processTime(System.currentTimeMillis() - startTime)
                 .build();
     }

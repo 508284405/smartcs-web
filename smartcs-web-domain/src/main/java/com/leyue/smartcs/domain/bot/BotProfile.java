@@ -1,8 +1,10 @@
 package com.leyue.smartcs.domain.bot;
 
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
 import lombok.Data;
 
-import java.math.BigDecimal;
+
 
 /**
  * 机器人配置领域模型
@@ -31,19 +33,39 @@ public class BotProfile {
     private String promptKey;
     
     /**
-     * 该 Bot 对外允许的最大 QPS
+     * 备注信息
      */
-    private Integer maxQps;
+    private String remark;
     
     /**
-     * LLM 采样温度
+     * 模型厂商
      */
-    private BigDecimal temperature;
+    private VendorTypeEnum vendor;
     
     /**
-     * 额外配置（如系统指令、插件开关等）
+     * 模型类型
      */
-    private String extraConfig;
+    private ModelTypeEnum modelType;
+    
+    /**
+     * API密钥
+     */
+    private String apiKey;
+    
+    /**
+     * API基础URL
+     */
+    private String baseUrl;
+    
+    /**
+     * 模型具体配置（JSON格式）
+     */
+    private String options;
+    
+    /**
+     * 是否启用
+     */
+    private Boolean enabled;
     
     /**
      * 逻辑删除标识
@@ -77,9 +99,10 @@ public class BotProfile {
         return botName != null && !botName.trim().isEmpty()
                 && modelName != null && !modelName.trim().isEmpty()
                 && promptKey != null && !promptKey.trim().isEmpty()
-                && maxQps != null && maxQps > 0
-                && temperature != null && temperature.compareTo(BigDecimal.ZERO) >= 0 
-                && temperature.compareTo(BigDecimal.ONE) <= 0;
+                && vendor != null
+                && modelType != null
+                && apiKey != null && !apiKey.trim().isEmpty()
+                && baseUrl != null && !baseUrl.trim().isEmpty();
     }
     
     /**

@@ -1,5 +1,6 @@
 package com.leyue.smartcs.dto.bot;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,40 +18,24 @@ public class BotChatSSERequest {
     /**
      * 会话ID
      */
+    @NotNull(message = "会话ID不能为空")
     private Long sessionId;
 
     /**
      * 用户问题
      */
+    @NotNull(message =  "用户问题不能为空")
     private String question;
 
     /**
      * 是否包含历史消息
      */
+    @NotNull(message = "是否包含历史消息不能为空")
     private Boolean includeHistory = true;
 
     /**
-     * 模型 可选
+     * 目标机器人
      */
-    private String model;
-
-    /**
-     * 温度参数（可选）
-     */
-    private Float temperature;
-
-    /**
-     * 最大输出token数（可选）
-     */
-    private Integer maxTokens;
-
-    /**
-     * 知识库检索数量（可选）
-     */
-    private Integer topK;
-    
-    /**
-     * SSE连接超时时间（毫秒，可选）
-     */
-    private Long timeout = 300000L; // 默认5分钟
+    @NotNull(message = "目标机器人不能为空")
+    private Long targetBotId;
 } 
