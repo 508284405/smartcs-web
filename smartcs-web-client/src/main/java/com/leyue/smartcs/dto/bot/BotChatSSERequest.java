@@ -1,5 +1,7 @@
 package com.leyue.smartcs.dto.bot;
 
+import java.util.List;
+
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +26,7 @@ public class BotChatSSERequest {
     /**
      * 用户问题
      */
-    @NotNull(message =  "用户问题不能为空")
+    @NotNull(message = "用户问题不能为空")
     private String question;
 
     /**
@@ -38,4 +40,10 @@ public class BotChatSSERequest {
      */
     @NotNull(message = "目标机器人不能为空")
     private Long targetBotId;
-} 
+
+    /**
+     * 知识库ID列表
+     */
+    @NotNull(message = "知识库ID列表不能为空")
+    private List<Long> knowledgeBaseIds;
+}

@@ -2,6 +2,8 @@ package com.leyue.smartcs.sse;
 
 import com.leyue.smartcs.api.BotSSEService;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -23,7 +25,7 @@ public class ChatSSEController {
      * 处理SSE聊天请求
      */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chatSSE(@RequestBody BotChatSSERequest request) {
+    public SseEmitter chatSSE(@RequestBody @Valid BotChatSSERequest request) {
         return (SseEmitter) botSSEService.chatSSE(request);
     }
     

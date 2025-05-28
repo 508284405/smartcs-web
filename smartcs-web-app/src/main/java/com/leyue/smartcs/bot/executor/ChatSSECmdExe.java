@@ -72,7 +72,8 @@ public class ChatSSECmdExe {
             // 从chat message服务获取历史消息
             List<Message> historyMessages = new ArrayList<>();
             if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-                historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0, MAX_HISTORY_MESSAGES);
+                historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0,
+                        MAX_HISTORY_MESSAGES);
             }
 
             // 存储用户问题到chat message服务
@@ -82,8 +83,7 @@ public class ChatSSECmdExe {
                     SenderRole.BOT,
                     MessageType.TEXT,
                     request.getQuestion(),
-                    null
-            );
+                    null);
 
             // 发送进度消息：检索知识
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
@@ -134,12 +134,11 @@ public class ChatSSECmdExe {
                     SenderRole.BOT,
                     MessageType.TEXT,
                     fullAnswer.toString(),
-                    null
-            );
-
+                    null);
 
             // 构建最终响应
-            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults, startTime);
+            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults,
+                    startTime);
 
             // 发送完成消息
             sendCompleteMessage(emitter, sessionId, finalResponse);
@@ -162,7 +161,8 @@ public class ChatSSECmdExe {
             int searchTopK = topK != null ? topK : 5;
 
             // 先尝试FAQ检索
-            Map<Long, Double> faqSearchResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question, searchTopK);
+            Map<Long, Double> faqSearchResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question,
+                    searchTopK);
             for (Map.Entry<Long, Double> entry : faqSearchResults.entrySet()) {
                 Optional<Faq> faqOpt = faqGateway.findById(entry.getKey());
                 if (faqOpt.isPresent()) {
@@ -180,7 +180,8 @@ public class ChatSSECmdExe {
             // 如果FAQ结果不足，进行向量检索
             if (results.size() < searchTopK) {
                 int remainingCount = searchTopK - results.size();
-                Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, question, remainingCount);
+                Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH,
+                        question, remainingCount);
                 for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
                     Optional<Embedding> embOpt = embeddingGateway.findById(entry.getKey());
                     if (embOpt.isPresent()) {
@@ -206,10 +207,23 @@ public class ChatSSECmdExe {
     /**
      * 构建Prompt
      */
-    private String buildPrompt(BotChatSSERequest request, List<Message> historyMessages, List<Map<String, Object>> searchResults) {
+    private String buildPrompt(BotChatSSERequest request, List<Message> historyMessages,
+            List<Map<String, Object>> searchResults) {
         try {
+            Optional<BotProfile> bOptional = botProfileGateway.findById(request.getTargetBotId());
+            if (!bOptional.isPresent()) {
+                throw new BizException("机器人不存在");
+            }
+            BotProfile botProfile = bOptional.get();
+            if (botProfile.getEnabled() == null || !botProfile.getEnabled()) {
+                throw new BizException("机器人已禁用");
+            }
+
             // 获取Prompt模板
-            Optional<PromptTemplate> templateOpt = promptTemplateGateway.findByTemplateKey("RAG_QUERY");
+            Optional<PromptTemplate> templateOpt = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey());
+            if (!templateOpt.isPresent()) {
+                throw new BizException("Prompt模板不存在");
+            }
             String template = templateOpt.map(PromptTemplate::getTemplateContent)
                     .orElse("基于以下知识回答用户问题：\n\n知识内容：\n{{docs}}\n\n历史对话：\n{{history}}\n\n用户问题：{{question}}\n\n请基于提供的知识内容回答用户问题，如果知识内容中没有相关信息，请说明无法找到相关信息。");
 
@@ -224,7 +238,8 @@ public class ChatSSECmdExe {
             StringBuilder history = new StringBuilder();
             if (request.getIncludeHistory() && historyMessages.size() > 0) {
                 for (Message messageDTO : historyMessages) {
-                    history.append(messageDTO.getSenderRole().name()).append("：").append(messageDTO.getContent()).append("\n");
+                    history.append(messageDTO.getSenderRole().name()).append("：").append(messageDTO.getContent())
+                            .append("\n");
                 }
             }
 
@@ -245,7 +260,8 @@ public class ChatSSECmdExe {
     /**
      * 构建最终响应
      */
-    private BotChatSSEResponse buildFinalResponse(Long sessionId, String answer, List<Map<String, Object>> searchResults, long startTime) {
+    private BotChatSSEResponse buildFinalResponse(Long sessionId, String answer,
+            List<Map<String, Object>> searchResults, long startTime) {
         List<BotChatSSEResponse.KnowledgeSource> sources = searchResults.stream()
                 .map(result -> BotChatSSEResponse.KnowledgeSource.builder()
                         .type((String) result.get("type"))
@@ -310,4 +326,4 @@ public class ChatSSECmdExe {
                 .data(JSON.toJSONString(sseMessage)));
         emitter.complete();
     }
-} 
+}
