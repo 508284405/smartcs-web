@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Document;
+import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,14 +24,12 @@ public class TxtDocumentParser implements DocumentParser {
     private static final String SUPPORTED_TYPE = "txt";
     
     @Override
-    public String parseContent(Document document, File localFile) throws Exception {
-        log.info("解析TXT文档: {}, 文件路径: {}", document.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(Content content, File localFile) throws Exception {
+        log.info("解析TXT文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
         
         try {
             // 读取文件内容
-            String content = Files.readString(Path.of(localFile.getAbsolutePath()), StandardCharsets.UTF_8);
-            log.info("TXT解析完成，文本长度: {}", content.length());
-            return content;
+            return Files.readString(Path.of(localFile.getAbsolutePath()), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("TXT解析失败: {}", e.getMessage(), e);
             throw e;

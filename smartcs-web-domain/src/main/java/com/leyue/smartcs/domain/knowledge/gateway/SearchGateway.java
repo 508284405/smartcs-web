@@ -27,7 +27,7 @@ public interface SearchGateway {
      *
      * @return ID与相似度分数的映射
      */
-    Map<Long, Double> searchTopK(String index, String keyword, int k);
+    Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId);
     
     // ========== 全文检索相关方法 ==========
     

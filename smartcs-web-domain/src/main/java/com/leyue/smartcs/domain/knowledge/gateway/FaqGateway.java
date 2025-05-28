@@ -8,6 +8,7 @@ import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * FAQ存储网关接口
@@ -71,4 +72,11 @@ public interface FaqGateway {
      * @return FAQ ID与相关性分数的映射
      */
     Map<Long, Float> searchByQuestionFullText(String keyword, int k);
+
+    /**
+     * 根据ID列表批量查询FAQ
+     * @param ids FAQ ID列表
+     * @return FAQ列表
+     */
+    List<Faq> findByIds(Set<Long> ids);
 } 

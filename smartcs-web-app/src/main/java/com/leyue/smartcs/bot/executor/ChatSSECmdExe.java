@@ -14,9 +14,9 @@ import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
 import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.Embedding;
+import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.Faq;
-import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
@@ -46,7 +46,7 @@ public class ChatSSECmdExe {
     private final PromptTemplateGateway promptTemplateGateway;
     private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
-    private final EmbeddingGateway embeddingGateway;
+    private final ChunkGateway chunkGateway;
     private final ModelBeanManagerService modelBeanManagerService;
     private final BotProfileGateway botProfileGateway;
 
@@ -180,17 +180,16 @@ public class ChatSSECmdExe {
             // 如果FAQ结果不足，进行向量检索
             if (results.size() < searchTopK) {
                 int remainingCount = searchTopK - results.size();
-                Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH,
-                        question, remainingCount);
+                Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH,
+                        question, remainingCount,null,null);
                 for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
-                    Optional<Embedding> embOpt = embeddingGateway.findById(entry.getKey());
-                    if (embOpt.isPresent()) {
-                        Embedding embedding = embOpt.get();
+                    Chunk embedding = chunkGateway.findById(entry.getKey());
+                    if (embedding != null) {
                         Map<String, Object> result = new HashMap<>();
                         result.put("type", "DOC");
-                        result.put("contentId", embedding.getId());
+                        result.put("contentId", embedding.getContentId());
                         result.put("title", "文档段落");
-                        result.put("snippet", embedding.getContentSnip());
+                        result.put("snippet", embedding.getText());
                         result.put("score", entry.getValue());
                         results.add(result);
                     }

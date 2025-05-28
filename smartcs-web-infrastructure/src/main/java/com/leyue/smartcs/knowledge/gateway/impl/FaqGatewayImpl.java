@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.HashMap;
 
 /**
@@ -103,5 +104,11 @@ public class FaqGatewayImpl implements FaqGateway {
             }
         }
         return resultMap;
+    }
+
+    @Override
+    public List<Faq> findByIds(Set<Long> ids) {
+        List<FaqDO> faqDOs = faqMapper.selectByIds(ids);
+        return faqConvertor.toDomainList(faqDOs);
     }
 } 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.knowledge.mapper.UserKnowledgeBaseRelMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.leyue.smartcs.knowledge.dataobject.UserKnowledgeBaseRelDO">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="user_id" property="userId" jdbcType="BIGINT"/>
+        <result column="knowledge_base_id" property="knowledgeBaseId" jdbcType="BIGINT"/>
+        <result column="role" property="role" jdbcType="VARCHAR"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="BIGINT"/>
+        <result column="updated_at" property="updatedAt" jdbcType="BIGINT"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, user_id, knowledge_base_id, role, created_by, created_at, updated_at
+    </sql>
+
+</mapper> 

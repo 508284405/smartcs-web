@@ -7,10 +7,10 @@ import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
 import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.gateway.EmbeddingGateway;
+import com.leyue.smartcs.domain.knowledge.Chunk;
+import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.Embedding;
 import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.bot.BotChatRequest;
 import com.leyue.smartcs.dto.bot.BotChatResponse;
@@ -35,7 +35,7 @@ public class ChatCmdExe {
     private final LLMGateway llmGateway;
     private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
-    private final EmbeddingGateway embeddingGateway;
+    private final ChunkGateway chunkGateway;
     private final MessageService messageService;
     private final PromptTemplateGateway promptTemplateGateway;
 
@@ -166,15 +166,14 @@ public class ChatCmdExe {
 
         // 如果文本检索没有结果，则尝试向量检索（需要先生成嵌入向量）
         try {
-            Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.UMBEDDING_INDEX_REDISEARCH, question, k);
+            Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH, question, k,null,null);
             return searchTopK.entrySet().stream()
                     .map(entry -> {
-                        Optional<Embedding> optionalEmbedding = embeddingGateway.findById(entry.getKey());
-                        if (optionalEmbedding.isPresent()) {
-                            Embedding embedding = optionalEmbedding.get();
+                        Chunk embedding = chunkGateway.findById(entry.getKey());
+                        if (embedding != null) {
                             Map<String, Object> result = new HashMap<>();
-                            result.put("id", embedding.getId());
-                            result.put("contentSnip", embedding.getContentSnip());
+                            result.put("id", embedding.getContentId());
+                            result.put("content", embedding.getText());
                             result.put("score", entry.getValue());
                             return result;
                         }

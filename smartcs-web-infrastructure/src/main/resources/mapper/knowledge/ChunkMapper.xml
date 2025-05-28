@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.knowledge.mapper.ChunkMapper">
+
+    <!-- 结果映射 -->
+    <resultMap id="BaseResultMap" type="com.leyue.smartcs.knowledge.dataobject.ChunkDO">
+        <id column="id" property="id" jdbcType="BIGINT"/>
+        <result column="content_id" property="contentId" jdbcType="BIGINT"/>
+        <result column="chunk_index" property="chunkIndex" jdbcType="INTEGER"/>
+        <result column="chunk_text" property="chunkText" jdbcType="LONGVARCHAR"/>
+        <result column="token_count" property="tokenCount" jdbcType="INTEGER"/>
+        <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
+        <result column="created_at" property="createdAt" jdbcType="BIGINT"/>
+        <result column="updated_at" property="updatedAt" jdbcType="BIGINT"/>
+    </resultMap>
+
+    <!-- 基础字段 -->
+    <sql id="Base_Column_List">
+        id, content_id, chunk_index, chunk_text, token_count, created_by, created_at, updated_at
+    </sql>
+
+    <!-- insertBatch --> 
+
+    <insert id="insertBatch">
+        insert into t_kb_chunk (content_id, chunk_index, chunk_text, token_count, created_by, created_at, updated_at)
+        values
+        <foreach collection="chunks" item="chunk" separator=",">
+            (#{chunk.contentId}, #{chunk.chunkIndex}, #{chunk.chunkText}, #{chunk.tokenCount}, #{chunk.createdBy}, #{chunk.createdAt}, #{chunk.updatedAt})
+        </foreach>
+    </insert>
+</mapper> 

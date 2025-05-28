@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser;
 
-import com.leyue.smartcs.domain.knowledge.Document;
+import com.leyue.smartcs.domain.knowledge.Content;
 
 import java.io.File;
 
@@ -17,7 +17,7 @@ public interface DocumentParser {
      * @return 解析后的文本内容
      * @throws Exception 解析过程中可能出现的异常
      */
-    String parseContent(Document document, File localFile) throws Exception;
+    String parseContent(Content content, File localFile) throws Exception;
     
     /**
      * 获取当前解析器支持的文件类型

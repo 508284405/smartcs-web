@@ -1,6 +1,9 @@
 package com.leyue.smartcs.dto.knowledge;
 
 import com.alibaba.cola.dto.PageQuery;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -11,19 +14,27 @@ import lombok.EqualsAndHashCode;
 @Data
 public class KnowledgeSearchQry extends PageQuery {
     /**
+     * 知识库ID
+     */
+    private Long kbId;
+
+    /**
+     * 内容ID
+     */
+    private Long contentId;
+
+    /**
      * 关键词查询
      */
+    @NotBlank(message = "关键词不能为空")
     private String keyword;
     
     /**
      * 检索TopK结果数量
      */
+    @Min(value = 1, message = "k不能小于1")
     private Integer k = 5;
     
-    /**
-     * 模型类型
-     */
-    private String modelType;
     
     /**
      * 相似度阈值 (0-1)

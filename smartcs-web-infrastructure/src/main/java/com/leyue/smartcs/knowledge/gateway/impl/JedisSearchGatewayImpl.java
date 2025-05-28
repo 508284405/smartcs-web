@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
+import redis.clients.jedis.CommandArguments;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.Document;
 import redis.clients.jedis.search.Query;
@@ -63,16 +64,24 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public Map<Long, Double> searchTopK(String index, String keyword, int k) {
+    public Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId) {
         // 使用LLM Gateway生成查询向量
         List<float[]> queryVectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
         if (queryVectors.isEmpty()) {
             log.warn("无法为关键词生成向量: {}", keyword);
             return new HashMap<>();
         }
-        
-        // Query for KNN, assuming 'embedding' is the vector field name.
+
+        // Query for KNN, assuming 'embedding' is the vector field name. 如果kbId不为空或者contentId不为空，则添加过滤条件
         String queryString = "*=>[KNN $K @embedding $BLOB AS distance]";
+        if (kbId != null || contentId != null) {
+            if (kbId != null) {
+                queryString += " AND kbId:" + kbId.toString();
+            }
+            if (contentId != null) {
+                queryString += " AND contentId:" + contentId.toString();
+            }
+        }
         Query query = new Query(queryString)
                 .returnFields("embedding", "distance", "score")
                 .addParam("K", String.valueOf(k))

@@ -15,24 +15,28 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class DocEmbeddingGenerateEvent {
-    
     /**
-     * 文档ID
+     * 知识库ID
      */
-    private Long docId;
-    
+    private Long kbId;
+
+    /**
+     * 内容ID
+     */
+    private Long contentId;
+
     /**
      * 触发时间戳（毫秒）
      */
     private Long timestamp;
-    
+
     /**
      * 触发来源，用于记录事件的发起方
      */
     private String source;
-    
+
     /**
      * 解析策略名称，用于指定文档解析方式
      */
     private StrategyNameEnum strategyName;
-} 
+}

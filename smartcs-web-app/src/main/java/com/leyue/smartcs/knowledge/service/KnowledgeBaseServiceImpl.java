@@ -1,0 +1,65 @@
+package com.leyue.smartcs.knowledge.service;
+
+import com.alibaba.cola.dto.MultiResponse;
+import com.alibaba.cola.dto.PageResponse;
+import com.alibaba.cola.dto.Response;
+import com.alibaba.cola.dto.SingleResponse;
+import com.leyue.smartcs.api.KnowledgeBaseService;
+import com.leyue.smartcs.dto.knowledge.*;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseCreateCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseDeleteCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseUpdateCmdExe;
+import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseGetQryExe;
+import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseListQryExe;
+import com.leyue.smartcs.knowledge.executor.query.TextSearchQryExe;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+/**
+ * 知识库管理服务实现
+ */
+@Service
+@RequiredArgsConstructor
+public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
+
+    private final KnowledgeBaseCreateCmdExe knowledgeBaseCreateCmdExe;
+    
+    private final KnowledgeBaseUpdateCmdExe knowledgeBaseUpdateCmdExe;
+    
+    private final KnowledgeBaseDeleteCmdExe knowledgeBaseDeleteCmdExe;
+    
+    private final KnowledgeBaseGetQryExe knowledgeBaseGetQryExe;
+    
+    private final KnowledgeBaseListQryExe knowledgeBaseListQryExe;
+
+    private final TextSearchQryExe textSearchQryExe;
+
+    @Override
+    public MultiResponse<EmbeddingWithScore> searchByText(KnowledgeSearchQry qry) {
+        return textSearchQryExe.execute(qry);
+    }
+    @Override
+    public SingleResponse<KnowledgeBaseDTO> createKnowledgeBase(KnowledgeBaseCreateCmd cmd) {
+        return knowledgeBaseCreateCmdExe.execute(cmd);
+    }
+
+    @Override
+    public Response updateKnowledgeBase(KnowledgeBaseUpdateCmd cmd) {
+        return knowledgeBaseUpdateCmdExe.execute(cmd);
+    }
+
+    @Override
+    public SingleResponse<KnowledgeBaseDTO> getKnowledgeBase(Long id) {
+        return knowledgeBaseGetQryExe.execute(id);
+    }
+
+    @Override
+    public Response deleteKnowledgeBase(Long id) {
+        return knowledgeBaseDeleteCmdExe.execute(id);
+    }
+
+    @Override
+    public PageResponse<KnowledgeBaseDTO> listKnowledgeBases(KnowledgeBaseListQry qry) {
+        return knowledgeBaseListQryExe.execute(qry);
+    }
+}

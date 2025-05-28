@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Document;
+import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
@@ -24,12 +24,13 @@ public class WordDocumentParser implements DocumentParser {
     private static final String SUPPORTED_TYPE = "docx";
     
     @Override
-    public String parseContent(Document document, File localFile) throws Exception {
-        log.info("解析Word文档: {}, 文件路径: {}", document.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(Content content, File localFile) throws Exception {
+        log.info("解析Word文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
         
         try (FileInputStream fis = new FileInputStream(localFile);
              XWPFDocument wordDoc = new XWPFDocument(fis)) {
             
+            @SuppressWarnings("resource")
             XWPFWordExtractor extractor = new XWPFWordExtractor(wordDoc);
             String text = extractor.getText();
             

@@ -6,7 +6,12 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.IndexCacheService;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.*;
-import com.leyue.smartcs.knowledge.executor.*;
+import com.leyue.smartcs.knowledge.executor.command.IndexClearCacheCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.IndexCreateCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.IndexDeleteCmdExe;
+import com.leyue.smartcs.knowledge.executor.query.GetCacheValueQryExe;
+import com.leyue.smartcs.knowledge.executor.query.IndexInfoQryExe;
+import com.leyue.smartcs.knowledge.executor.query.IndexListCacheKeysQryExe;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,8 +26,8 @@ public class IndexCacheServiceImpl implements IndexCacheService {
     private final IndexInfoQryExe indexInfoQryExe;
     private final IndexDeleteCmdExe indexDeleteCmdExe;
     private final SearchGateway searchGateway;
-    private final ClearIndexCacheCmdExe clearIndexCacheCmdExe;
-    private final ListIndexCacheKeysQryExe listIndexCacheKeysQryExe;
+    private final IndexClearCacheCmdExe indexClearCacheCmdExe;
+    private final IndexListCacheKeysQryExe indexListCacheKeysQryExe;
     private final GetCacheValueQryExe getCacheValueQryExe;
 
     // ========== 索引管理相关方法 ==========
@@ -51,12 +56,12 @@ public class IndexCacheServiceImpl implements IndexCacheService {
     
     @Override
     public Response clearIndexCache(ClearIndexCacheCmd cmd) {
-        return clearIndexCacheCmdExe.execute(cmd);
+        return indexClearCacheCmdExe.execute(cmd);
     }
 
     @Override
     public MultiResponse<String> listIndexCacheKeys(ListIndexCacheKeysQry qry) {
-        return MultiResponse.of(listIndexCacheKeysQryExe.execute(qry));
+        return MultiResponse.of(indexListCacheKeysQryExe.execute(qry));
     }
 
     @Override

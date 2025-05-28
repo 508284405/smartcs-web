@@ -10,7 +10,7 @@ import org.redisson.api.search.index.VectorTypeParam;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import static com.leyue.smartcs.domain.common.Constants.UMBEDDING_INDEX_REDISEARCH;
+import static com.leyue.smartcs.domain.common.Constants.EMBEDDING_INDEX_REDISEARCH;
 
 /**
  * 应用启动时初始化 RediSearch 索引
@@ -21,23 +21,26 @@ import static com.leyue.smartcs.domain.common.Constants.UMBEDDING_INDEX_REDISEAR
 public class RediSearchIndexInitializer implements CommandLineRunner {
 
     private final SearchGateway searchGateway;
+
     @Override
-    public void run(String... args) throws Exception {
-        log.info("开始初始化 RediSearch 索引...");
+    public void run(String... args) {
+        // 创建FAQ索引,将Faq作为其索引字段
+        log.info("开始初始化 RediSearch FAQ 索引...");
+        searchGateway.createIndex(Constants.FAQ_INDEX_REDISEARCH,
+                FieldIndex.text("question").as("question"), // 问题
+                FieldIndex.text("answer").as("answer")); // 答案
+        log.info("RediSearch FAQ 索引初始化完成.");
 
-
-        // 创建 FAQ 索引,将Faq作为其索引字段
-        searchGateway.createIndex(Constants.FAQ_INDEX_REDISEARCH, FieldIndex.text("question").as("question"), FieldIndex.text("answer").as("answer"));
-
-        // 创建文档段落 embedding 索引
-        // 假设文档段落内容存储在 'content' 字段
-        searchGateway.createIndex(UMBEDDING_INDEX_REDISEARCH,
-                FieldIndex.hnswVector("embedding")
-                        .type(VectorTypeParam.Type.FLOAT32)
-                        .dim(1536)
-                        .distance(VectorDistParam.DistanceMetric.L2)
-        );
-
-        log.info("RediSearch 索引初始化完成.");
+        log.info("开始初始化 RediSearch 知识库索引...");
+        // 单索引结构 kbId,contentId,chunkId,embedding
+        searchGateway.createIndex(EMBEDDING_INDEX_REDISEARCH,
+                FieldIndex.text("kbId").as("kbId"), // 知识库ID
+                FieldIndex.text("contentId").as("contentId"), // 内容ID
+                FieldIndex.text("chunkId").as("chunkId"), // 段落ID
+                FieldIndex.hnswVector("embedding")// 向量索引
+                        .type(VectorTypeParam.Type.FLOAT32)// 32位浮点数
+                        .dim(1536)// 1536维向量
+                        .distance(VectorDistParam.DistanceMetric.L2));// 欧氏距离
+        log.info("RediSearch 知识库索引初始化完成.");
     }
-} 
+}

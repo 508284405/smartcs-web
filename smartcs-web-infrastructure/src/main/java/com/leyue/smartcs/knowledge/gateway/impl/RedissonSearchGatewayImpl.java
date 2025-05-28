@@ -62,14 +62,22 @@ public class RedissonSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public Map<Long, Double> searchTopK(String index, String keyword, int k) {
+    public Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId) {
         List<float[]> floats = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
         if (floats.isEmpty()) {
             return Collections.emptyMap();
         }
         // 尝试使用RediSearch的向量搜索功能
         String query = "*=>[KNN " + k + " @embedding $vector AS score]";
-
+        if (kbId != null || contentId != null) {
+            query += " AND ";
+            if (kbId != null) {
+                query += "kbId:" + kbId.toString();
+            }
+            if (contentId != null) {
+                query += "contentId:" + contentId.toString();
+            }
+        }
         Map<String, Object> params = new HashMap<>();
         params.put("vector", RedisearchUtils.floatArrayToByteArray(floats.get(0)));
 

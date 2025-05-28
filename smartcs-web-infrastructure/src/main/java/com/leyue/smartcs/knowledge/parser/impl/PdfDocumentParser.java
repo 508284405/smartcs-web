@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Document;
+import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -23,8 +23,8 @@ public class PdfDocumentParser implements DocumentParser {
     private static final String SUPPORTED_TYPE = "pdf";
     
     @Override
-    public String parseContent(Document document, File localFile) throws Exception {
-        log.info("解析PDF文档: {}, 文件路径: {}", document.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(Content content, File localFile) throws Exception {
+        log.info("解析PDF文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
         
         try (PDDocument pdfDocument = PDDocument.load(localFile)) {
             PDFTextStripper textStripper = new PDFTextStripper();

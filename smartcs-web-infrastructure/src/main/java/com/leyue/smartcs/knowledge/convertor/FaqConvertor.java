@@ -1,21 +1,18 @@
 package com.leyue.smartcs.knowledge.convertor;
 
+import java.util.List;
+
+import org.mapstruct.Mapper;
+
 import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.knowledge.dataobject.FaqDO;
-import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
-
-import java.util.List;
 
 /**
  * FAQ对象转换接口
  */
 @Mapper(componentModel = "spring")
 public interface FaqConvertor {
-
-    FaqConvertor INSTANCE = Mappers.getMapper(FaqConvertor.class);
-
     /**
      * 将领域模型转换为数据对象
      */
