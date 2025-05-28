@@ -98,6 +98,7 @@ public class BotProfileGatewayImpl implements BotProfileGateway {
     public List<BotProfile> findAllActive() {
         LambdaQueryWrapper<BotProfileDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(BotProfileDO::getIsDeleted, 0)
+               .eq(BotProfileDO::getEnabled, 1)
                .orderByDesc(BotProfileDO::getCreatedAt);
         
         List<BotProfileDO> botProfileDOs = botProfileMapper.selectList(wrapper);
