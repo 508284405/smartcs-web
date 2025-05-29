@@ -11,11 +11,8 @@ import java.util.List;
 /**
  * 内容数据对象转换器
  */
-@Mapper
-public interface ContentConvertor {
-    
-    ContentConvertor INSTANCE = Mappers.getMapper(ContentConvertor.class);
-    
+@Mapper(componentModel = "spring")
+public interface ContentConvertor {    
     /**
      * DO转Domain
      * @param contentDO 数据对象

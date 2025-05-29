@@ -17,7 +17,7 @@ import com.leyue.smartcs.domain.knowledge.event.DocEmbeddingGenerateEvent;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.utils.OssFileDownloader;
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;

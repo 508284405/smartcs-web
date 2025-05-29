@@ -1,7 +1,7 @@
 package com.leyue.smartcs.knowledge.parser.factory.impl;
 
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
 import org.springframework.stereotype.Component;

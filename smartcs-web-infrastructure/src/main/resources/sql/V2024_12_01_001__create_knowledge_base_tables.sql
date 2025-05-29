@@ -25,6 +25,7 @@ CREATE TABLE `t_kb_content` (
   `title` VARCHAR(256) NOT NULL COMMENT '标题',
   `content_type` VARCHAR(32) NOT NULL COMMENT 'document/audio/video',
   `file_url` VARCHAR(512) COMMENT '原始文件地址',
+  `file_type` VARCHAR(256) COMMENT '文件类型',
   `text_extracted` TEXT COMMENT '提取后的原始文本',
   `status` VARCHAR(32) DEFAULT 'uploaded' COMMENT 'uploaded/parsed/vectorized',
   `is_deleted` TINYINT DEFAULT 0,

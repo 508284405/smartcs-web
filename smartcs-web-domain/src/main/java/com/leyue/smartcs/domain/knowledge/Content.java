@@ -1,5 +1,7 @@
 package com.leyue.smartcs.domain.knowledge;
 
+
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,116 +19,133 @@ public class Content {
      * 主键ID
      */
     private Long id;
-    
+
     /**
      * 所属知识库ID
      */
     private Long knowledgeBaseId;
-    
+
     /**
      * 标题
      */
     private String title;
-    
+
     /**
      * 内容类型 document/audio/video
      */
     private String contentType;
-    
+
     /**
      * 原始文件地址
      */
     private String fileUrl;
-    
+
+    /**
+     * 文件扩展名
+     */
+    private String fileType;
+
     /**
      * 提取后的原始文本
      */
     private String textExtracted;
-    
+
     /**
      * 状态 uploaded/parsed/vectorized
      */
     private String status;
-    
+
+    /**
+     * 策略名称
+     */
+    private StrategyNameEnum strategyName;
+
     /**
      * 创建者ID
      */
     private Long createdBy;
-    
+
     /**
      * 创建时间（毫秒时间戳）
      */
     private Long createdAt;
-    
+
     /**
      * 更新时间（毫秒时间戳）
      */
     private Long updatedAt;
-    
+
     /**
      * 检查内容是否可以处理
+     *
      * @return 是否可处理
      */
     public boolean canProcess() {
         return this.fileUrl != null && !this.fileUrl.isEmpty() && "uploaded".equals(this.status);
     }
-    
+
     /**
      * 检查内容是否已解析
+     *
      * @return 是否已解析
      */
     public boolean isParsed() {
         return "parsed".equals(this.status) || "vectorized".equals(this.status);
     }
-    
+
     /**
      * 检查内容是否已向量化
+     *
      * @return 是否已向量化
      */
     public boolean isVectorized() {
         return "vectorized".equals(this.status);
     }
-    
+
     /**
      * 标记为已解析状态
      */
     public void markAsParsed() {
         this.status = "parsed";
     }
-    
+
     /**
      * 标记为已向量化状态
      */
     public void markAsVectorized() {
         this.status = "vectorized";
     }
-    
+
     /**
      * 检查是否为文档类型
+     *
      * @return 是否为文档
      */
     public boolean isDocument() {
         return "document".equals(this.contentType);
     }
-    
+
     /**
      * 检查是否为音频类型
+     *
      * @return 是否为音频
      */
     public boolean isAudio() {
         return "audio".equals(this.contentType);
     }
-    
+
     /**
      * 检查是否为视频类型
+     *
      * @return 是否为视频
      */
     public boolean isVideo() {
         return "video".equals(this.contentType);
     }
-    
+
     /**
      * 检查标题是否有效
+     *
      * @return 是否有效
      */
     public boolean isValidTitle() {

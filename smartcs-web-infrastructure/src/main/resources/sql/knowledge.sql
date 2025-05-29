@@ -17,40 +17,6 @@ CREATE TABLE IF NOT EXISTS t_cs_faq
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4 COMMENT ='常见问题FAQ表';
 
--- 文档表
-CREATE TABLE IF NOT EXISTS t_cs_doc
-(
-    id         BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    is_deleted TINYINT(1) DEFAULT 0 COMMENT '逻辑删除标记',
-    created_by VARCHAR(64) COMMENT '创建者',
-    updated_by VARCHAR(64) COMMENT '更新者',
-    created_at BIGINT COMMENT '创建时间（毫秒时间戳）',
-    updated_at BIGINT COMMENT '更新时间（毫秒时间戳）',
-    title      VARCHAR(255) NOT NULL COMMENT '文档标题',
-    oss_url    VARCHAR(512) COMMENT 'OSS存储地址',
-    file_type  VARCHAR(32) COMMENT '文件类型',
-    version_no INT        DEFAULT 1 COMMENT '版本号',
-    INDEX idx_title (title)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4 COMMENT ='文档表';
-
--- 文档段落向量表
-CREATE TABLE IF NOT EXISTS t_cs_doc_embedding
-(
-    id           BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
-    is_deleted   TINYINT(1) DEFAULT 0 COMMENT '逻辑删除标记',
-    created_by   VARCHAR(64) COMMENT '创建者',
-    updated_by   VARCHAR(64) COMMENT '更新者',
-    created_at   BIGINT COMMENT '创建时间（毫秒时间戳）',
-    updated_at   BIGINT COMMENT '更新时间（毫秒时间戳）',
-    doc_id       BIGINT NOT NULL COMMENT '文档ID',
-    section_idx  INT    NOT NULL COMMENT '段落序号',
-    content_snip TEXT COMMENT '文本片段',
-    vector       BLOB COMMENT '向量数据',
-    model_type   VARCHAR(50) COMMENT '模型类型',
-    INDEX idx_doc_section (doc_id, section_idx)
-) ENGINE = InnoDB
-  DEFAULT CHARSET = utf8mb4 COMMENT ='文档段落向量表';
 
 CREATE TABLE IF NOT EXISTS `t_bot_prompt_template`
 (

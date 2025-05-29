@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.executor.command;
 
 import com.alibaba.cola.dto.Response;
+import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import lombok.extern.slf4j.Slf4j;
@@ -31,20 +32,19 @@ public class ContentVectorizationCmdExe {
             // 查询内容
             Content content = contentGateway.findById(contentId);
             if (content == null) {
-                log.warn("内容不存在, ID: {}", contentId);
-                return Response.buildFailure("CONTENT_NOT_FOUND", "内容不存在");
+                throw new BizException("内容不存在");
             }
             
             // 状态校验
             if (!"parsed".equals(content.getStatus())) {
                 log.warn("内容状态不正确, 当前状态: {}, 期望状态: parsed", content.getStatus());
-                return Response.buildFailure("CONTENT_STATUS_ERROR", "只有解析完成的内容才能向量化");
+                throw new BizException("只有解析完成的内容才能向量化");
             }
             
             // 检查是否有提取的文本
             if (!StringUtils.hasText(content.getTextExtracted())) {
                 log.warn("内容没有提取的文本, ID: {}", contentId);
-                return Response.buildFailure("CONTENT_NO_TEXT", "内容没有提取的文本，无法向量化");
+                throw new BizException("内容没有提取的文本，无法向量化");
             }
             
             // 更新内容状态为向量化中
@@ -76,7 +76,7 @@ public class ContentVectorizationCmdExe {
                 log.error("更新向量化失败状态出错", ex);
             }
             
-            return Response.buildFailure("CONTENT_VECTORIZATION_ERROR", "内容向量化失败: " + e.getMessage());
+            throw new BizException("内容向量化失败: " + e.getMessage());
         }
     }
     

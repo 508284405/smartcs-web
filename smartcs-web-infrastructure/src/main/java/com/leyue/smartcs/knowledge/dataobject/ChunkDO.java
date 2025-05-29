@@ -3,7 +3,7 @@ package com.leyue.smartcs.knowledge.dataobject;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;

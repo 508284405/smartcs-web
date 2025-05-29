@@ -3,7 +3,7 @@ package com.leyue.smartcs.domain.knowledge.gateway;
 import java.util.List;
 
 import com.leyue.smartcs.domain.knowledge.Chunk;
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 
 /**
  * 切片Gateway接口

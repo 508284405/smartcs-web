@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 import com.leyue.smartcs.knowledge.dataobject.ChunkDO;
 import com.leyue.smartcs.knowledge.mapper.ChunkMapper;

@@ -1,4 +1,4 @@
-package com.leyue.smartcs.dto.knowledge.enums;
+package com.leyue.smartcs.domain.knowledge.enums;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

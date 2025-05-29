@@ -1,6 +1,6 @@
 package com.leyue.smartcs.knowledge.parser.factory;
 
-import com.leyue.smartcs.dto.knowledge.enums.StrategyNameEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 
 /**

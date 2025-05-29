@@ -2,6 +2,8 @@ package com.leyue.smartcs.startup;
 
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
+import com.leyue.smartcs.knowledge.gateway.impl.JedisSearchGatewayImpl;
+import com.leyue.smartcs.knowledge.gateway.impl.RedissonSearchGatewayImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.search.index.FieldIndex;
@@ -20,7 +22,7 @@ import static com.leyue.smartcs.domain.common.Constants.EMBEDDING_INDEX_REDISEAR
 @Slf4j
 public class RediSearchIndexInitializer implements CommandLineRunner {
 
-    private final SearchGateway searchGateway;
+    private final RedissonSearchGatewayImpl searchGateway;
 
     @Override
     public void run(String... args) {

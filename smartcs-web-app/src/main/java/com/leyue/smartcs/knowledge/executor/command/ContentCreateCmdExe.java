@@ -22,6 +22,8 @@ public class ContentCreateCmdExe {
 
     private final ContentGateway contentGateway;
 
+    private final ContentConvertor contentConvertor;
+
     /**
      * 执行内容创建命令
      * @param cmd 创建命令
@@ -41,6 +43,7 @@ public class ContentCreateCmdExe {
                 .knowledgeBaseId(cmd.getKnowledgeBaseId())
                 .title(cmd.getTitle())
                 .contentType(cmd.getContentType())
+                .fileType(cmd.getFileType())
                 .fileUrl(cmd.getOssUrl())
                 .status("uploaded")
                 .createdBy(currentUserId)
@@ -52,7 +55,7 @@ public class ContentCreateCmdExe {
         contentGateway.save(content);
         
         // 转换为DTO
-        ContentDTO contentDTO = ContentConvertor.INSTANCE.toDTO(content);
+        ContentDTO contentDTO = contentConvertor.toDTO(content);
         
         log.info("内容创建成功，ID: {}", content.getId());
         return SingleResponse.of(contentDTO);

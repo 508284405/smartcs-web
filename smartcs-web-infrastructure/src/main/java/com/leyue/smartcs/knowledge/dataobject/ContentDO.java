@@ -37,6 +37,12 @@ public class ContentDO extends BaseDO {
      */
     @TableField("file_url")
     private String fileUrl;
+
+    /**
+     * 文件扩展名
+     */
+    @TableField("file_type")
+    private String fileType;
     
     /**
      * 提取后的原始文本
