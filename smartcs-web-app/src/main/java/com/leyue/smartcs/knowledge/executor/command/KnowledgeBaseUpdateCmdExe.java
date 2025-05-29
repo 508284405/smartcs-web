@@ -24,12 +24,7 @@ public class KnowledgeBaseUpdateCmdExe {
      * 执行知识库更新
      */
     public Response execute(KnowledgeBaseUpdateCmd cmd) {
-        log.info("执行知识库更新, ID: {}, 名称: {}", cmd.getId(), cmd.getName());
-
         try {
-            // 参数校验
-            validateParams(cmd);
-
             // 检查知识库是否存在
             KnowledgeBase existingKnowledgeBase = knowledgeBaseGateway.findById(cmd.getId());
             if (existingKnowledgeBase == null) {
@@ -65,32 +60,6 @@ public class KnowledgeBaseUpdateCmdExe {
         } catch (Exception e) {
             log.error("知识库更新失败", e);
             return Response.buildFailure("KNOWLEDGE_BASE_UPDATE_ERROR", "知识库更新失败: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 参数校验
-     */
-    private void validateParams(KnowledgeBaseUpdateCmd cmd) {
-        if (cmd == null) {
-            throw new IllegalArgumentException("更新命令不能为空");
-        }
-
-        if (cmd.getId() == null) {
-            throw new IllegalArgumentException("知识库ID不能为空");
-        }
-
-        if (StringUtils.hasText(cmd.getName()) && cmd.getName().length() > 100) {
-            throw new IllegalArgumentException("知识库名称长度不能超过100个字符");
-        }
-
-        if (StringUtils.hasText(cmd.getDescription()) && cmd.getDescription().length() > 500) {
-            throw new IllegalArgumentException("知识库描述长度不能超过500个字符");
-        }
-
-        if (StringUtils.hasText(cmd.getVisibility()) && 
-            !("public".equals(cmd.getVisibility()) || "private".equals(cmd.getVisibility()))) {
-            throw new IllegalArgumentException("可见性只能是public或private");
         }
     }
 

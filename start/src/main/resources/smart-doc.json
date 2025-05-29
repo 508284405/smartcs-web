@@ -1,0 +1,4 @@
+{
+  "outPath": "./src/main/resources/static/doc",
+  "packageFilters": "com.leyue.smartcs.web.*,com.leyue.smartcs.sse.*,com.leyue.smartcs.websocket.*"
+}

@@ -29,22 +29,21 @@ public class KnowledgeBaseCreateCmdExe {
      * 执行知识库创建
      */
     public SingleResponse<KnowledgeBaseDTO> execute(KnowledgeBaseCreateCmd cmd) {
-        log.info("执行知识库创建, 名称: {}", cmd.getName());
-
         try {
-            // 参数校验
-            validateParams(cmd);
-
             // 检查名称是否重复
             if (knowledgeBaseGateway.existsByName(cmd.getName())) {
-                log.warn("知识库名称已存在: {}", cmd.getName());
                 return SingleResponse.buildFailure("KNOWLEDGE_BASE_NAME_EXISTS", "知识库名称已存在");
+            }
+            // 检查编码是否重复
+            if (knowledgeBaseGateway.existsByCode(cmd.getCode())) {
+                return SingleResponse.buildFailure("KNOWLEDGE_BASE_CODE_EXISTS", "知识库编码已存在");
             }
 
             // 构建知识库领域对象
-            KnowledgeBase knowledgeBase = buildKnowledgeBase(cmd);
+            KnowledgeBase knowledgeBase = knowledgeBaseConvertor.toDomain(cmd);
 
             // 保存知识库
+            knowledgeBase.setOwnerId(UserContext.getCurrentUser().getId());
             KnowledgeBase savedKnowledgeBase = knowledgeBaseGateway.save(knowledgeBase);
 
             // 转换为DTO
@@ -79,25 +78,5 @@ public class KnowledgeBaseCreateCmdExe {
         if (StringUtils.hasText(cmd.getDescription()) && cmd.getDescription().length() > 500) {
             throw new IllegalArgumentException("知识库描述长度不能超过500个字符");
         }
-    }
-
-    /**
-     * 构建知识库领域对象
-     */
-    private KnowledgeBase buildKnowledgeBase(KnowledgeBaseCreateCmd cmd) {
-        KnowledgeBase knowledgeBase = new KnowledgeBase();
-
-        // 基本信息
-        knowledgeBase.setName(cmd.getName().trim());
-        knowledgeBase.setDescription(StringUtils.hasText(cmd.getDescription()) ? cmd.getDescription().trim() : null);
-        knowledgeBase.setOwnerId(UserContext.getCurrentUser().getId());
-        knowledgeBase.setVisibility(cmd.getVisibility());
-        knowledgeBase.setCreatedBy(UserContext.getCurrentUser().getId());
-        knowledgeBase.setCreatedAt(System.currentTimeMillis());
-        knowledgeBase.setUpdatedAt(System.currentTimeMillis());
-
-        log.debug("构建知识库对象完成: {}", knowledgeBase);
-
-        return knowledgeBase;
     }
 }

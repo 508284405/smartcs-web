@@ -1,6 +1,8 @@
 package com.leyue.smartcs.dto.knowledge;
 
 import com.alibaba.cola.dto.PageQuery;
+
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -19,6 +21,7 @@ public class KnowledgeBaseListQry extends PageQuery {
     /**
      * 可见性过滤 public/private
      */
+    @Pattern(regexp = "^(public|private)$", message = "可见性只能是public或private")
     private String visibility;
     
     /**

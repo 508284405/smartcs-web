@@ -4,9 +4,10 @@ import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
-import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 
+import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +24,9 @@ public class ContentParsingCmdExe {
     @Autowired
     private ContentGateway contentGateway;
 
+    @Autowired
+    private DocumentParserFactory documentParserFactory;
+
     /**
      * 执行内容解析
      */
@@ -31,7 +35,6 @@ public class ContentParsingCmdExe {
         log.info("执行内容解析, 内容ID: {}", contentId);
 
         try {
-
             // 查询内容
             Content content = contentGateway.findById(contentId);
             if (content == null) {
@@ -65,7 +68,6 @@ public class ContentParsingCmdExe {
 
     /**
      * 执行实际的解析逻辑
-     * TODO: 根据不同的内容类型实现具体的解析逻辑
      */
     private String performParsing(Content content) {
         log.info("开始解析内容, 类型: {}, 文件地址: {}", content.getContentType(), content.getFileUrl());
@@ -77,61 +79,24 @@ public class ContentParsingCmdExe {
             throw new IllegalStateException("文件地址为空，无法解析");
         }
 
+        if (!StringUtils.hasText(fileType)) {
+            throw new IllegalStateException("文件类型为空，无法解析");
+        }
+
         try {
-            // 根据内容类型执行不同的解析逻辑
-            switch (fileType.toLowerCase()) {
-                case "pdf":
-                    return parsePdfContent(fileUrl);
-                case "doc":
-                case "docx":
-                    return parseDocContent(fileUrl);
-                case "txt":
-                    return parseTxtContent(fileUrl);
-                case "md":
-                    return parseMarkdownContent(fileUrl);
-                default:
-                    log.warn("不支持的内容类型: {}", fileType);
-                    return "不支持的内容类型，无法解析文本";
+            // 检查是否支持该文件类型
+            if (!documentParserFactory.isSupported(fileType)) {
+                log.warn("不支持的文件类型: {}", fileType);
+                return "不支持的文件类型: " + fileType;
             }
+
+            // 获取对应的解析器并执行解析
+            DocumentParser parser = documentParserFactory.getParser(fileType);
+            return parser.parseContent(fileUrl);
+
         } catch (Exception e) {
             log.error("解析内容失败, 类型: {}, 文件: {}", fileType, fileUrl, e);
             throw new RuntimeException("解析内容失败: " + e.getMessage(), e);
         }
-    }
-
-    /**
-     * 解析PDF内容
-     */
-    private String parsePdfContent(String fileUrl) {
-        // TODO: 实现PDF解析逻辑
-        log.info("解析PDF文件: {}", fileUrl);
-        return "PDF文件解析后的文本内容"; // 临时返回
-    }
-
-    /**
-     * 解析DOC/DOCX内容
-     */
-    private String parseDocContent(String fileUrl) {
-        // TODO: 实现DOC/DOCX解析逻辑
-        log.info("解析DOC文件: {}", fileUrl);
-        return "DOC文件解析后的文本内容"; // 临时返回
-    }
-
-    /**
-     * 解析TXT内容
-     */
-    private String parseTxtContent(String fileUrl) {
-        // TODO: 实现TXT解析逻辑
-        log.info("解析TXT文件: {}", fileUrl);
-        return "TXT文件解析后的文本内容"; // 临时返回
-    }
-
-    /**
-     * 解析Markdown内容
-     */
-    private String parseMarkdownContent(String fileUrl) {
-        // TODO: 实现Markdown解析逻辑
-        log.info("解析Markdown文件: {}", fileUrl);
-        return "Markdown文件解析后的文本内容"; // 临时返回
     }
 }

@@ -47,4 +47,11 @@ public interface KnowledgeBaseGateway {
      * @return 分页结果
      */
     PageResponse<KnowledgeBase> listByPage(KnowledgeBaseListQry qry);
+
+    /**
+     * 根据编码检查知识库是否存在
+     * @param code 知识库编码
+     * @return 是否存在
+     */
+    boolean existsByCode(String code);
 } 

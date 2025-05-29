@@ -32,6 +32,11 @@ public class ContentDTO {
      * 原始文件地址
      */
     private String fileUrl;
+
+    /**
+     * 文件类型
+     */
+    private String fileType;
     
     /**
      * 提取后的原始文本

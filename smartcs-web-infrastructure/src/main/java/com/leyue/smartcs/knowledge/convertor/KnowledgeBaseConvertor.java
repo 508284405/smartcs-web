@@ -1,20 +1,18 @@
 package com.leyue.smartcs.knowledge.convertor;
 
 import com.leyue.smartcs.domain.knowledge.KnowledgeBase;
+import com.leyue.smartcs.dto.knowledge.KnowledgeBaseCreateCmd;
 import com.leyue.smartcs.dto.knowledge.KnowledgeBaseDTO;
 import com.leyue.smartcs.knowledge.dataobject.KnowledgeBaseDO;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
 /**
  * 知识库数据对象转换器
  */
-@Mapper
+@Mapper(componentModel = "spring")
 public interface KnowledgeBaseConvertor {
-    
-    KnowledgeBaseConvertor INSTANCE = Mappers.getMapper(KnowledgeBaseConvertor.class);
     
     /**
      * DO转Domain
@@ -22,6 +20,13 @@ public interface KnowledgeBaseConvertor {
      * @return 领域对象
      */
     KnowledgeBase toDomain(KnowledgeBaseDO knowledgeBaseDO);
+
+    /**
+     * Cmd转Domain
+     * @param cmd 命令对象
+     * @return 领域对象
+     */
+    KnowledgeBase toDomain(KnowledgeBaseCreateCmd cmd);
     
     /**
      * Domain转DO

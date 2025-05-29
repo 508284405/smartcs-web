@@ -6,10 +6,8 @@
     <resultMap id="BaseResultMap" type="com.leyue.smartcs.knowledge.dataobject.VectorDO">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="chunk_id" property="chunkId" jdbcType="BIGINT"/>
-        <result column="vector_data" property="vectorData" jdbcType="LONGVARCHAR"/>
-        <result column="vector_dim" property="vectorDim" jdbcType="INTEGER"/>
+        <result column="embedding" property="embedding" jdbcType="BLOB"/>
         <result column="provider" property="provider" jdbcType="VARCHAR"/>
-        <result column="model_name" property="modelName" jdbcType="VARCHAR"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
         <result column="created_at" property="createdAt" jdbcType="BIGINT"/>
         <result column="updated_at" property="updatedAt" jdbcType="BIGINT"/>
@@ -17,13 +15,13 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, chunk_id, vector_data, vector_dim, provider, model_name, created_by, created_at, updated_at
+        id, chunk_id, embedding, vector_dim, provider, model_name, created_by, created_at, updated_at
     </sql>
 
     <!-- insertBatch --> 
 
     <insert id="insertBatch">
-        INSERT INTO t_kb_vector (chunk_id, vector_data, vector_dim, provider, model_name, created_by, created_at, updated_at)
+        INSERT INTO t_kb_vector (chunk_id, embedding, vector_dim, provider, model_name, created_by, created_at, updated_at)
         VALUES
         <foreach collection="vectors" item="vector" separator=",">
             (#{vector.chunkId}, #{vector.vectorData}, #{vector.vectorDim}, #{vector.provider}, #{vector.modelName}, #{vector.createdBy}, #{vector.createdAt}, #{vector.updatedAt})

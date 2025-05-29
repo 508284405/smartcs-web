@@ -1,43 +1,48 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 
 /**
  * TXT文档解析器
- * 直接读取文本文件内容
  */
 @Component
 @Slf4j
 public class TxtDocumentParser implements DocumentParser {
-    
-    /**
-     * 支持的文件类型
-     */
-    private static final String SUPPORTED_TYPE = "txt";
-    
+
     @Override
-    public String parseContent(Content content, File localFile) throws Exception {
-        log.info("解析TXT文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(String fileUrl) throws Exception {
+        log.info("开始解析TXT文件: {}", fileUrl);
         
-        try {
-            // 读取文件内容
-            return Files.readString(Path.of(localFile.getAbsolutePath()), StandardCharsets.UTF_8);
+        try (InputStream inputStream = new URL(fileUrl).openStream();
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            
+            StringBuilder content = new StringBuilder();
+            String line;
+            
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+            
+            String text = content.toString();
+            log.info("TXT解析完成，提取文本长度: {}", text.length());
+            return text;
+            
         } catch (Exception e) {
-            log.error("TXT解析失败: {}", e.getMessage(), e);
-            throw e;
+            log.error("TXT解析失败: {}", fileUrl, e);
+            throw new Exception("TXT解析失败: " + e.getMessage(), e);
         }
     }
-    
+
     @Override
-    public String getSupportedFileType() {
-        return SUPPORTED_TYPE;
+    public boolean supports(String fileType) {
+        return "txt".equalsIgnoreCase(fileType);
     }
 } 

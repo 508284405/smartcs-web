@@ -1,49 +1,56 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
+import java.net.URL;
 
 /**
- * Word文档解析器
- * 使用Apache POI解析Word文件内容，支持.docx格式
+ * Word文档解析器（支持.docx格式）
  */
 @Component
 @Slf4j
 public class WordDocumentParser implements DocumentParser {
-    
-    /**
-     * 支持的文件类型
-     */
-    private static final String SUPPORTED_TYPE = "docx";
-    
+
     @Override
-    public String parseContent(Content content, File localFile) throws Exception {
-        log.info("解析Word文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(String fileUrl) throws Exception {
+        log.info("开始解析Word文件: {}", fileUrl);
         
-        try (FileInputStream fis = new FileInputStream(localFile);
-             XWPFDocument wordDoc = new XWPFDocument(fis)) {
+        try (InputStream inputStream = new URL(fileUrl).openStream()) {
+            String text;
             
-            @SuppressWarnings("resource")
-            XWPFWordExtractor extractor = new XWPFWordExtractor(wordDoc);
-            String text = extractor.getText();
+            // 目前只支持.docx格式
+            if (fileUrl.toLowerCase().endsWith(".docx")) {
+                text = parseDocxContent(inputStream);
+            } else {
+                throw new Exception("目前只支持.docx格式的Word文件");
+            }
             
-            log.info("Word解析完成，提取的文本长度: {}", text.length());
+            log.info("Word解析完成，提取文本长度: {}", text.length());
             return text;
+            
         } catch (Exception e) {
-            log.error("Word解析失败: {}", e.getMessage(), e);
-            throw e;
+            log.error("Word解析失败: {}", fileUrl, e);
+            throw new Exception("Word解析失败: " + e.getMessage(), e);
         }
     }
-    
+
+    /**
+     * 解析.docx格式文件
+     */
+    private String parseDocxContent(InputStream inputStream) throws Exception {
+        try (XWPFDocument document = new XWPFDocument(inputStream);
+             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+            return extractor.getText();
+        }
+    }
+
     @Override
-    public String getSupportedFileType() {
-        return SUPPORTED_TYPE;
+    public boolean supports(String fileType) {
+        return "docx".equalsIgnoreCase(fileType);
     }
 } 

@@ -1,6 +1,8 @@
 package com.leyue.smartcs.dto.knowledge;
 
 import com.alibaba.cola.dto.PageQuery;
+
+import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -29,5 +31,6 @@ public class ContentListQry extends PageQuery {
     /**
      * 内容状态 uploaded/parsed/vectorized
      */
+    @Pattern(regexp = "^(uploaded|parsed|vectorized)$", message = "状态只能是uploaded、parsed或vectorized")
     private String status;
 } 

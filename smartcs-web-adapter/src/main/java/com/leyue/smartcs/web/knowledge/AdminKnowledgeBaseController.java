@@ -6,6 +6,9 @@ import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.KnowledgeBaseService;
 import com.leyue.smartcs.dto.knowledge.*;
+
+import jakarta.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * 知识库管理Controller
  */
 @RestController
-@RequestMapping("/admin/knowledge-base")
+@RequestMapping("/api/admin/knowledge-base")
 public class AdminKnowledgeBaseController {
     
     @Autowired
@@ -23,16 +26,15 @@ public class AdminKnowledgeBaseController {
      * 创建知识库
      */
     @PostMapping
-    public SingleResponse<KnowledgeBaseDTO> createKnowledgeBase(@RequestBody KnowledgeBaseCreateCmd cmd) {
+    public SingleResponse<KnowledgeBaseDTO> createKnowledgeBase(@RequestBody @Valid KnowledgeBaseCreateCmd cmd) {
         return knowledgeBaseService.createKnowledgeBase(cmd);
     }
     
     /**
      * 更新知识库
      */
-    @PutMapping("/{id}")
-    public Response updateKnowledgeBase(@PathVariable Long id, @RequestBody KnowledgeBaseUpdateCmd cmd) {
-        cmd.setId(id);
+    @PutMapping
+    public Response updateKnowledgeBase(@RequestBody @Valid KnowledgeBaseUpdateCmd cmd) {
         return knowledgeBaseService.updateKnowledgeBase(cmd);
     }
     
@@ -56,7 +58,7 @@ public class AdminKnowledgeBaseController {
      * 查询知识库列表
      */
     @GetMapping
-    public PageResponse<KnowledgeBaseDTO> listKnowledgeBases(KnowledgeBaseListQry qry) {
+    public PageResponse<KnowledgeBaseDTO> listKnowledgeBases(@Valid KnowledgeBaseListQry qry) {
         return knowledgeBaseService.listKnowledgeBases(qry);
     }
 
@@ -65,7 +67,7 @@ public class AdminKnowledgeBaseController {
      * 文本检索
      */
     @PostMapping("/search/text")
-    public MultiResponse<EmbeddingWithScore> searchByText(@RequestBody KnowledgeSearchQry qry) {
+    public MultiResponse<EmbeddingWithScore> searchByText(@RequestBody @Valid KnowledgeSearchQry qry) {
         return knowledgeBaseService.searchByText(qry);
     }
 } 

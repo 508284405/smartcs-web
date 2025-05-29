@@ -1,13 +1,14 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 
 /**
  * PDF文档解析器
@@ -23,28 +24,26 @@ public class PdfDocumentParser implements DocumentParser {
     private static final String SUPPORTED_TYPE = "pdf";
     
     @Override
-    public String parseContent(Content content, File localFile) throws Exception {
-        log.info("解析PDF文档: {}, 文件路径: {}", content.getTitle(), localFile.getAbsolutePath());
+    public String parseContent(String fileUrl) throws Exception {
+        log.info("开始解析PDF文件: {}", fileUrl);
         
-        try (PDDocument pdfDocument = PDDocument.load(localFile)) {
-            PDFTextStripper textStripper = new PDFTextStripper();
+        try (InputStream inputStream = new URL(fileUrl).openStream();
+             PDDocument document = PDDocument.load(inputStream)) {
             
-            // 设置按顺序提取文本
-            textStripper.setSortByPosition(true);
+            PDFTextStripper stripper = new PDFTextStripper();
+            String text = stripper.getText(document);
             
-            // 提取所有页面的文本
-            String text = textStripper.getText(pdfDocument);
-            
-            log.info("PDF解析完成，文档页数: {}, 提取的文本长度: {}", pdfDocument.getNumberOfPages(), text.length());
+            log.info("PDF解析完成，提取文本长度: {}", text.length());
             return text;
-        } catch (Exception e) {
-            log.error("PDF解析失败: {}", e.getMessage(), e);
-            throw e;
+            
+        } catch (IOException e) {
+            log.error("PDF解析失败: {}", fileUrl, e);
+            throw new Exception("PDF解析失败: " + e.getMessage(), e);
         }
     }
     
     @Override
-    public String getSupportedFileType() {
-        return SUPPORTED_TYPE;
+    public boolean supports(String fileType) {
+        return "pdf".equalsIgnoreCase(fileType);
     }
 } 

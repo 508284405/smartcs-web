@@ -4,10 +4,12 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ContentService;
-import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+
+import jakarta.validation.Valid;
+
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * 内容管理Controller
  */
 @RestController
-@RequestMapping("/admin/content")
+@RequestMapping("/api/admin/content")
 public class AdminContentController {
     
     @Autowired
@@ -26,16 +28,15 @@ public class AdminContentController {
      * 创建内容
      */
     @PostMapping
-    public SingleResponse<ContentDTO> createContent(@RequestBody ContentCreateCmd cmd) {
+    public SingleResponse<ContentDTO> createContent(@RequestBody @Valid ContentCreateCmd cmd) {
         return contentService.createContent(cmd);
     }
     
     /**
      * 更新内容
      */
-    @PutMapping("/{id}")
-    public Response updateContent(@PathVariable Long id, @RequestBody ContentUpdateCmd cmd) {
-        cmd.setId(id);
+    @PutMapping
+    public Response updateContent(@RequestBody @Valid ContentUpdateCmd cmd) {
         return contentService.updateContent(cmd);
     }
     
@@ -59,7 +60,7 @@ public class AdminContentController {
      * 查询内容列表
      */
     @GetMapping
-    public PageResponse<ContentDTO> listContents(ContentListQry qry) {
+    public PageResponse<ContentDTO> listContents(@Valid ContentListQry qry) {
         return contentService.listContents(qry);
     }
     

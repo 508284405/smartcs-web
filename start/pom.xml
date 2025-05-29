@@ -47,4 +47,35 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
     </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.ly.smart-doc</groupId>
+                <artifactId>smart-doc-maven-plugin</artifactId>
+                <version>3.0.9</version>
+                <configuration>
+                    <configFile>./src/main/resources/smart-doc.json</configFile>
+                    <projectName>智能客服</projectName>
+                    <includes>
+                        <!-- Page paging using mybatis-plus requires the source code package used by include -->
+                        <include>com.baomidou:mybatis-plus-extension</include>
+                        <!-- IPage paging using mybatis-plus needs to include mybatis-plus-core-->
+                        <include>com.baomidou:mybatis-plus-core</include>
+                        <!-- Paging using jpa requires the source code package used by include -->
+                        <include>org.springframework.data:spring-data-commons</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <!--If you do not need to start smart-doc when compiling, comment out phase-->
+                        <phase>compile</phase>
+                        <goals>
+                            <!--smart-doc provides html, openapi, markdown and other goals, which can be configured as needed-->
+                            <goal>markdown</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

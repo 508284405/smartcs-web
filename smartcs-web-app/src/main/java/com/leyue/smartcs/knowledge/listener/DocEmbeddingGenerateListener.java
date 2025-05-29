@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -18,9 +20,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.utils.OssFileDownloader;
 import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
-import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
-import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
 
 import lombok.RequiredArgsConstructor;
@@ -120,11 +120,8 @@ public class DocEmbeddingGenerateListener {
                 return contentChunks;
             }
 
-            // 下载文档
-            localFile = ossFileDownloader.download(ossUrl);
-
             // 解析文档内容
-            String fullText = parser.parseContent(content, localFile);
+            String fullText = parser.parseContent(ossUrl);
 
             // 分段
             if (fullText != null && !fullText.isEmpty()) {

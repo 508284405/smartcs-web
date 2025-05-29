@@ -9,6 +9,9 @@ import com.leyue.smartcs.dto.knowledge.KnowledgeBaseListQry;
 import com.leyue.smartcs.knowledge.convertor.KnowledgeBaseConvertor;
 import com.leyue.smartcs.knowledge.dataobject.KnowledgeBaseDO;
 import com.leyue.smartcs.knowledge.mapper.KnowledgeBaseMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -19,26 +22,29 @@ import java.util.List;
  * 知识库Gateway实现
  */
 @Component
+@Slf4j
+@RequiredArgsConstructor
 public class KnowledgeBaseGatewayImpl implements KnowledgeBaseGateway {
     
-    @Autowired
-    private KnowledgeBaseMapper knowledgeBaseMapper;
+    private final KnowledgeBaseMapper knowledgeBaseMapper;
+
+    private final KnowledgeBaseConvertor knowledgeBaseConvertor;
     
     @Override
     public KnowledgeBase save(KnowledgeBase knowledgeBase) {
-        KnowledgeBaseDO knowledgeBaseDO = KnowledgeBaseConvertor.INSTANCE.toDO(knowledgeBase);
+        KnowledgeBaseDO knowledgeBaseDO = knowledgeBaseConvertor.toDO(knowledgeBase);
         knowledgeBaseMapper.insert(knowledgeBaseDO);
-        return KnowledgeBaseConvertor.INSTANCE.toDomain(knowledgeBaseDO);
+        return knowledgeBaseConvertor.toDomain(knowledgeBaseDO);
     }
     
     @Override
     public void update(KnowledgeBase knowledgeBase) {
-        knowledgeBaseMapper.updateById(KnowledgeBaseConvertor.INSTANCE.toDO(knowledgeBase));
+        knowledgeBaseMapper.updateById(knowledgeBaseConvertor.toDO(knowledgeBase));
     }
     
     @Override
     public KnowledgeBase findById(Long id) {
-        return KnowledgeBaseConvertor.INSTANCE.toDomain(knowledgeBaseMapper.selectById(id));
+        return knowledgeBaseConvertor.toDomain(knowledgeBaseMapper.selectById(id));
     }
     
     @Override
@@ -80,7 +86,7 @@ public class KnowledgeBaseGatewayImpl implements KnowledgeBaseGateway {
         Page<KnowledgeBaseDO> result = knowledgeBaseMapper.selectPage(page, queryWrapper);
         
         // 转换为领域对象
-        List<KnowledgeBase> knowledgeBases = KnowledgeBaseConvertor.INSTANCE.toDomainList(result.getRecords());
+        List<KnowledgeBase> knowledgeBases = knowledgeBaseConvertor.toDomainList(result.getRecords());
         
         return PageResponse.of(
                 knowledgeBases,
@@ -88,5 +94,11 @@ public class KnowledgeBaseGatewayImpl implements KnowledgeBaseGateway {
                 qry.getPageSize(),
                 qry.getPageIndex()
         );
+    }
+
+    @Override
+    public boolean existsByCode(String code) {
+        return knowledgeBaseMapper.selectCount(new LambdaQueryWrapper<KnowledgeBaseDO>()
+                .eq(KnowledgeBaseDO::getCode, code)) > 0;
     }
 } 
