@@ -47,4 +47,9 @@ public class ContentGatewayImpl implements ContentGateway {
         return contentMapper.selectCount(new LambdaQueryWrapper<ContentDO>()
                 .eq(ContentDO::getKnowledgeBaseId, knowledgeBaseId));
     }
+
+    @Override
+    public void updateById(Content content) {
+        contentMapper.updateById(contentConvertor.toDO(content));
+    }
 } 

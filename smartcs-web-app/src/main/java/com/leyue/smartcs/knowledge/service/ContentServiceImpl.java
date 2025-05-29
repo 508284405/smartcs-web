@@ -78,7 +78,7 @@ public class ContentServiceImpl implements ContentService {
 
     @Override
     public Response triggerContentVectorization(Long contentId, String strategyName) {
-        StrategyNameEnum strategy = StrategyNameEnum.fromCode(strategyName);
+        StrategyNameEnum strategy = StrategyNameEnum.valueOf(strategyName);
         return contentVectorizationCmdExe.execute(contentId, strategy);
     }
 }

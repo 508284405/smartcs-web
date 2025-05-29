@@ -38,4 +38,10 @@ public interface ContentGateway {
      * @return 内容数量
      */
     Long countByKnowledgeBaseId(Long knowledgeBaseId);
+
+    /**
+     * 根据ID更新内容
+     * @param content 内容对象
+     */
+    void updateById(Content content);
 } 

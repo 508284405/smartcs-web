@@ -53,7 +53,7 @@ public class ContentParsingCmdExe {
             // 更新解析结果
             content.setTextExtracted(extractedText);
             content.setStatus(ContentStatusEnum.PARSED);
-            contentGateway.save(content);
+            contentGateway.updateById(content);
 
             log.info("内容解析完成, ID: {}, 提取文本长度: {}", contentId,
                     extractedText != null ? extractedText.length() : 0);
