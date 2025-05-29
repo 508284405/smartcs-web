@@ -1,5 +1,7 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
+import java.util.List;
+
 import com.leyue.smartcs.domain.knowledge.Vector;
 
 /**
@@ -31,4 +33,10 @@ public interface VectorGateway {
      * @param id 向量ID
      */
     void deleteById(Long id);
+
+    /**
+     * 保存向量列表
+     * @param vectors 向量列表
+     */
+    void saveBatch(List<Vector> vectors);
 } 

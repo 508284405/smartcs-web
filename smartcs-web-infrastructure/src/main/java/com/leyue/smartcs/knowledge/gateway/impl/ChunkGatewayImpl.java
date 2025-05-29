@@ -51,7 +51,14 @@ public class ChunkGatewayImpl implements ChunkGateway {
     }
 
     @Override
-    public void saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName) {
-        chunkMapper.insertBatch(chunks.stream().map(chunkConvertor::toDO).collect(Collectors.toList()));
+    public List<Chunk> saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName) {
+        // 保存分段数据
+        List<ChunkDO> chunkDOs = chunks.stream().map(chunkConvertor::toDO).collect(Collectors.toList());
+        chunkDOs.forEach(chunkDO -> {
+            chunkDO.setContentId(contentId);
+            chunkDO.setStrategyName(strategyName);
+        });
+        chunkMapper.insertBatch(chunkDOs);
+        return chunkDOs.stream().map(chunkConvertor::toDomain).collect(Collectors.toList());
     }
 } 

@@ -4,6 +4,10 @@ import com.leyue.smartcs.domain.knowledge.Vector;
 import com.leyue.smartcs.domain.knowledge.gateway.VectorGateway;
 import com.leyue.smartcs.knowledge.convertor.VectorConvertor;
 import com.leyue.smartcs.knowledge.mapper.VectorMapper;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -34,5 +38,10 @@ public class VectorGatewayImpl implements VectorGateway {
     @Override
     public void deleteById(Long id) {
         vectorMapper.deleteById(id);
+    }
+
+    @Override
+    public void saveBatch(List<Vector> vectors) {
+        vectorMapper.insertBatch(vectors.stream().map(VectorConvertor.INSTANCE::toDO).collect(Collectors.toList()));
     }
 } 

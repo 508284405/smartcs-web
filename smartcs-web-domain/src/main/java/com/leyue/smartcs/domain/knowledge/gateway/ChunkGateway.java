@@ -48,5 +48,5 @@ public interface ChunkGateway {
      * @param chunks 切片列表
      * @param strategyName 解析策略名称
      */
-    void saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName);
+    List<Chunk> saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName);
 } 

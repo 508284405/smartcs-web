@@ -20,4 +20,13 @@
         id, chunk_id, vector_data, vector_dim, provider, model_name, created_by, created_at, updated_at
     </sql>
 
+    <!-- insertBatch --> 
+
+    <insert id="insertBatch">
+        INSERT INTO t_kb_vector (chunk_id, vector_data, vector_dim, provider, model_name, created_by, created_at, updated_at)
+        VALUES
+        <foreach collection="vectors" item="vector" separator=",">
+            (#{vector.chunkId}, #{vector.vectorData}, #{vector.vectorDim}, #{vector.provider}, #{vector.modelName}, #{vector.createdBy}, #{vector.createdAt}, #{vector.updatedAt})
+        </foreach>
+    </insert>
 </mapper> 

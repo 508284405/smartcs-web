@@ -3,9 +3,9 @@ package com.leyue.smartcs.knowledge.gateway.impl;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+import com.leyue.smartcs.domain.common.EmbeddingStructure;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.domain.utils.RedisearchUtils;
-import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,29 +39,6 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     private final LLMGateway llmGateway;
 
     // ========== 向量检索相关方法 ==========
-
-    @Override
-    public boolean batchEmbeddingInsert(String index, List<EmbeddingCmd> embeddings) {
-        try {
-            // 批量写入
-            for (EmbeddingCmd embedding : embeddings) {
-                Long id = embedding.getId();
-                String text = embedding.getText();
-                // 构建Redis键名（格式: collection:id）
-                String vectorKey = index + ":" + id;
-                // 使用LLM Gateway生成向量
-                List<float[]> vectors = llmGateway.generateEmbeddings(Collections.singletonList(text));
-                if (!vectors.isEmpty()) {
-                    // 添加向量数据（使用ByteArrayCodec）
-                    unifiedJedis.hset(vectorKey.getBytes(), "embedding".getBytes(), RedisearchUtils.floatArrayToByteArray(vectors.get(0)));
-                }
-            }
-            return true;
-        } catch (Exception e) {
-            log.error("向量批量写入失败: {}", e.getMessage(), e);
-            return false;
-        }
-    }
 
     @Override
     public Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId) {

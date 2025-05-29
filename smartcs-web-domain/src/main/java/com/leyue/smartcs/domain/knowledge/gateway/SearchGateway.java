@@ -1,6 +1,6 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
-import com.leyue.smartcs.dto.knowledge.EmbeddingCmd;
+import com.leyue.smartcs.domain.common.EmbeddingStructure;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 
 import java.util.List;
@@ -13,14 +13,6 @@ import java.util.Map;
 public interface SearchGateway {
     
     // ========== 向量检索相关方法 ==========
-    
-    /**
-     * 批量写入向量
-     *
-     * @param collection   集合名称
-     * @return 是否成功
-     */
-    boolean batchEmbeddingInsert(String collection, List<EmbeddingCmd> embeddings);
 
     /**
      * 执行Top-K检索

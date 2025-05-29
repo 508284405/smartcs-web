@@ -4,6 +4,7 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.knowledge.Content;
+import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
@@ -45,7 +46,7 @@ public class ContentCreateCmdExe {
                 .contentType(cmd.getContentType())
                 .fileType(cmd.getFileType())
                 .fileUrl(cmd.getOssUrl())
-                .status("uploaded")
+                .status(ContentStatusEnum.UPLOADED)
                 .createdBy(currentUserId)
                 .createdAt(currentTime)
                 .updatedAt(currentTime)
