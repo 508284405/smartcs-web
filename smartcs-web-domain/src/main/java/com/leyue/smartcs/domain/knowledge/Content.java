@@ -1,6 +1,7 @@
 package com.leyue.smartcs.domain.knowledge;
 
 
+import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
 import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -53,7 +54,7 @@ public class Content {
     /**
      * 状态 uploaded/parsed/vectorized
      */
-    private String status;
+    private ContentStatusEnum status;
 
     /**
      * 策略名称
@@ -90,7 +91,7 @@ public class Content {
      * @return 是否已解析
      */
     public boolean isParsed() {
-        return "parsed".equals(this.status) || "vectorized".equals(this.status);
+        return this.status == ContentStatusEnum.PARSED || this.status == ContentStatusEnum.VECTORIZED;
     }
 
     /**
@@ -99,21 +100,21 @@ public class Content {
      * @return 是否已向量化
      */
     public boolean isVectorized() {
-        return "vectorized".equals(this.status);
+        return this.status == ContentStatusEnum.VECTORIZED;
     }
 
     /**
      * 标记为已解析状态
      */
     public void markAsParsed() {
-        this.status = "parsed";
+        this.status = ContentStatusEnum.PARSED;
     }
 
     /**
      * 标记为已向量化状态
      */
     public void markAsVectorized() {
-        this.status = "vectorized";
+        this.status = ContentStatusEnum.VECTORIZED;
     }
 
     /**

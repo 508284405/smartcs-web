@@ -4,6 +4,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ContentService;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
@@ -63,7 +64,7 @@ public class AdminContentController {
     }
     
     /**
-     * 触发内容解析
+     * 触发内容解析,指定内容和策略名称
      */
     @PostMapping("/{id}/parse")
     public Response triggerContentParsing(@PathVariable Long id) {
@@ -74,7 +75,7 @@ public class AdminContentController {
      * 触发内容向量化
      */
     @PostMapping("/{id}/vectorize")
-    public Response triggerContentVectorization(@PathVariable Long id) {
-        return contentService.triggerContentVectorization(id);
+    public Response triggerContentVectorization(@PathVariable Long id,@RequestParam String strategyName) {
+        return contentService.triggerContentVectorization(id,strategyName);
     }
 } 

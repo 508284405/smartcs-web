@@ -3,7 +3,13 @@ package com.leyue.smartcs.knowledge.executor.command;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.knowledge.Content;
+import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
+import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
+import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -16,15 +22,16 @@ import java.util.List;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ContentVectorizationCmdExe {
 
-    @Autowired
-    private ContentGateway contentGateway;
+    private final ContentGateway contentGateway;
+    private final SegmentStrategyFactory segmentStrategyFactory;
 
     /**
      * 执行内容向量化
      */
-    public Response execute(Long contentId) {
+    public Response execute(Long contentId, StrategyNameEnum strategyName) {
         log.info("执行内容向量化, 内容ID: {}", contentId);
         
         try {
@@ -47,15 +54,11 @@ public class ContentVectorizationCmdExe {
                 throw new BizException("内容没有提取的文本，无法向量化");
             }
             
-            // 更新内容状态为向量化中
-            content.setStatus("vectorizing");
-            contentGateway.save(content);
-            
             // 执行向量化逻辑
-            performVectorization(content);
+            performVectorization(content, strategyName);
             
             // 更新状态为向量化完成
-            content.setStatus("vectorized");
+            content.setStatus(ContentStatusEnum.VECTORIZED);
             contentGateway.save(content);
             
             log.info("内容向量化完成, ID: {}", contentId);
@@ -64,18 +67,6 @@ public class ContentVectorizationCmdExe {
             
         } catch (Exception e) {
             log.error("内容向量化失败", e);
-            
-            // 更新状态为向量化失败
-            try {
-                Content content = contentGateway.findById(contentId);
-                if (content != null) {
-                    content.setStatus("vectorize_failed");
-                    contentGateway.save(content);
-                }
-            } catch (Exception ex) {
-                log.error("更新向量化失败状态出错", ex);
-            }
-            
             throw new BizException("内容向量化失败: " + e.getMessage());
         }
     }
@@ -83,13 +74,13 @@ public class ContentVectorizationCmdExe {
     /**
      * 执行实际的向量化逻辑
      */
-    private void performVectorization(Content content) {
+    private void performVectorization(Content content, StrategyNameEnum strategyName) {
         log.info("开始向量化内容, ID: {}, 文本长度: {}", 
             content.getId(), content.getTextExtracted().length());
         
         try {
             // 1. 文本分段
-            List<String> textSegments = splitTextIntoSegments(content.getTextExtracted());
+            List<String> textSegments = splitTextIntoSegments(content.getTextExtracted(), strategyName);
             log.info("文本分段完成, 共 {} 段", textSegments.size());
             
             // 2. 生成向量
@@ -114,28 +105,12 @@ public class ContentVectorizationCmdExe {
     /**
      * 将文本分段
      */
-    private List<String> splitTextIntoSegments(String text) {
+    private List<String> splitTextIntoSegments(String text, StrategyNameEnum strategyName) {
         // TODO: 实现智能文本分段逻辑
         log.debug("开始分段文本, 原始长度: {}", text.length());
         
-        // 简单实现：按段落分割，每段最大1000字符
-        List<String> segments = new java.util.ArrayList<>();
-        String[] paragraphs = text.split("\\n\\s*\\n");
-        
-        StringBuilder currentSegment = new StringBuilder();
-        for (String paragraph : paragraphs) {
-            if (currentSegment.length() + paragraph.length() > 1000) {
-                if (currentSegment.length() > 0) {
-                    segments.add(currentSegment.toString().trim());
-                    currentSegment = new StringBuilder();
-                }
-            }
-            currentSegment.append(paragraph).append("\n\n");
-        }
-        
-        if (currentSegment.length() > 0) {
-            segments.add(currentSegment.toString().trim());
-        }
+        SegmentStrategy segmentStrategy = segmentStrategyFactory.getStrategy(strategyName);
+        List<String> segments = segmentStrategy.segment(text);
         
         return segments;
     }

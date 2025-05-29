@@ -4,6 +4,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ContentService;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
@@ -76,7 +77,8 @@ public class ContentServiceImpl implements ContentService {
     }
 
     @Override
-    public Response triggerContentVectorization(Long contentId) {
-        return contentVectorizationCmdExe.execute(contentId);
+    public Response triggerContentVectorization(Long contentId, String strategyName) {
+        StrategyNameEnum strategy = StrategyNameEnum.fromCode(strategyName);
+        return contentVectorizationCmdExe.execute(contentId, strategy);
     }
 }

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 public class ContentGetQryExe {
 
     private final ContentGateway contentGateway;
+    private final ContentConvertor contentConvertor;
 
     /**
      * 执行内容查询
@@ -40,7 +41,7 @@ public class ContentGetQryExe {
         }
         
         // 转换为DTO
-        ContentDTO contentDTO = ContentConvertor.INSTANCE.toDTO(content);
+        ContentDTO contentDTO = contentConvertor.toDTO(content);
         
         log.info("内容查询成功，ID: {}", id);
         return SingleResponse.of(contentDTO);

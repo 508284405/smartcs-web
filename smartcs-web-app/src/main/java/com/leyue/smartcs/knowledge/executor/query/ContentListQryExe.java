@@ -25,6 +25,7 @@ import java.util.List;
 public class ContentListQryExe {
 
     private final ContentMapper contentMapper;
+    private final ContentConvertor contentConvertor;
 
     /**
      * 执行内容列表查询
@@ -65,7 +66,7 @@ public class ContentListQryExe {
         IPage<ContentDO> result = contentMapper.selectPage(page, queryWrapper);
         
         // 转换为DTO
-        List<ContentDTO> contentDTOList = ContentConvertor.INSTANCE.toDTO(result.getRecords());
+        List<ContentDTO> contentDTOList = contentConvertor.toDTO(result.getRecords());
         
         log.info("内容列表查询完成，共 {} 条记录", result.getTotal());
         return PageResponse.of(

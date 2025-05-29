@@ -60,5 +60,5 @@ public interface ContentService {
      * @param contentId 内容ID
      * @return 操作结果
      */
-    Response triggerContentVectorization(Long contentId);
+    Response triggerContentVectorization(Long contentId, String strategyName);
 } 
