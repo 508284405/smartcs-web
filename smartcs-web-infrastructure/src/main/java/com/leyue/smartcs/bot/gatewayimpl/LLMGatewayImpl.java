@@ -152,7 +152,7 @@ public class LLMGatewayImpl implements LLMGateway {
                     encodedEmbeddings.add(embedding);
                 }
             }
-            log.info("生成嵌入向量成功, 嵌入向量数量: {}", encodedEmbeddings);
+            log.info("生成嵌入向量成功, 嵌入向量数量: {}", encodedEmbeddings.size());
             return encodedEmbeddings;
         } catch (Exception e) {
             log.error("生成嵌入向量失败: {}", e.getMessage(), e);

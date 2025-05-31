@@ -39,16 +39,11 @@ public class Chunk {
      * 切片token数
      */
     private Integer tokenSize;
-    
+
     /**
      * 向量数据库中的ID（如Milvus主键）
      */
-    private String vectorId;
-
-    /**
-     * 向量数据
-     */
-    private float[] vector;
+    private Long vectorId;
     
     /**
      * 附加元信息，如页码、起止时间、原始位置等
@@ -100,7 +95,7 @@ public class Chunk {
      * @return 是否已向量化
      */
     public boolean hasVector() {
-        return this.vectorId != null && !this.vectorId.trim().isEmpty();
+        return this.vectorId != null;
     }
     
     /**

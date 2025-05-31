@@ -40,7 +40,7 @@ public interface ChunkGateway {
      * @param contentId 内容ID
      * @param strategyName 解析策略名称
      */
-    void deleteByContentId(Long contentId, StrategyNameEnum strategyName);
+    void deleteByContentId(Long contentId);
 
     /**
      * 根据内容ID保存切片
@@ -49,4 +49,10 @@ public interface ChunkGateway {
      * @param strategyName 解析策略名称
      */
     List<Chunk> saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName);
+
+    /**
+     * 根据切片ID更新切片向量ID
+     * @param chunks 切片列表
+     */
+    void updateBatchVectorId(List<Chunk> chunks);
 } 

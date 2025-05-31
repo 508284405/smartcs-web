@@ -21,11 +21,15 @@ import com.leyue.smartcs.knowledge.parser.factory.SegmentStrategyFactory;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 内容向量化执行器
@@ -41,9 +45,11 @@ public class ContentVectorizationCmdExe {
     private final LLMGateway llmGateway;
     private final VectorGateway vectorGateway;
     private final SearchGateway searchGateway;
+
     /**
      * 执行内容向量化
      */
+    @Transactional(rollbackFor = Exception.class)
     public Response execute(Long contentId, StrategyNameEnum strategyName) {
         log.info("执行内容向量化, 内容ID: {}", contentId);
 
@@ -70,7 +76,7 @@ public class ContentVectorizationCmdExe {
 
             // 更新状态为向量化完成
             content.setStatus(ContentStatusEnum.VECTORIZED);
-            contentGateway.save(content);
+            contentGateway.update(content);
 
             log.info("内容向量化完成, ID: {}", contentId);
 
@@ -113,19 +119,21 @@ public class ContentVectorizationCmdExe {
         return segments;
     }
 
-
     /**
      * 存储向量到向量数据库
      */
-    private void storeVector(Long kbId, Long contentId, List<float[]> vectors, List<String> textSegments, StrategyNameEnum strategyName) {
+    private void storeVector(Long kbId, Long contentId, List<float[]> vectors, List<String> textSegments,
+            StrategyNameEnum strategyName) {
         // 1. 分段数据存到chunk表
+        // 1.1 先清除chunk表中contentId为contentId的数据
+        chunkGateway.deleteByContentId(contentId);
+        // 1.2 再保存新的分段数据
         List<Chunk> chunks = new ArrayList<>(textSegments.size());
         for (int i = 0; i < textSegments.size(); i++) {
             Chunk chunk = new Chunk();
             chunk.setContentId(contentId);
             chunk.setChunkIndex(i);
             chunk.setText(textSegments.get(i));
-            chunk.setVector(vectors.get(i));
             chunk.setCreatedBy(UserContext.getCurrentUser().getId());
             chunk.setStrategyName(strategyName);
             chunk.setCreatedAt(System.currentTimeMillis());
@@ -134,26 +142,43 @@ public class ContentVectorizationCmdExe {
         }
         List<Chunk> chunkDOs = chunkGateway.saveBatch(contentId, chunks, strategyName);
 
-        // 2. 向量数据存到向量数据库vector表 
+        // 2. 向量数据存到向量数据库vector表
+        // 2.1 先清除vector表中chunk的数据
+        vectorGateway.deleteByChunkIds(chunkDOs.stream().map(Chunk::getId).collect(Collectors.toList()));
         List<Vector> vectorList = new ArrayList<>(chunkDOs.size());
-        for (Chunk chunk : chunkDOs) {
+        for (int i = 0; i < vectors.size(); i++) {
             Vector vector = new Vector();
-            vector.setChunkId(chunk.getId());
-            vector.setEmbedding(RedisearchUtils.floatArrayToByteArray(chunk.getVector()));
-            vector.setDim(chunk.getVector().length);
+            vector.setChunkId(chunkDOs.get(i).getId());
+            vector.setEmbedding(RedisearchUtils.floatArrayToByteArray(vectors.get(i)));
+            vector.setDim(vectors.get(i).length);
             vector.setProvider("openai");
             vector.setCreatedBy(UserContext.getCurrentUser().getId());
             vector.setCreatedAt(System.currentTimeMillis());
             vector.setUpdatedAt(System.currentTimeMillis());
             vectorList.add(vector);
         }
-        vectorGateway.saveBatch(vectorList);
+        List<Vector> savedVectors = vectorGateway.saveBatch(vectorList);
+        // 获取向量ID和切片ID的映射关系
+        Map<Long, Long> vectorIdChunkIdMap = savedVectors.stream()
+                .collect(Collectors.toMap(Vector::getChunkId, Vector::getId));
+        List<Chunk> chunkForUpdate = chunkDOs.stream().map(chunkDO -> {
+            Chunk chunk = new Chunk();
+            Long chunkId = chunkDO.getId();
+            chunk.setId(chunkId);
+            chunk.setVectorId(vectorIdChunkIdMap.get(chunkId));
+            return chunk;
+        }).collect(Collectors.toList());
+        // 更新切片表的向量ID
+        chunkGateway.updateBatchVectorId(chunkForUpdate);
         // 3. 更新redisearch索引
-        EmbeddingStructure embeddingStructure = new EmbeddingStructure();
-        embeddingStructure.setKbId(kbId);
-        embeddingStructure.setContentId(contentId);
-        embeddingStructure.setChunkId(chunkDOs.get(0).getId());
-        embeddingStructure.setEmbedding(RedisearchUtils.floatArrayToByteArray(chunkDOs.get(0).getVector()));
-        searchGateway.indexDocument(Constants.EMBEDDING_INDEX_REDISEARCH, contentId, embeddingStructure);
+        for (int i = 0; i < savedVectors.size(); i++) {
+            Vector savedVector = savedVectors.get(i);
+            EmbeddingStructure embeddingStructure = new EmbeddingStructure();
+            embeddingStructure.setKbId(kbId);
+            embeddingStructure.setContentId(contentId);
+            embeddingStructure.setChunkId(savedVector.getChunkId());
+            embeddingStructure.setEmbedding(savedVector.getEmbedding());
+            searchGateway.indexDocument(Constants.EMBEDDING_INDEX_REDISEARCH, savedVector.getId(), embeddingStructure);
+        }
     }
 }

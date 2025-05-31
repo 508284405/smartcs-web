@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  * 负责处理文档的内容解析、分段和向量生成
  */
 @Slf4j
-@Component
+// @Component
 @RequiredArgsConstructor
 public class DocEmbeddingGenerateListener {
 
@@ -74,7 +74,7 @@ public class DocEmbeddingGenerateListener {
             log.info("文档解析完成，共分为 {} 个段落", contentChunks.size());
 
             // 3. 清除文档现有的向量数据
-            chunkGateway.deleteByContentId(contentId,strategyName);
+            chunkGateway.deleteByContentId(contentId);
 
             // 5. 保存向量到数据库
             if (!contentChunks.isEmpty()) {
@@ -158,8 +158,7 @@ public class DocEmbeddingGenerateListener {
                         .contentId(contentId)
                         .chunkIndex(i)
                         .text(contentChunks.get(i))
-                        .vectorId(String.valueOf(i))
-                        .vector(vectors.get(i))
+                        .vectorId(Long.valueOf(i))
                         .strategyName(strategyName)
                         .createdBy(UserContext.getCurrentUser().getId())
                         .createdAt(System.currentTimeMillis())

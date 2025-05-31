@@ -21,11 +21,23 @@
 
     <!-- insertBatch --> 
 
-    <insert id="insertBatch">
+    <insert id="insertBatch"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            parameterType="com.leyue.smartcs.knowledge.dataobject.ChunkDO"
+            keyColumn="id">
         insert into t_kb_chunk (content_id, chunk_index, text, token_size, created_by, created_at, updated_at)
         values
         <foreach collection="chunks" item="chunk" separator=",">
-            (#{chunk.contentId}, #{chunk.chunkIndex}, #{chunk.text}, #{chunk.tokenCount}, #{chunk.createdBy}, #{chunk.createdAt}, #{chunk.updatedAt})
+            (#{chunk.contentId}, #{chunk.chunkIndex}, #{chunk.text}, #{chunk.tokenSize}, #{chunk.createdBy}, #{chunk.createdAt}, #{chunk.updatedAt})
         </foreach>
     </insert>
-</mapper> 
+
+    <!-- updateBatchVectorId -->
+
+    <update id="updateBatchVectorId">
+        <foreach collection="chunks" item="chunk" separator=";">
+            update t_kb_chunk set vector_id = #{chunk.vectorId} where id = #{chunk.id}
+        </foreach>
+    </update>
+</mapper>

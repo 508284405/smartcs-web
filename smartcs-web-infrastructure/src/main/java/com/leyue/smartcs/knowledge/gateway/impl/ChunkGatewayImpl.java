@@ -46,8 +46,9 @@ public class ChunkGatewayImpl implements ChunkGateway {
     }
 
     @Override
-    public void deleteByContentId(Long contentId, StrategyNameEnum strategyName) {
-        chunkMapper.delete(new LambdaQueryWrapper<ChunkDO>().eq(ChunkDO::getContentId, contentId).eq(ChunkDO::getStrategyName, strategyName));
+    public void deleteByContentId(Long contentId) {
+        chunkMapper.delete(new LambdaQueryWrapper<ChunkDO>()
+                            .eq(ChunkDO::getContentId, contentId));
     }
 
     @Override
@@ -60,5 +61,12 @@ public class ChunkGatewayImpl implements ChunkGateway {
         });
         chunkMapper.insertBatch(chunkDOs);
         return chunkDOs.stream().map(chunkConvertor::toDomain).collect(Collectors.toList());
+    }
+
+    @Override
+    public void updateBatchVectorId(List<Chunk> chunks) {
+        // 更新分段数据
+        List<ChunkDO> chunkDOs = chunks.stream().map(chunkConvertor::toDO).collect(Collectors.toList());
+        chunkMapper.updateBatchVectorId(chunkDOs);
     }
 } 

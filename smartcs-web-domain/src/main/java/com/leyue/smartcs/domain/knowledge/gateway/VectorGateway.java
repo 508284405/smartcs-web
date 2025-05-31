@@ -38,5 +38,11 @@ public interface VectorGateway {
      * 保存向量列表
      * @param vectors 向量列表
      */
-    void saveBatch(List<Vector> vectors);
+    List<Vector> saveBatch(List<Vector> vectors);
+
+    /**
+     * 根据切片ID删除向量
+     * @param chunkIds 切片ID列表
+     */
+    void deleteByChunkIds(List<Long> chunkIds);
 } 

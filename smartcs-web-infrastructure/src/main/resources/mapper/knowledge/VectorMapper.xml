@@ -20,7 +20,11 @@
 
     <!-- insertBatch --> 
 
-    <insert id="insertBatch">
+    <insert id="insertBatch"
+            useGeneratedKeys="true"
+            keyProperty="id"
+            keyColumn="id"
+            parameterType="com.leyue.smartcs.knowledge.dataobject.VectorDO">
         INSERT INTO t_kb_vector (chunk_id, embedding, vector_dim, provider, model_name, created_by, created_at, updated_at)
         VALUES
         <foreach collection="vectors" item="vector" separator=",">
