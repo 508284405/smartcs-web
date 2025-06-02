@@ -22,7 +22,7 @@ public class JedisConfig {
     @Value("${spring.redis.database:0}")
     private int database;
 
-    @Value("${spring.redis.timeout:2000}")
+    @Value("${spring.redis.timeout:20000}")
     private int timeout;
 
     @Bean

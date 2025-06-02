@@ -15,6 +15,11 @@ public class Session {
     private Long sessionId;
 
     /**
+     * 会话名称
+     */
+    private String sessionName;
+
+    /**
      * 客户ID
      */
     private Long customerId;
@@ -111,5 +116,12 @@ public class Session {
     public void close(String reason) {
         this.closeReason = reason;
         close();
+    }
+
+    /**
+     * 更新会话名称
+     */
+    public void updateSessionName(String sessionName) {
+        this.sessionName = sessionName;
     }
 }

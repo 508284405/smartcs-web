@@ -1,8 +1,18 @@
 package com.leyue.smartcs.bot.executor;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.bot.BotProfile;
 import com.leyue.smartcs.domain.bot.PromptTemplate;
@@ -22,16 +32,9 @@ import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
 import com.leyue.smartcs.dto.bot.SSEMessage;
-import com.leyue.smartcs.dto.chat.SendMessageCmd;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.io.IOException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * SSE聊天命令执行器
@@ -47,7 +50,6 @@ public class ChatSSECmdExe {
     private final SearchGateway searchGateway;
     private final FaqGateway faqGateway;
     private final ChunkGateway chunkGateway;
-    private final ModelBeanManagerService modelBeanManagerService;
     private final BotProfileGateway botProfileGateway;
 
     // 历史消息数量限制
@@ -80,7 +82,7 @@ public class ChatSSECmdExe {
             messageDomainService.sendMessage(
                     sessionId,
                     UserContext.getCurrentUser().getId(),
-                    SenderRole.BOT,
+                    SenderRole.USER,
                     MessageType.TEXT,
                     request.getQuestion(),
                     null);
@@ -120,17 +122,10 @@ public class ChatSSECmdExe {
                 }
             });
 
-            // 存储bot回答到chat message服务
-            SendMessageCmd botMessageCmd = new SendMessageCmd();
-            botMessageCmd.setSessionId(sessionId);
-            botMessageCmd.setSenderRole(2); // 机器人角色
-            botMessageCmd.setMsgType(0); // 文本消息
-            botMessageCmd.setContent(fullAnswer.toString());
-
             // 发送消息
             messageDomainService.sendMessage(
                     sessionId,
-                    null,
+                    request.getTargetBotId(),
                     SenderRole.BOT,
                     MessageType.TEXT,
                     fullAnswer.toString(),

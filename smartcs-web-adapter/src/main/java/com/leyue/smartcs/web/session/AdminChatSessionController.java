@@ -9,6 +9,7 @@ import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
 import com.leyue.smartcs.dto.chat.SessionVO;
+import com.leyue.smartcs.dto.chat.UpdateSessionNameCmd;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -131,5 +132,17 @@ public class AdminChatSessionController {
         // 转换为VO
         List<SessionVO> voList = sessionConvertor.toVOList(pageResponse.getData());
         return PageResponse.of(voList, pageResponse.getTotalCount(), pageResponse.getPageSize(), pageResponse.getPageIndex());
+    }
+
+    /**
+     * 更新会话名称
+     *
+     * @param cmd 更新会话名称命令
+     * @return 会话视图对象
+     */
+    @PutMapping("/name")
+    public SingleResponse<SessionVO> updateSessionName(@RequestBody UpdateSessionNameCmd cmd) {
+        SessionDTO sessionDTO = sessionService.updateSessionName(cmd);
+        return SingleResponse.of(sessionConvertor.toVO(sessionDTO));
     }
 } 

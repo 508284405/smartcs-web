@@ -1,30 +1,27 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
-import com.alibaba.fastjson2.JSONObject;
-import com.alibaba.fastjson2.TypeReference;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.common.EmbeddingStructure;
-import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.utils.RedisearchUtils;
-import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
-import redis.clients.jedis.CommandArguments;
+
+import com.alibaba.fastjson2.JSONObject;
+import com.alibaba.fastjson2.TypeReference;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
+import com.leyue.smartcs.domain.utils.RedisearchUtils;
+import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.Document;
 import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.SearchResult;
 import redis.clients.jedis.search.schemafields.SchemaField;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 基于Jedis的搜索网关实现

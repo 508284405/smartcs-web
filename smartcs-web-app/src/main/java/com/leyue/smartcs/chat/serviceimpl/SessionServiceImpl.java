@@ -11,6 +11,7 @@ import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
+import com.leyue.smartcs.dto.chat.UpdateSessionNameCmd;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -90,6 +91,12 @@ public class SessionServiceImpl implements SessionService {
         return pageSessionQryExe.execute(query);
     }
 
+    @Override
+    public SessionDTO updateSessionName(UpdateSessionNameCmd cmd) {
+        Session session = sessionDomainService.updateSessionName(cmd.getSessionId(), cmd.getSessionName());
+        return convertToDTO(session);
+    }
+
     /**
      * 将领域模型转换为DTO
      *
@@ -99,6 +106,7 @@ public class SessionServiceImpl implements SessionService {
     private SessionDTO convertToDTO(Session session) {
         SessionDTO sessionDTO = new SessionDTO();
         sessionDTO.setSessionId(session.getSessionId());
+        sessionDTO.setSessionName(session.getSessionName());
         sessionDTO.setCustomerId(session.getCustomerId());
         sessionDTO.setAgentId(session.getAgentId());
         sessionDTO.setAgentName(session.getAgentName());

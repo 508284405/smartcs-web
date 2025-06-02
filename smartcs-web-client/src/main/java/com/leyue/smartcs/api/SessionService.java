@@ -4,6 +4,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
+import com.leyue.smartcs.dto.chat.UpdateSessionNameCmd;
 
 import java.util.List;
 
@@ -79,4 +80,12 @@ public interface SessionService {
      * @return 分页会话数据
      */
     PageResponse<SessionDTO> pageSessions(SessionPageQuery query);
+    
+    /**
+     * 更新会话名称
+     *
+     * @param cmd 更新会话名称命令
+     * @return 会话DTO
+     */
+    SessionDTO updateSessionName(UpdateSessionNameCmd cmd);
 } 

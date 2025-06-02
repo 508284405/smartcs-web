@@ -7,6 +7,7 @@ import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.Optional;
 
@@ -144,5 +145,42 @@ public class SessionDomainService {
             return sessionOpt.get();
         }
         return null;
+    }
+
+    /**
+     * 更新会话名称
+     *
+     * @param sessionId   会话ID
+     * @param sessionName 会话名称
+     * @return 更新后的会话
+     */
+    public Session updateSessionName(Long sessionId, String sessionName) {
+        // 验证会话名称
+        validateSessionName(sessionName);
+
+        Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
+        if (!sessionOpt.isPresent()) {
+            throw new IllegalArgumentException("会话不存在: " + sessionId);
+        }
+
+        Session session = sessionOpt.get();
+        session.updateSessionName(sessionName);
+        sessionGateway.updateSession(session);
+
+        return session;
+    }
+
+    /**
+     * 验证会话名称
+     *
+     * @param sessionName 会话名称
+     */
+    private void validateSessionName(String sessionName) {
+        if (!StringUtils.hasText(sessionName)) {
+            throw new BizException("会话名称不能为空");
+        }
+        if (sessionName.length() > 50) {
+            throw new BizException("会话名称长度不能超过50个字符");
+        }
     }
 }

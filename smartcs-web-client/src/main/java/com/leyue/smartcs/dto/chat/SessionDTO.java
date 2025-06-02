@@ -14,6 +14,11 @@ public class SessionDTO {
     private Long sessionId;
     
     /**
+     * 会话名称
+     */
+    private String sessionName;
+    
+    /**
      * 客户ID
      */
     private Long customerId;
