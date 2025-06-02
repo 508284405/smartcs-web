@@ -1,7 +1,5 @@
 package com.leyue.smartcs.dto.bot;
 
-import java.util.List;
-
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -42,8 +40,12 @@ public class BotChatSSERequest {
     private Long targetBotId;
 
     /**
-     * 知识库ID列表
+     * 知识库ID
      */
-    @NotNull(message = "知识库ID列表不能为空")
-    private List<Long> knowledgeBaseIds;
+    private Long knowledgeBaseId;
+
+    /**
+     * 内容id
+     */
+    private Long contentId;
 }

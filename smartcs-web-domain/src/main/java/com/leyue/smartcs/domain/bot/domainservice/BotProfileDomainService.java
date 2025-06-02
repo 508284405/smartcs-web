@@ -100,7 +100,7 @@ public class BotProfileDomainService {
      * 删除机器人配置
      * @param botId 机器人ID
      */
-    public void deleteBotProfile(Long botId) {
+    public BotProfile deleteBotProfile(Long botId) {
         // 检查机器人是否存在
         Optional<BotProfile> existingOpt = botProfileGateway.findById(botId);
         if (!existingOpt.isPresent()) {
@@ -117,6 +117,8 @@ public class BotProfileDomainService {
         if (!success) {
             throw new BizException("删除机器人配置失败");
         }
+
+        return existing;
     }
     
     /**

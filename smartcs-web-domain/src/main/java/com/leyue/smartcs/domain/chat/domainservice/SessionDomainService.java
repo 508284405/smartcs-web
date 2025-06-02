@@ -28,8 +28,8 @@ public class SessionDomainService {
      * @return 新建的会话
      */
     public Session createSession(Long customerId) {
-        // 检查是否已有活跃会话
-        Optional<Session> existingSession = sessionGateway.findActiveSessionByCustomerId(customerId);
+        // 检查是否已有等待中会话
+        Optional<Session> existingSession = sessionGateway.getWaitingSession(customerId);
         if (existingSession.isPresent()) {
             return existingSession.get();
         }
@@ -182,5 +182,13 @@ public class SessionDomainService {
         if (sessionName.length() > 50) {
             throw new BizException("会话名称长度不能超过50个字符");
         }
+    }
+
+    public void updateSessionStatus(Long sessionId, SessionState sessionState) {
+        sessionGateway.updateSessionStatus(sessionId, sessionState);
+    }
+
+    public Session findById(Long sessionId) {
+        return sessionGateway.findBySessionId(sessionId).orElse(null);
     }
 }

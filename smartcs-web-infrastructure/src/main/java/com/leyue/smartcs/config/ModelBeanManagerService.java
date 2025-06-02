@@ -31,6 +31,12 @@ public class ModelBeanManagerService {
     // 存储已创建的Bean名称，用于管理Bean生命周期
     private final Map<String, String> beanRegistry = new ConcurrentHashMap<>();
     
+    // 重启ModelBean
+    public void restartModelBean(BotProfile botProfile) {
+        destroyModelBean(botProfile);
+        createModelBean(botProfile);
+    }
+
     /**
      * 根据机器人配置创建对应的模型Bean
      * @param botProfile 机器人配置

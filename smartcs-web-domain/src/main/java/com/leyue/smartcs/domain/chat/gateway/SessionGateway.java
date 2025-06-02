@@ -2,6 +2,7 @@ package com.leyue.smartcs.domain.chat.gateway;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.chat.Session;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 import com.leyue.smartcs.dto.chat.SessionPageQuery;
 
 import java.util.List;
@@ -118,5 +119,17 @@ public interface SessionGateway {
      */
     PageResponse<Session> pageSessions(SessionPageQuery query);
 
+    /**
+     * 获取等待中的会话
+     * @param customerId 客户ID
+     * @return 会话对象
+     */
     Optional<Session> getWaitingSession(Long customerId);
+
+    /**
+     * 更新会话状态
+     * @param sessionId 会话ID
+     * @param sessionState 会话状态
+     */
+    void updateSessionStatus(Long sessionId, SessionState sessionState);
 }

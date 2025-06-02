@@ -8,6 +8,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -20,14 +24,15 @@ import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
 import com.leyue.smartcs.domain.chat.Message;
+import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
+import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
 import com.leyue.smartcs.domain.chat.enums.SenderRole;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.Chunk;
-import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
@@ -48,12 +53,12 @@ public class ChatSSECmdExe {
     private final LLMGateway llmGateway;
     private final PromptTemplateGateway promptTemplateGateway;
     private final SearchGateway searchGateway;
-    private final FaqGateway faqGateway;
     private final ChunkGateway chunkGateway;
     private final BotProfileGateway botProfileGateway;
+    private final SessionDomainService sessionDomainService;
 
     // 历史消息数量限制
-    private static final int MAX_HISTORY_MESSAGES = 10;
+    private static final int MAX_HISTORY_MESSAGES = 50;
 
     /**
      * 执行SSE聊天命令
@@ -66,6 +71,22 @@ public class ChatSSECmdExe {
             // 参数校验
             if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
                 throw new BizException("问题不能为空");
+            }
+
+            Session session = sessionDomainService.findById(sessionId);
+            if (session == null) {
+                throw new BizException("会话不存在");
+            }
+            // 如果会话状态为排队中，则更新为进行中
+            if (session.getSessionState() == SessionState.WAITING) {
+                sessionDomainService.updateSessionStatus(sessionId, SessionState.ACTIVE);
+            }
+
+            // 如果会话名称为空，则更新名称(question的前15个字符)；注意索引越界问题
+            if (session.getSessionName() == null || session.getSessionName().isEmpty()) {
+                sessionDomainService.updateSessionName(sessionId, request.getQuestion().length() > 15
+                        ? request.getQuestion().substring(0, 15)
+                        : request.getQuestion());
             }
 
             // 发送进度消息：开始处理
@@ -91,20 +112,21 @@ public class ChatSSECmdExe {
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
 
             // 获取知识检索结果
-            List<Map<String, Object>> searchResults = getSearchResults(request.getQuestion(), 5);
+            List<Map<String, Object>> searchResults = getSearchResults(request, 5);
 
             // 发送进度消息：构建提示
             sendProgressMessage(emitter, sessionId, "正在构建AI提示...");
 
-            // 构建Prompt
-            String prompt = buildPrompt(request, historyMessages, searchResults);
+            // 构建Messages
+            List<org.springframework.ai.chat.messages.Message> messages = buildMessages(request, historyMessages, searchResults);
+            log.info("构建的Messages数量: {}", messages.size());
 
             // 发送进度消息：调用AI
             sendProgressMessage(emitter, sessionId, "正在调用AI生成回答...");
 
             // 使用流式生成
             StringBuilder fullAnswer = new StringBuilder();
-            llmGateway.generateAnswerStream(prompt, request.getTargetBotId(), (chunk) -> {
+            llmGateway.generateAnswerStream(messages, request.getTargetBotId(), (chunk) -> {
                 try {
                     fullAnswer.append(chunk);
 
@@ -149,45 +171,25 @@ public class ChatSSECmdExe {
     /**
      * 获取知识检索结果
      */
-    private List<Map<String, Object>> getSearchResults(String question, Integer topK) {
+    private List<Map<String, Object>> getSearchResults(BotChatSSERequest request, Integer topK) {
         List<Map<String, Object>> results = new ArrayList<>();
 
         try {
             int searchTopK = topK != null ? topK : 5;
 
-            // 先尝试FAQ检索
-            Map<Long, Double> faqSearchResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question,
-                    searchTopK);
-            for (Map.Entry<Long, Double> entry : faqSearchResults.entrySet()) {
-                Optional<Faq> faqOpt = faqGateway.findById(entry.getKey());
-                if (faqOpt.isPresent()) {
-                    Faq faq = faqOpt.get();
+            int remainingCount = searchTopK - results.size();
+            Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH,
+                    request.getQuestion(), remainingCount, request.getKnowledgeBaseId(), request.getContentId());
+            for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
+                Chunk embedding = chunkGateway.findById(entry.getKey());
+                if (embedding != null) {
                     Map<String, Object> result = new HashMap<>();
-                    result.put("type", "FAQ");
-                    result.put("contentId", faq.getId());
-                    result.put("title", faq.getQuestion());
-                    result.put("snippet", faq.getAnswer());
+                    result.put("type", "DOC");
+                    result.put("contentId", embedding.getContentId());
+                    result.put("title", "文档段落");
+                    result.put("snippet", embedding.getText());
                     result.put("score", entry.getValue());
                     results.add(result);
-                }
-            }
-
-            // 如果FAQ结果不足，进行向量检索
-            if (results.size() < searchTopK) {
-                int remainingCount = searchTopK - results.size();
-                Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH,
-                        question, remainingCount,null,null);
-                for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
-                    Chunk embedding = chunkGateway.findById(entry.getKey());
-                    if (embedding != null) {
-                        Map<String, Object> result = new HashMap<>();
-                        result.put("type", "DOC");
-                        result.put("contentId", embedding.getContentId());
-                        result.put("title", "文档段落");
-                        result.put("snippet", embedding.getText());
-                        result.put("score", entry.getValue());
-                        results.add(result);
-                    }
                 }
             }
 
@@ -199,11 +201,13 @@ public class ChatSSECmdExe {
     }
 
     /**
-     * 构建Prompt
+     * 构建Messages
      */
-    private String buildPrompt(BotChatSSERequest request, List<Message> historyMessages,
+    private List<org.springframework.ai.chat.messages.Message> buildMessages(BotChatSSERequest request, List<Message> historyMessages,
             List<Map<String, Object>> searchResults) {
         try {
+            List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>();
+            
             Optional<BotProfile> bOptional = botProfileGateway.findById(request.getTargetBotId());
             if (!bOptional.isPresent()) {
                 throw new BizException("机器人不存在");
@@ -213,41 +217,49 @@ public class ChatSSECmdExe {
                 throw new BizException("机器人已禁用");
             }
 
-            // 获取Prompt模板
+            // 构建系统消息
+            StringBuilder systemContent = new StringBuilder();
+            
+            // 添加prompt模板
             Optional<PromptTemplate> templateOpt = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey());
-            if (!templateOpt.isPresent()) {
-                throw new BizException("Prompt模板不存在");
-            }
-            String template = templateOpt.map(PromptTemplate::getTemplateContent)
-                    .orElse("基于以下知识回答用户问题：\n\n知识内容：\n{{docs}}\n\n历史对话：\n{{history}}\n\n用户问题：{{question}}\n\n请基于提供的知识内容回答用户问题，如果知识内容中没有相关信息，请说明无法找到相关信息。");
-
-            // 构建知识文档
-            StringBuilder docs = new StringBuilder();
-            for (Map<String, Object> result : searchResults) {
-                docs.append("标题：").append(result.get("title")).append("\n");
-                docs.append("内容：").append(result.get("snippet")).append("\n\n");
+            if (templateOpt.isPresent()) {
+                systemContent.append(templateOpt.get().getTemplateContent()).append("\n\n");
             }
 
-            // 构建历史对话
-            StringBuilder history = new StringBuilder();
+            // 添加知识文档
+            if (searchResults.size() > 0) {
+                StringBuilder docs = new StringBuilder();
+                for (Map<String, Object> result : searchResults) {
+                    docs.append("标题：").append(result.get("title")).append("\n");
+                    docs.append("内容：").append(result.get("snippet")).append("\n\n");
+                }
+                systemContent.append("知识内容：\n").append(docs).append("\n\n");
+            }
+            
+            if (systemContent.length() > 0) {
+                messages.add(new SystemMessage(systemContent.toString()));
+            }
+
+            // 添加历史对话消息
             if (request.getIncludeHistory() && historyMessages.size() > 0) {
-                for (Message messageDTO : historyMessages) {
-                    history.append(messageDTO.getSenderRole().name()).append("：").append(messageDTO.getContent())
-                            .append("\n");
+                for (Message historyMessage : historyMessages) {
+                    if (historyMessage.getSenderRole() == SenderRole.USER) {
+                        messages.add(new UserMessage(historyMessage.getContent()));
+                    } else if (historyMessage.getSenderRole() == SenderRole.BOT || historyMessage.getSenderRole() == SenderRole.AGENT) {
+                        messages.add(new AssistantMessage(historyMessage.getContent()));
+                    }
                 }
             }
 
-            // 替换模板变量
-            String prompt = template
-                    .replace("{{docs}}", docs.toString())
-                    .replace("{{history}}", history.toString())
-                    .replace("{{question}}", request.getQuestion());
-
-            return prompt;
-
+            // 添加当前用户问题
+            messages.add(new UserMessage(request.getQuestion()));
+            
+            return messages;
         } catch (Exception e) {
-            log.error("构建Prompt失败: {}", e.getMessage(), e);
-            return "请回答用户问题：" + request.getQuestion();
+            log.error("构建Messages失败: {}", e.getMessage(), e);
+            List<org.springframework.ai.chat.messages.Message> fallbackMessages = new ArrayList<>();
+            fallbackMessages.add(new UserMessage("请回答用户问题：" + request.getQuestion()));
+            return fallbackMessages;
         }
     }
 

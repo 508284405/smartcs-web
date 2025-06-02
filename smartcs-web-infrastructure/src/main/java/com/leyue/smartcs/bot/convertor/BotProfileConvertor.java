@@ -31,6 +31,7 @@ public interface BotProfileConvertor {
      */
     @Mapping(target = "vendor", expression = "java(vendorToCode(botProfile.getVendor()))")
     @Mapping(target = "modelType", expression = "java(modelTypeToCode(botProfile.getModelType()))")
+    @Mapping(target = "id", source = "botId")
     BotProfileDO toDO(BotProfile botProfile);
 
     /**

@@ -8,6 +8,9 @@ import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -80,17 +83,14 @@ public class LLMGatewayImpl implements LLMGateway {
     }
 
     @Override
-    public void generateAnswerStream(String prompt, Long botId, Consumer<String> chunkConsumer) {
+    public void generateAnswerStream(List<Message> messages, Long botId, Consumer<String> chunkConsumer) {
         // 查询机器人配置
         Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
         BotProfile botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
         ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
 
         try {
-            log.info("流式生成回答, prompt长度: {}", prompt.length());
-
-            // 创建用户消息
-            UserMessage userMessage = new UserMessage(prompt);
+            log.info("流式生成回答, messages数量: {}", messages.size());
 
             // 创建选项
             ChatOptions.Builder builder = ChatOptions.builder();
@@ -111,12 +111,12 @@ public class LLMGatewayImpl implements LLMGateway {
                         }
                     });
             ChatOptions chatOptions = builder.build();
-
+            
             // 创建提示
-            Prompt prompt1 = new Prompt(List.of(userMessage), chatOptions);
+            Prompt prompt = new Prompt(messages, chatOptions);
 
             // 调用LLM流式生成
-            chatModel.stream(prompt1)
+            chatModel.stream(prompt)
                     .doOnNext(chatResponse -> {
                         String content = chatResponse.getResult().getOutput().getText();
                         if (content != null && !content.isEmpty()) {

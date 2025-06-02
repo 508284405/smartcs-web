@@ -2,6 +2,7 @@ package com.leyue.smartcs.bot.executor;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.bot.convertor.BotProfileConvertor;
+import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.bot.BotProfile;
 import com.leyue.smartcs.domain.bot.domainservice.BotProfileDomainService;
 import com.leyue.smartcs.dto.bot.BotProfileUpdateCmd;
@@ -18,6 +19,7 @@ public class BotProfileUpdateCmdExe {
     
     private final BotProfileDomainService botProfileDomainService;
     private final BotProfileConvertor botProfileConvertor;
+    private final ModelBeanManagerService modelBeanManagerService;
     
     public SingleResponse<BotProfileDTO> execute(BotProfileUpdateCmd cmd) {
         // 转换为领域对象
@@ -38,6 +40,9 @@ public class BotProfileUpdateCmdExe {
         
         // 执行更新
         BotProfile updatedBotProfile = botProfileDomainService.updateBotProfile(botProfile);
+
+        // 重启ModelBean
+        modelBeanManagerService.restartModelBean(updatedBotProfile);
         
         // 转换为DTO
         BotProfileDTO dto = botProfileConvertor.toDTO(updatedBotProfile);
