@@ -144,7 +144,7 @@ public class ChatSSECmdExe {
                 }
             });
 
-            // 发送消息
+            // 存储消息
             messageDomainService.sendMessage(
                     sessionId,
                     request.getTargetBotId(),

@@ -1,22 +1,24 @@
 package com.leyue.smartcs.repository;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.List;
+import java.util.Map;
+
 import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.exceptions.JedisDataException;
-import redis.clients.jedis.search.*;
+import redis.clients.jedis.search.Document;
+import redis.clients.jedis.search.FTCreateParams;
+import redis.clients.jedis.search.IndexDataType;
+import redis.clients.jedis.search.Query;
 import redis.clients.jedis.search.schemafields.SchemaField;
 import redis.clients.jedis.search.schemafields.TagField;
 import redis.clients.jedis.search.schemafields.TextField;
 import redis.clients.jedis.search.schemafields.VectorField;
 import redis.clients.jedis.search.schemafields.VectorField.VectorAlgorithm;
-
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class RedisVectorSearchExample {
 

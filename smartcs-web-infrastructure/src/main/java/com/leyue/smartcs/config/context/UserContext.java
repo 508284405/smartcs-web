@@ -69,7 +69,7 @@ public class UserContext {
         if (userInfo == null || userInfo.getRoles() == null) {
             return false;
         }
-        return userInfo.getRoles().contains(role);
+        return userInfo.getRoles().stream().anyMatch(r -> r.getRoleCode().equals(role));
     }
 
     /**

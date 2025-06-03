@@ -1,16 +1,12 @@
 package com.leyue.smartcs.bot.gatewayimpl;
 
-import com.alibaba.cola.exception.BizException;
-import com.alibaba.fastjson2.JSONObject;
-import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -21,11 +17,15 @@ import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
+import com.alibaba.cola.exception.BizException;
+import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.config.ModelBeanManagerService;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * LLM网关实现
