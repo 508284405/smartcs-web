@@ -84,9 +84,20 @@ public class LLMGatewayImpl implements LLMGateway {
 
     @Override
     public void generateAnswerStream(List<Message> messages, Long botId, Consumer<String> chunkConsumer) {
-        // 查询机器人配置
-        Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
-        BotProfile botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
+        // 如果没有传机器人则选择最先创建的一号机器人
+        BotProfile botProfile = null;
+        if (botId == null) {
+            botProfile = botProfileGateway.findAllActive().stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BizException("没有可用的机器人"));
+            log.info("使用默认机器人: {}", botProfile.getBotName());
+        } else {
+            // 查询机器人配置
+            Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
+            botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
+            log.info("使用机器人: {}", botProfile.getBotName());
+        }
+
         ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
 
         try {
@@ -111,7 +122,7 @@ public class LLMGatewayImpl implements LLMGateway {
                         }
                     });
             ChatOptions chatOptions = builder.build();
-            
+
             // 创建提示
             Prompt prompt = new Prompt(messages, chatOptions);
 
@@ -169,4 +180,4 @@ public class LLMGatewayImpl implements LLMGateway {
         models.add("gpt-4");
         return models;
     }
-} 
+}

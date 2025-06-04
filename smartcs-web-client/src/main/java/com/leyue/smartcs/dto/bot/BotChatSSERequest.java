@@ -36,7 +36,6 @@ public class BotChatSSERequest {
     /**
      * 目标机器人
      */
-    @NotNull(message = "目标机器人不能为空")
     private Long targetBotId;
 
     /**
