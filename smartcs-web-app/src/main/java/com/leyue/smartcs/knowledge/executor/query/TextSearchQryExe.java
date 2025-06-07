@@ -37,15 +37,6 @@ public class TextSearchQryExe {
      * @return 检索结果
      */
     public MultiResponse<EmbeddingWithScore> execute(KnowledgeSearchQry qry) {
-        return searchDocEmbeddings(qry);
-    }
-
-    /**
-     * 搜索文档段落
-     *
-     * @return 段落结果
-     */
-    private MultiResponse<EmbeddingWithScore> searchDocEmbeddings(KnowledgeSearchQry qry) {
         // 调用全文检索查询文档段落
         List<Document> documents = vectorStore.similaritySearch(qry.getKeyword());
         if (documents == null || documents.isEmpty()) {
@@ -73,7 +64,7 @@ public class TextSearchQryExe {
         }
 
         if (embeddingResults.isEmpty()) {
-            return MultiResponse.of(new ArrayList<>(0));
+            return MultiResponse.of(Collections.emptyList());
         }
 
         // 组装结果

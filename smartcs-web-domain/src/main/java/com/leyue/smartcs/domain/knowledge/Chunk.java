@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Chunk {
     /**
-     * 主键ID
+     * 切片ID
      */
     private Long id;
     
@@ -31,9 +31,9 @@ public class Chunk {
     private Integer chunkIndex;
     
     /**
-     * 该段文本内容
+     * 切片内容文本
      */
-    private String text;
+    private String content;
     
     /**
      * 切片token数
@@ -49,26 +49,16 @@ public class Chunk {
      * 附加元信息，如页码、起止时间、原始位置等
      */
     private String metadata;
-
-    /**
-     * 解析策略名称，用于指定文档解析方式
-     */
-    private StrategyNameEnum strategyName;
     
     /**
-     * 创建者ID
+     * 创建时间
      */
-    private Long createdBy;
+    private Long createTime;
     
     /**
-     * 创建时间（毫秒时间戳）
+     * 更新时间
      */
-    private Long createdAt;
-    
-    /**
-     * 更新时间（毫秒时间戳）
-     */
-    private Long updatedAt;
+    private Long updateTime;
     
     /**
      * 获取文本摘要，用于预览
@@ -76,10 +66,10 @@ public class Chunk {
      * @return 文本摘要
      */
     public String getTextSummary(int maxLength) {
-        if (text == null || text.length() <= maxLength) {
-            return text;
+        if (content == null || content.length() <= maxLength) {
+            return content;
         }
-        return text.substring(0, maxLength) + "...";
+        return content.substring(0, maxLength) + "...";
     }
     
     /**
@@ -87,7 +77,7 @@ public class Chunk {
      * @return 是否有效
      */
     public boolean isValidText() {
-        return this.text != null && !this.text.trim().isEmpty();
+        return this.content != null && !this.content.trim().isEmpty();
     }
     
     /**
@@ -103,16 +93,16 @@ public class Chunk {
      * @return 估算的token数
      */
     public Integer estimateTokenCount() {
-        if (text == null) {
+        if (content == null) {
             return 0;
         }
         // 简单估算：英文单词数 + 中文字符数 * 1.5
         int chineseChars = 0;
         int englishWords = 0;
-        String[] words = text.split("\\s+");
+        String[] words = content.split("\\s+");
         englishWords = words.length;
         
-        for (char c : text.toCharArray()) {
+        for (char c : content.toCharArray()) {
             if (c >= 0x4e00 && c <= 0x9fff) {
                 chineseChars++;
             }

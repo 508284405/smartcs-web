@@ -57,11 +57,6 @@ public class Content {
     private ContentStatusEnum status;
 
     /**
-     * 策略名称
-     */
-    private StrategyNameEnum strategyName;
-
-    /**
      * 创建者ID
      */
     private Long createdBy;

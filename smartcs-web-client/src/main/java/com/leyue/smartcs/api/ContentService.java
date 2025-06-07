@@ -54,11 +54,4 @@ public interface ContentService {
      * @return 操作结果
      */
     Response triggerContentParsing(Long contentId);
-    
-    /**
-     * 触发内容向量化
-     * @param contentId 内容ID
-     * @return 操作结果
-     */
-    Response triggerContentVectorization(Long contentId, String strategyName);
 } 

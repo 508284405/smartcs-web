@@ -1,58 +1,71 @@
 package com.leyue.smartcs.domain.knowledge.gateway;
 
+import com.leyue.smartcs.domain.knowledge.Chunk;
+import com.alibaba.cola.dto.PageResponse;
+
 import java.util.List;
 
-import com.leyue.smartcs.domain.knowledge.Chunk;
-import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
-
 /**
- * 切片Gateway接口
+ * 内容切片网关接口
  */
 public interface ChunkGateway {
     
     /**
      * 保存切片
      * @param chunk 切片对象
+     * @return 保存后的切片ID
      */
-    void save(Chunk chunk);
+    Long save(Chunk chunk);
     
     /**
      * 更新切片
      * @param chunk 切片对象
+     * @return 是否更新成功
      */
-    void update(Chunk chunk);
+    boolean update(Chunk chunk);
     
     /**
-     * 根据ID查找切片
+     * 根据ID删除切片
+     * @param id 切片ID
+     * @return 是否删除成功
+     */
+    boolean deleteById(Long id);
+    
+    /**
+     * 根据ID查询切片
      * @param id 切片ID
      * @return 切片对象
      */
     Chunk findById(Long id);
     
     /**
-     * 根据ID删除切片
-     * @param id 切片ID
+     * 根据内容ID查询切片列表
+     * @param contentId 内容ID
+     * @return 切片列表
      */
-    void deleteById(Long id);
+    List<Chunk> findByContentId(Long contentId);
+    
+    /**
+     * 分页查询切片列表
+     * @param contentId 内容ID
+     * @param keyword 关键词
+     * @param chunkIndex 段落序号
+     * @param pageIndex 页码
+     * @param pageSize 每页大小
+     * @return 分页结果
+     */
+    PageResponse<Chunk> findByPage(Long contentId, String keyword, Integer chunkIndex, Integer pageIndex, Integer pageSize);
 
     /**
      * 根据内容ID删除切片
      * @param contentId 内容ID
-     * @param strategyName 解析策略名称
+     * @return 删除的切片ID列表
      */
-    void deleteByContentId(Long contentId);
+    List<Long> deleteByContentId(Long contentId);
 
     /**
-     * 根据内容ID保存切片
-     * @param contentId 内容ID
-     * @param chunks 切片列表
-     * @param strategyName 解析策略名称
-     */
-    List<Chunk> saveBatch(Long contentId, List<Chunk> chunks, StrategyNameEnum strategyName);
-
-    /**
-     * 根据切片ID更新切片向量ID
+     * 批量保存切片
      * @param chunks 切片列表
      */
-    void updateBatchVectorId(List<Chunk> chunks);
+    List<Long> saveBatch(List<Chunk> chunks);
 } 

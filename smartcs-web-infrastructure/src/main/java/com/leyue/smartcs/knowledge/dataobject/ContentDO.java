@@ -43,13 +43,7 @@ public class ContentDO extends BaseDO {
      */
     @TableField("file_type")
     private String fileType;
-    
-    /**
-     * 提取后的原始文本
-     */
-    @TableField("text_extracted")
-    private String textExtracted;
-    
+
     /**
      * 状态 uploaded/parsed/vectorized
      */

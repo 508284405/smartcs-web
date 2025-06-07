@@ -4,7 +4,6 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ContentService;
-import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
@@ -15,7 +14,6 @@ import com.leyue.smartcs.knowledge.executor.command.ContentDeleteCmdExe;
 import com.leyue.smartcs.knowledge.executor.query.ContentGetQryExe;
 import com.leyue.smartcs.knowledge.executor.query.ContentListQryExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentParsingCmdExe;
-import com.leyue.smartcs.knowledge.executor.command.ContentVectorizationCmdExe;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,8 +41,6 @@ public class ContentServiceImpl implements ContentService {
     @Autowired
     private ContentParsingCmdExe contentParsingCmdExe;
     
-    @Autowired
-    private ContentVectorizationCmdExe contentVectorizationCmdExe;
 
     @Override
     public SingleResponse<ContentDTO> createContent(ContentCreateCmd cmd) {
@@ -74,11 +70,5 @@ public class ContentServiceImpl implements ContentService {
     @Override
     public Response triggerContentParsing(Long contentId) {
         return contentParsingCmdExe.execute(contentId);
-    }
-
-    @Override
-    public Response triggerContentVectorization(Long contentId, String strategyName) {
-        StrategyNameEnum strategy = StrategyNameEnum.valueOf(strategyName);
-        return contentVectorizationCmdExe.execute(contentId, strategy);
     }
 }

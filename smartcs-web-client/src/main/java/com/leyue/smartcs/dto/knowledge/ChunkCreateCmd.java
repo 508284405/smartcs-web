@@ -1,37 +1,31 @@
 package com.leyue.smartcs.dto.knowledge;
 
 import lombok.Data;
-import lombok.Builder;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 /**
- * 内容切片DTO
+ * 创建切片命令
  */
 @Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class ChunkDTO {
-    
-    /**
-     * 切片ID
-     */
-    private Long id;
+public class ChunkCreateCmd {
     
     /**
      * 内容ID
      */
+    @NotNull(message = "内容ID不能为空")
     private Long contentId;
     
     /**
      * 段落序号
      */
+    @NotNull(message = "段落序号不能为空")
     private Integer chunkIndex;
     
     /**
      * 切片内容文本
      */
+    @NotBlank(message = "切片内容不能为空")
     private String content;
     
     /**
@@ -43,14 +37,4 @@ public class ChunkDTO {
      * 附加元信息，如页码、起止时间、原始位置等
      */
     private String metadata;
-    
-    /**
-     * 创建时间
-     */
-    private Long createTime;
-    
-    /**
-     * 更新时间
-     */
-    private Long updateTime;
 } 

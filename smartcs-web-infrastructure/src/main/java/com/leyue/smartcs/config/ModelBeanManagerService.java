@@ -177,4 +177,9 @@ public class ModelBeanManagerService {
         }
         return applicationContext.getBean(beanName);
     }
+
+    // 获取第一个Bean
+    public Object getFirstModelBean() {
+        return applicationContext.getBean(beanRegistry.keySet().iterator().next());
+    }
 } 

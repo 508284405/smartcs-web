@@ -3,7 +3,6 @@ package com.leyue.smartcs.knowledge.dataobject;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
-import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,32 +28,20 @@ public class ChunkDO extends BaseDO {
     private Integer chunkIndex;
     
     /**
-     * 该段文本内容
-     */
-    @TableField("text")
-    private String text;
-    
-    /**
      * 切片token数
      */
     @TableField("token_size")
     private Integer tokenSize;
     
     /**
-     * 向量数据库中的ID（如Milvus主键）
+     * 切片内容文本
      */
-    @TableField("vector_id")
-    private String vectorId;
+    @TableField("content")
+    private String content;
     
     /**
      * 附加元信息，如页码、起止时间、原始位置等
      */
     @TableField("metadata")
     private String metadata;
-
-    /**
-     * 解析策略名称，用于指定文档解析方式
-     */
-    @TableField("strategy_name")
-    private StrategyNameEnum strategyName;
 } 
