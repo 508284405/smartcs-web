@@ -13,6 +13,7 @@ import redis.clients.jedis.search.schemafields.SchemaField;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 基于Jedis的搜索网关实现
@@ -123,13 +124,13 @@ public class JedisSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public List<String> listIndexes() {
+    public Set<String> listIndexes() {
         try {
             // 使用 Jedis FT._LIST 命令获取索引列表
             return unifiedJedis.ftList();
         } catch (Exception e) {
             log.error("获取索引列表失败", e);
-            return List.of();
+            return Set.of();
         }
     }
 } 

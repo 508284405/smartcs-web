@@ -11,7 +11,9 @@ import org.redisson.client.codec.StringCodec;
 import org.redisson.codec.CompositeCodec;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 基于Redisson的搜索网关实现
@@ -126,12 +128,12 @@ public class RedissonSearchGatewayImpl implements SearchGateway {
     }
 
     @Override
-    public List<String> listIndexes() {
+    public Set<String> listIndexes() {
         try {
-            return redissonClient.getSearch().getIndexes();
+            return new HashSet<>(redissonClient.getSearch().getIndexes());
         } catch (Exception e) {
             log.error("获取索引列表失败", e);
-            return List.of();
+            return Set.of();
         }
     }
 } 

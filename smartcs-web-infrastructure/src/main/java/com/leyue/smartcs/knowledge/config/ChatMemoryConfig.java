@@ -8,8 +8,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/**
+ * 聊天记忆配置
+ */
 @Configuration
 public class ChatMemoryConfig {
+
+    /**
+     * 聊天记忆
+     * @param chatMemoryRepository 聊天记忆仓库
+     * @return 聊天记忆
+     */
     @Bean
     public ChatMemory chatMemory(ChatMemoryRepository chatMemoryRepository) {
         return MessageWindowChatMemory.builder()
@@ -18,6 +27,11 @@ public class ChatMemoryConfig {
                 .build();
     }
 
+    /**
+     * 聊天记忆仓库-持久化到数据库
+     * @param jdbcTemplate jdbc模板
+     * @return 聊天记忆仓库
+     */
     @Bean
     public ChatMemoryRepository chatMemoryRepository(JdbcTemplate jdbcTemplate) {
         return JdbcChatMemoryRepository.builder()

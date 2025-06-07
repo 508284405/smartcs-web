@@ -5,6 +5,7 @@ import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 统一搜索网关接口
@@ -61,5 +62,5 @@ public interface SearchGateway {
      *
      * @return 索引名称列表
      */
-    List<String> listIndexes();
+    Set<String> listIndexes();
 } 
