@@ -40,88 +40,36 @@ public class LLMGatewayImpl implements LLMGateway {
 
     @Override
     public String generateAnswer(String sessionId, String question, Long botId) {
-        // 如果没有传机器人则选择最先创建的一号机器人
-        BotProfile botProfile;
-        if (botId == null) {
-            botProfile = botProfileGateway.findAllActive().stream()
-                    .findFirst()
-                    .orElseThrow(() -> new BizException("没有可用的机器人"));
-            log.info("使用默认机器人: {}", botProfile.getBotName());
-        } else {
-            // 查询机器人配置
-            Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
-            botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
-            log.info("使用机器人: {}", botProfile.getBotName());
-        }
-
-        PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
-                .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
-
-        ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
-        ChatClient chatClient = ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
+        BotProfile botProfile = getBotProfile(botId);
+        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
+        ChatClient chatClient = buildChatClient(botProfile);
 
         try {
-            log.info("流式生成回答, sessionId: {}", sessionId);
+            log.info("生成回答, sessionId: {}", sessionId);
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
-            // 调用LLM流式生成
-            return chatClient.prompt()
-                    .system(promptTemplate.getTemplateContent())
-                    .user(question)
-                    .advisors(a -> a.param("session_id", sessionId)) // 会话ID
-                    .advisors(QuestionAnswerAdvisor.builder(vectorStore)
-                            .searchRequest(SearchRequest.builder()
-                                    .similarityThreshold(0.8d)
-                                    .topK(6).build())
-                            .build()) // RAG
-                    .options(chatOptions)
+            // 调用LLM生成
+            return buildBasePrompt(chatClient, sessionId, question, promptTemplate, chatOptions)
                     .call()
                     .content();
         } catch (Exception e) {
-            log.error("流式生成回答失败: {}", e.getMessage(), e);
-            throw new BizException("流式生成回答失败: " + e.getMessage(), e);
+            log.error("生成回答失败: {}", e.getMessage(), e);
+            throw new BizException("生成回答失败: " + e.getMessage(), e);
         }
     }
 
     @Override
     public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer) {
-        // 如果没有传机器人则选择最先创建的一号机器人
-        BotProfile botProfile;
-        if (botId == null) {
-            botProfile = botProfileGateway.findAllActive().stream()
-                    .findFirst()
-                    .orElseThrow(() -> new BizException("没有可用的机器人"));
-            log.info("使用默认机器人: {}", botProfile.getBotName());
-        } else {
-            // 查询机器人配置
-            Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
-            botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
-            log.info("使用机器人: {}", botProfile.getBotName());
-        }
-
-        PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
-                .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
-
-        ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
-        ChatClient chatClient = ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
+        BotProfile botProfile = getBotProfile(botId);
+        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
+        ChatClient chatClient = buildChatClient(botProfile);
 
         try {
             log.info("流式生成回答, sessionId: {}", sessionId);
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM流式生成
-            chatClient.prompt()
-                    .system(promptTemplate.getTemplateContent())
-                    .user(question)
-                    .advisors(a -> a.param("session_id", sessionId)) // 会话ID
-                    .advisors(QuestionAnswerAdvisor.builder(vectorStore)
-                            .searchRequest(SearchRequest.builder()
-                                    .similarityThreshold(0.8d)
-                                    .topK(6).build())
-                            .build()) // RAG
-                    .options(chatOptions)
+            buildBasePrompt(chatClient, sessionId, question, promptTemplate, chatOptions)
                     .stream()
                     .content()
                     .doOnNext(content -> {
@@ -139,6 +87,70 @@ public class LLMGatewayImpl implements LLMGateway {
         }
     }
 
+    private BotProfile getBotProfile(Long botId) {
+        if (botId == null) {
+            BotProfile botProfile = botProfileGateway.findAllActive().stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BizException("没有可用的机器人"));
+            log.info("使用默认机器人: {}", botProfile.getBotName());
+            return botProfile;
+        } else {
+            Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
+            BotProfile botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
+            log.info("使用机器人: {}", botProfile.getBotName());
+            return botProfile;
+        }
+    }
+
+    /**
+     * 获取Prompt模板
+     * @param botProfile 机器人配置
+     * @return Prompt模板
+     */
+    private PromptTemplate getPromptTemplate(BotProfile botProfile) {
+        return promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
+                .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
+    }
+
+    /**
+     * 构建ChatClient
+     * @param botProfile 机器人配置
+     * @return ChatClient
+     */
+    private ChatClient buildChatClient(BotProfile botProfile) {
+        ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
+        return ChatClient.builder(chatModel)
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
+    }
+
+    /**
+     * 构建基础Prompt
+     * @param chatClient ChatClient
+     * @param sessionId 会话ID
+     * @param question 问题
+     * @param promptTemplate Prompt模板
+     * @param chatOptions ChatOptions
+     * @return ChatClientRequestSpec
+     */
+    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, String question, 
+                                                            PromptTemplate promptTemplate, ChatOptions chatOptions) {
+        return chatClient.prompt()
+                .system(promptTemplate.getTemplateContent())
+                .user(question)
+                .advisors(a -> a.param("session_id", sessionId)) // 会话ID
+                .advisors(QuestionAnswerAdvisor.builder(vectorStore)
+                        .searchRequest(SearchRequest.builder()
+                                .similarityThreshold(0.8d)
+                                .topK(6).build())
+                        .build()) // RAG
+                .options(chatOptions);
+    }
+
+    /**
+     * 构建ChatOptions
+     * @param options 选项
+     * @return ChatOptions
+     */
     private ChatOptions buildChatOptions(String options) {
         ChatOptions.Builder builder = ChatOptions.builder();
         JSONObject jsonObject = JSONObject.parseObject(options);
