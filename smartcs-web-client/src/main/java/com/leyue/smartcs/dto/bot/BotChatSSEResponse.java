@@ -27,7 +27,8 @@ public class BotChatSSEResponse {
     /**
      * 是否完成
      */
-    private Boolean finished = false;
+    @Builder.Default
+    private boolean finished = false;
     
     /**
      * 处理时间（毫秒）

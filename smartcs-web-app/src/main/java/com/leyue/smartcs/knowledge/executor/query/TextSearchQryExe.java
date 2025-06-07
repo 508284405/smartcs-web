@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.EmbeddingWithScore;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
@@ -27,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class TextSearchQryExe {
-    private final SearchGateway searchGateway;
     private final ChunkGateway chunkGateway;
     private final ChunkConvertor chunkConvertor;
     private final VectorStore vectorStore;
@@ -58,7 +56,7 @@ public class TextSearchQryExe {
         List<EmbeddingWithScore> embeddingResults = new ArrayList<>();
         for (Document doc : documents) {
             Long chunkId = Long.parseLong(doc.getId());
-            double score = doc.getScore() == null ? 0.0 : doc.getScore();
+            Double score = doc.getScore() != null ? doc.getScore() : 0.0;
 
             Chunk chunk = chunkGateway.findById(chunkId);
             if (chunk == null) {
@@ -69,7 +67,7 @@ public class TextSearchQryExe {
 
             EmbeddingWithScore resultItem = new EmbeddingWithScore();
             resultItem.setChunk(chunkDTO);
-            resultItem.setScore((float) score);
+            resultItem.setScore(score.floatValue());
 
             embeddingResults.add(resultItem);
         }
