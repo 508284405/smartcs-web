@@ -2,7 +2,6 @@ package com.leyue.smartcs.api;
 
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.dto.bot.BotChatRequest;
-import com.leyue.smartcs.dto.bot.BotChatResponse;
 import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.dto.common.SingleClientObject;
 
@@ -16,7 +15,7 @@ public interface BotService {
      * @param request 聊天请求
      * @return 聊天响应
      */
-    SingleResponse<BotChatResponse> chat(BotChatRequest request);
+    SingleResponse<String> chat(BotChatRequest request);
     
     /**
      * 获取聊天上下文

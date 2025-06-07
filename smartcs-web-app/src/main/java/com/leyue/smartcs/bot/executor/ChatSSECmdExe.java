@@ -11,7 +11,10 @@ import java.util.stream.Collectors;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -37,6 +40,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
 import com.leyue.smartcs.dto.bot.SSEMessage;
+import com.leyue.smartcs.dto.knowledge.SearchResultsDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +57,7 @@ public class ChatSSECmdExe {
     private final LLMGateway llmGateway;
     private final PromptTemplateGateway promptTemplateGateway;
     private final SearchGateway searchGateway;
+    private final VectorStore vectorStore;
     private final ChunkGateway chunkGateway;
     private final BotProfileGateway botProfileGateway;
     private final SessionDomainService sessionDomainService;
@@ -92,41 +97,31 @@ public class ChatSSECmdExe {
             // 发送进度消息：开始处理
             sendProgressMessage(emitter, sessionId, "开始处理您的问题...");
 
-            // 从chat message服务获取历史消息
-            List<Message> historyMessages = new ArrayList<>();
-            if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-                historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0,
-                        MAX_HISTORY_MESSAGES);
-            }
+            // // 从chat message服务获取历史消息
+            // List<Message> historyMessages = new ArrayList<>();
+            // if (Boolean.TRUE.equals(request.getIncludeHistory())) {
+            //     historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0,
+            //             MAX_HISTORY_MESSAGES);
+            // }
 
-            // 存储用户问题到chat message服务
-            messageDomainService.sendMessage(
-                    sessionId,
-                    UserContext.getCurrentUser().getId(),
-                    SenderRole.USER,
-                    MessageType.TEXT,
-                    request.getQuestion(),
-                    null);
+            // // 存储用户问题到chat message服务
+            // messageDomainService.sendMessage(
+            //         sessionId,
+            //         UserContext.getCurrentUser().getId(),
+            //         SenderRole.USER,
+            //         MessageType.TEXT,
+            //         request.getQuestion(),
+            //         null);
 
             // 发送进度消息：检索知识
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
-
-            // 获取知识检索结果
-            List<Map<String, Object>> searchResults = getSearchResults(request, 5);
-
-            // 发送进度消息：构建提示
-            sendProgressMessage(emitter, sessionId, "正在构建AI提示...");
-
-            // 构建Messages
-            List<org.springframework.ai.chat.messages.Message> messages = buildMessages(request, historyMessages, searchResults);
-            log.info("构建的Messages数量: {}", messages.size());
 
             // 发送进度消息：调用AI
             sendProgressMessage(emitter, sessionId, "正在调用AI生成回答...");
 
             // 使用流式生成
             StringBuilder fullAnswer = new StringBuilder();
-            llmGateway.generateAnswerStream(messages, request.getTargetBotId(), (chunk) -> {
+            llmGateway.generateAnswerStream(sessionId.toString(), request.getQuestion(), request.getTargetBotId(), (chunk) -> {
                 try {
                     fullAnswer.append(chunk);
 
@@ -144,17 +139,17 @@ public class ChatSSECmdExe {
                 }
             });
 
-            // 存储消息
-            messageDomainService.sendMessage(
-                    sessionId,
-                    request.getTargetBotId(),
-                    SenderRole.BOT,
-                    MessageType.TEXT,
-                    fullAnswer.toString(),
-                    null);
+            // // 存储消息
+            // messageDomainService.sendMessage(
+            //         sessionId,
+            //         request.getTargetBotId(),
+            //         SenderRole.BOT,
+            //         MessageType.TEXT,
+            //         fullAnswer.toString(),
+            //         null);
 
             // 构建最终响应
-            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(), searchResults,
+            BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(),
                     startTime);
 
             // 发送完成消息
@@ -168,121 +163,17 @@ public class ChatSSECmdExe {
         }
     }
 
-    /**
-     * 获取知识检索结果
-     */
-    private List<Map<String, Object>> getSearchResults(BotChatSSERequest request, Integer topK) {
-        List<Map<String, Object>> results = new ArrayList<>();
-
-        try {
-            int searchTopK = topK != null ? topK : 5;
-
-            int remainingCount = searchTopK - results.size();
-            Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH,
-                    request.getQuestion(), remainingCount, request.getKnowledgeBaseId(), request.getContentId());
-            for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
-                Chunk embedding = chunkGateway.findById(entry.getKey());
-                if (embedding != null) {
-                    Map<String, Object> result = new HashMap<>();
-                    result.put("type", "DOC");
-                    result.put("contentId", embedding.getContentId());
-                    result.put("title", "文档段落");
-                    result.put("snippet", embedding.getText());
-                    result.put("score", entry.getValue());
-                    results.add(result);
-                }
-            }
-
-        } catch (Exception e) {
-            log.error("知识检索失败: {}", e.getMessage(), e);
-        }
-
-        return results;
-    }
-
-    /**
-     * 构建Messages
-     */
-    private List<org.springframework.ai.chat.messages.Message> buildMessages(BotChatSSERequest request, List<Message> historyMessages,
-            List<Map<String, Object>> searchResults) {
-        try {
-            List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>();
-            
-            Optional<BotProfile> bOptional = botProfileGateway.findById(request.getTargetBotId());
-            if (!bOptional.isPresent()) {
-                throw new BizException("机器人不存在");
-            }
-            BotProfile botProfile = bOptional.get();
-            if (botProfile.getEnabled() == null || !botProfile.getEnabled()) {
-                throw new BizException("机器人已禁用");
-            }
-
-            // 构建系统消息
-            StringBuilder systemContent = new StringBuilder();
-            
-            // 添加prompt模板
-            Optional<PromptTemplate> templateOpt = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey());
-            if (templateOpt.isPresent()) {
-                systemContent.append(templateOpt.get().getTemplateContent()).append("\n\n");
-            }
-
-            // 添加知识文档
-            if (searchResults.size() > 0) {
-                StringBuilder docs = new StringBuilder();
-                for (Map<String, Object> result : searchResults) {
-                    docs.append("标题：").append(result.get("title")).append("\n");
-                    docs.append("内容：").append(result.get("snippet")).append("\n\n");
-                }
-                systemContent.append("知识内容：\n").append(docs).append("\n\n");
-            }
-            
-            if (systemContent.length() > 0) {
-                messages.add(new SystemMessage(systemContent.toString()));
-            }
-
-            // 添加历史对话消息
-            if (request.getIncludeHistory() && historyMessages.size() > 0) {
-                for (Message historyMessage : historyMessages) {
-                    if (historyMessage.getSenderRole() == SenderRole.USER) {
-                        messages.add(new UserMessage(historyMessage.getContent()));
-                    } else if (historyMessage.getSenderRole() == SenderRole.BOT || historyMessage.getSenderRole() == SenderRole.AGENT) {
-                        messages.add(new AssistantMessage(historyMessage.getContent()));
-                    }
-                }
-            }
-
-            // 添加当前用户问题
-            messages.add(new UserMessage(request.getQuestion()));
-            
-            return messages;
-        } catch (Exception e) {
-            log.error("构建Messages失败: {}", e.getMessage(), e);
-            List<org.springframework.ai.chat.messages.Message> fallbackMessages = new ArrayList<>();
-            fallbackMessages.add(new UserMessage("请回答用户问题：" + request.getQuestion()));
-            return fallbackMessages;
-        }
-    }
+    
 
     /**
      * 构建最终响应
      */
     private BotChatSSEResponse buildFinalResponse(Long sessionId, String answer,
-            List<Map<String, Object>> searchResults, long startTime) {
-        List<BotChatSSEResponse.KnowledgeSource> sources = searchResults.stream()
-                .map(result -> BotChatSSEResponse.KnowledgeSource.builder()
-                        .type((String) result.get("type"))
-                        .contentId(((Number) result.get("contentId")).longValue())
-                        .title((String) result.get("title"))
-                        .snippet((String) result.get("snippet"))
-                        .score(((Number) result.get("score")).floatValue())
-                        .build())
-                .collect(Collectors.toList());
-
+            long startTime) {
         return BotChatSSEResponse.builder()
                 .sessionId(sessionId)
                 .answer(answer)
                 .finished(true)
-                .sources(sources)
                 .processTime(System.currentTimeMillis() - startTime)
                 .build();
     }

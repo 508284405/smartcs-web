@@ -1,18 +1,16 @@
 package com.leyue.smartcs.knowledge.executor.query;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.EmbeddingWithScore;
@@ -21,6 +19,7 @@ import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 /**
  * 文本检索查询执行器
  */
@@ -31,6 +30,8 @@ public class TextSearchQryExe {
     private final SearchGateway searchGateway;
     private final ChunkGateway chunkGateway;
     private final ChunkConvertor chunkConvertor;
+    private final VectorStore vectorStore;
+
     /**
      * 执行文本检索查询
      *
@@ -44,24 +45,20 @@ public class TextSearchQryExe {
     /**
      * 搜索文档段落
      *
-     * @param keyword 关键词
-     * @param k       数量限制
      * @return 段落结果
      */
     private MultiResponse<EmbeddingWithScore> searchDocEmbeddings(KnowledgeSearchQry qry) {
         // 调用全文检索查询文档段落
-        Map<Long, Double> embSearchResults = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH, qry.getKeyword(), qry.getK(), qry.getKbId(), qry.getContentId());
-
-        // 没有结果则返回null
-        if (embSearchResults == null || embSearchResults.isEmpty()) {
-            return null;
+        List<Document> documents = vectorStore.similaritySearch(qry.getKeyword());
+        if (documents == null || documents.isEmpty()) {
+            return MultiResponse.of(Collections.emptyList());
         }
 
         // 查询详情
         List<EmbeddingWithScore> embeddingResults = new ArrayList<>();
-        for (Map.Entry<Long, Double> entry : embSearchResults.entrySet()) {
-            Long chunkId = entry.getKey();
-            Double score = entry.getValue();
+        for (Document doc : documents) {
+            Long chunkId = Long.parseLong(doc.getId());
+            double score = doc.getScore() == null ? 0.0 : doc.getScore();
 
             Chunk chunk = chunkGateway.findById(chunkId);
             if (chunk == null) {
@@ -71,8 +68,8 @@ public class TextSearchQryExe {
             ChunkDTO chunkDTO = chunkConvertor.toDTO(chunk);
 
             EmbeddingWithScore resultItem = new EmbeddingWithScore();
-            resultItem.setEmbedding(chunkDTO);
-            resultItem.setScore(score.floatValue());
+            resultItem.setChunk(chunkDTO);
+            resultItem.setScore((float) score);
 
             embeddingResults.add(resultItem);
         }
@@ -84,4 +81,4 @@ public class TextSearchQryExe {
         // 组装结果
         return MultiResponse.of(embeddingResults);
     }
-} 
+}

@@ -32,11 +32,6 @@ public class BotChatSSEResponse {
     private Boolean finished = false;
     
     /**
-     * 引用的知识来源列表
-     */
-    private List<KnowledgeSource> sources;
-    
-    /**
      * 处理时间（毫秒）
      */
     private Long processTime;

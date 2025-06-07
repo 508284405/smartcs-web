@@ -11,8 +11,6 @@ import com.leyue.smartcs.knowledge.dataobject.KnowledgeBaseDO;
 import com.leyue.smartcs.knowledge.mapper.KnowledgeBaseMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 

@@ -1,16 +1,17 @@
 package com.leyue.smartcs.bot.service;
 
+import org.springframework.stereotype.Service;
+
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.BotService;
-import com.leyue.smartcs.dto.bot.BotChatRequest;
-import com.leyue.smartcs.dto.bot.BotChatResponse;
-import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.bot.executor.ChatCmdExe;
 import com.leyue.smartcs.bot.executor.ContextQryExe;
+import com.leyue.smartcs.dto.bot.BotChatRequest;
+import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.dto.common.SingleClientObject;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 /**
  * Bot服务实现类
@@ -24,7 +25,7 @@ public class BotServiceImpl implements BotService {
     private final ContextQryExe contextQryExe;
     
     @Override
-    public SingleResponse<BotChatResponse> chat(BotChatRequest request) {
+    public SingleResponse<String> chat(BotChatRequest request) {
         log.info("处理聊天请求: {}", request);
         return chatCmdExe.execute(request);
     }

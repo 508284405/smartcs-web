@@ -65,18 +65,10 @@ public class AdminContentController {
     }
     
     /**
-     * 触发内容解析,指定内容(将内容解析成文本)
+     * 触发内容解析,指定内容(将内容解析成文本),并向量存储Redis
      */
     @PostMapping("/{id}/parse")
     public Response triggerContentParsing(@PathVariable Long id) {
         return contentService.triggerContentParsing(id);
-    }
-    
-    /**
-     * 触发内容向量化(先将文本分段，然后向量存储)
-     */
-    @PostMapping("/{id}/vectorize")
-    public Response triggerContentVectorization(@PathVariable Long id,@RequestParam String strategyName) {
-        return contentService.triggerContentVectorization(id,strategyName);
     }
 } 

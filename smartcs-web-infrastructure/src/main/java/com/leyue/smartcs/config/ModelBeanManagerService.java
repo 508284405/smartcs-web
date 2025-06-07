@@ -5,6 +5,7 @@ import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
 import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.model.SimpleApiKey;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -116,7 +117,10 @@ public class ModelBeanManagerService {
         BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(OpenAiChatModel.class);
         
         // 创建OpenAiApi配置
-        OpenAiApi openAiApi = new OpenAiApi(botProfile.getBaseUrl(), botProfile.getApiKey());
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(botProfile.getBaseUrl())
+                .apiKey(botProfile.getApiKey())
+                .build();
         
         beanDefinitionBuilder.addConstructorArgValue(openAiApi);
         // TODO: 添加更多配置参数，如options中的具体模型配置
@@ -131,7 +135,10 @@ public class ModelBeanManagerService {
         BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(OpenAiEmbeddingModel.class);
         
         // 创建OpenAiApi配置
-        OpenAiApi openAiApi = new OpenAiApi(botProfile.getBaseUrl(), botProfile.getApiKey());
+        OpenAiApi openAiApi = OpenAiApi.builder()
+                .baseUrl(botProfile.getBaseUrl())
+                .apiKey(botProfile.getApiKey())
+                .build();
         
         beanDefinitionBuilder.addConstructorArgValue(openAiApi);
         // TODO: 添加更多配置参数，如options中的具体模型配置

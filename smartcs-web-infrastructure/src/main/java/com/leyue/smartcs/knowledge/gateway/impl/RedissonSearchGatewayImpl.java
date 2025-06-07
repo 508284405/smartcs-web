@@ -1,26 +1,17 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
 import com.alibaba.fastjson2.JSONObject;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.common.EmbeddingStructure;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.utils.RedisearchUtils;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RMap;
 import org.redisson.api.RedissonClient;
-import org.redisson.api.search.query.Document;
-import org.redisson.api.search.query.QueryOptions;
-import org.redisson.api.search.query.SearchResult;
 import org.redisson.client.codec.StringCodec;
 import org.redisson.codec.CompositeCodec;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 基于Redisson的搜索网关实现
@@ -31,91 +22,6 @@ import java.util.Map;
 public class RedissonSearchGatewayImpl implements SearchGateway {
 
     private final RedissonClient redissonClient;
-    private final LLMGateway llmGateway;
-
-    // 向量数据缓存的过期时间（30天）
-    private static final long VECTOR_CACHE_TTL = 30;
-
-    // ========== 向量检索相关方法 ==========
-
-    @Override
-    public Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId) {
-        List<float[]> floats = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
-        if (floats.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        // 尝试使用RediSearch的向量搜索功能
-        String query = "*=>[KNN " + k + " @embedding $vector AS score]";
-        if (kbId != null || contentId != null) {
-            query += " AND ";
-            if (kbId != null) {
-                query += "kbId:" + kbId.toString();
-            }
-            if (contentId != null) {
-                query += "contentId:" + contentId.toString();
-            }
-        }
-        Map<String, Object> params = new HashMap<>();
-        params.put("vector", RedisearchUtils.floatArrayToByteArray(floats.get(0)));
-
-        Map<Long, Double> resultMap = new HashMap<>();
-        try {
-            SearchResult result = redissonClient.getSearch().search(index,
-                    query,
-                    QueryOptions.defaults()
-                            .params(params)
-                            .dialect(2));
-
-            for (Document document : result.getDocuments()) {
-                try {
-                    // 从文档键中提取ID
-                    String key = document.getId();
-                    Long id = Long.parseLong(key.substring(index.length() + 1));
-                    Double score = document.getScore();
-                    resultMap.put(id, score);
-                } catch (Exception e) {
-                    log.warn("解析向量搜索结果失败 for docId: {}", document.getId(), e);
-                }
-            }
-        } catch (Exception e) {
-            log.error("向量搜索失败: 索引={}", index, e);
-            return new HashMap<>();
-        }
-        return resultMap;
-    }
-
-    // ========== 全文检索相关方法 ==========
-
-    @Override
-    public Map<Long, Double> searchByKeyword(String index, String keyword, int k) {
-        // 构建查询语句，使用模糊匹配
-        String query = "*" + escapeQueryChars(keyword) + "*";
-        // 设置查询选项
-        QueryOptions options = QueryOptions.defaults()
-                .withScores(true)
-                .limit(0, k);
-
-        Map<Long, Double> resultMap = new HashMap<>();
-        try {
-            SearchResult result = redissonClient.getSearch().search(index, query, options);
-            // 处理搜索结果
-            for (Document doc : result.getDocuments()) {
-                String docId = doc.getId();
-                try {
-                    double score = doc.getScore();
-                    // docId去除索引前缀
-                    Long id = Long.parseLong(docId.substring(index.length() + 1));
-                    resultMap.put(id, score);
-                } catch (NumberFormatException e) {
-                    log.warn("无法解析文档ID: {}", docId);
-                }
-            }
-        } catch (Exception e) {
-            log.error("关键词搜索失败: 索引={}, 关键词={}", index, keyword, e);
-            return new HashMap<>();
-        }
-        return resultMap;
-    }
 
     @Override
     public boolean indexDocument(String index, Long id, Object source) {

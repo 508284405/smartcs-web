@@ -1,28 +1,26 @@
 package com.leyue.smartcs.bot.gatewayimpl;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.embedding.EmbeddingResponse;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSONObject;
 import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,58 +32,16 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class LLMGatewayImpl implements LLMGateway {
-
-    private final OpenAiChatModel openAiChatModel;
-    private final OpenAiEmbeddingModel embeddingModel;
     private final BotProfileGateway botProfileGateway;
     private final ModelBeanManagerService modelBeanManagerService;
+    private final ChatMemory chatMemory;
+    private final PromptTemplateGateway promptTemplateGateway;
+    private final VectorStore vectorStore;
 
     @Override
-    public String generateAnswer(String prompt, Map<String, Object> options) {
-        try {
-            log.info("生成回答, prompt长度: {}", prompt.length());
-
-            // 创建用户消息
-            UserMessage userMessage = new UserMessage(prompt);
-
-            // 创建选项
-            ChatOptions.Builder builder = ChatOptions.builder();
-
-            // 应用选项
-            if (options != null) {
-                if (options.containsKey("temperature")) {
-                    builder.temperature((Double) options.get("temperature"));
-                }
-
-                if (options.containsKey("maxTokens")) {
-                    builder.maxTokens((Integer) options.get("maxTokens"));
-                }
-
-                if (options.containsKey("model")) {
-                    builder.model((String) options.get("model"));
-                }
-            }
-
-            ChatOptions chatOptions = builder.build();
-
-            // 创建提示
-            Prompt prompt1 = new Prompt(List.of(userMessage), chatOptions);
-
-            // 调用LLM
-            ChatResponse response = openAiChatModel.call(prompt1);
-            String text = response.getResult().getOutput().getText();
-            log.info("生成回答成功: {}", text);
-            return text;
-        } catch (Exception e) {
-            log.error("生成回答失败: {}", e.getMessage(), e);
-            throw new BizException("生成回答失败: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public void generateAnswerStream(List<Message> messages, Long botId, Consumer<String> chunkConsumer) {
+    public String generateAnswer(String sessionId, String question, Long botId) {
         // 如果没有传机器人则选择最先创建的一号机器人
-        BotProfile botProfile = null;
+        BotProfile botProfile;
         if (botId == null) {
             botProfile = botProfileGateway.findAllActive().stream()
                     .findFirst()
@@ -98,38 +54,77 @@ public class LLMGatewayImpl implements LLMGateway {
             log.info("使用机器人: {}", botProfile.getBotName());
         }
 
+        PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
+                .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
+
         ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
+        ChatClient chatClient = ChatClient.builder(chatModel)
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
 
         try {
-            log.info("流式生成回答, messages数量: {}", messages.size());
-
-            // 创建选项
-            ChatOptions.Builder builder = ChatOptions.builder();
-
-            Optional.ofNullable(botProfile.getOptions())
-                    .map(JSONObject::parseObject)
-                    .ifPresent(options -> {
-                        if (options.containsKey("temperature")) {
-                            builder.temperature((Double) options.get("temperature"));
-                        }
-
-                        if (options.containsKey("maxTokens")) {
-                            builder.maxTokens((Integer) options.get("maxTokens"));
-                        }
-
-                        if (options.containsKey("model")) {
-                            builder.model((String) options.get("model"));
-                        }
-                    });
-            ChatOptions chatOptions = builder.build();
-
-            // 创建提示
-            Prompt prompt = new Prompt(messages, chatOptions);
+            log.info("流式生成回答, sessionId: {}", sessionId);
+            ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM流式生成
-            chatModel.stream(prompt)
-                    .doOnNext(chatResponse -> {
-                        String content = chatResponse.getResult().getOutput().getText();
+            return chatClient.prompt()
+                    .system(promptTemplate.getTemplateContent())
+                    .user(question)
+                    .advisors(a -> a.param("session_id", sessionId)) // 会话ID
+                    .advisors(QuestionAnswerAdvisor.builder(vectorStore)
+                            .searchRequest(SearchRequest.builder()
+                                    .similarityThreshold(0.8d)
+                                    .topK(6).build())
+                            .build()) // RAG
+                    .options(chatOptions)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            log.error("流式生成回答失败: {}", e.getMessage(), e);
+            throw new BizException("流式生成回答失败: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer) {
+        // 如果没有传机器人则选择最先创建的一号机器人
+        BotProfile botProfile;
+        if (botId == null) {
+            botProfile = botProfileGateway.findAllActive().stream()
+                    .findFirst()
+                    .orElseThrow(() -> new BizException("没有可用的机器人"));
+            log.info("使用默认机器人: {}", botProfile.getBotName());
+        } else {
+            // 查询机器人配置
+            Optional<BotProfile> botProfileOptional = botProfileGateway.findById(botId);
+            botProfile = botProfileOptional.orElseThrow(() -> new BizException("机器人配置不存在"));
+            log.info("使用机器人: {}", botProfile.getBotName());
+        }
+
+        PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
+                .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
+
+        ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
+        ChatClient chatClient = ChatClient.builder(chatModel)
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
+
+        try {
+            log.info("流式生成回答, sessionId: {}", sessionId);
+            ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
+
+            // 调用LLM流式生成
+            chatClient.prompt()
+                    .system(promptTemplate.getTemplateContent())
+                    .user(question)
+                    .advisors(a -> a.param("session_id", sessionId)) // 会话ID
+                    .advisors(QuestionAnswerAdvisor.builder(vectorStore)
+                            .searchRequest(SearchRequest.builder()
+                                    .similarityThreshold(0.8d)
+                                    .topK(6).build())
+                            .build()) // RAG
+                    .options(chatOptions)
+                    .stream()
+                    .content()
+                    .doOnNext(content -> {
                         if (content != null && !content.isEmpty()) {
                             chunkConsumer.accept(content);
                         }
@@ -144,40 +139,12 @@ public class LLMGatewayImpl implements LLMGateway {
         }
     }
 
-    @Override
-    public List<float[]> generateEmbeddings(List<String> texts) {
-        try {
-            log.info("生成嵌入向量, 文本数量: {}", texts.size());
-
-            final int BATCH_SIZE = 25; // Maximum batch size for embedding model
-            List<float[]> encodedEmbeddings = new ArrayList<>(texts.size());
-
-            for (int i = 0; i < texts.size(); i += BATCH_SIZE) {
-                int endIndex = Math.min(i + BATCH_SIZE, texts.size());
-                List<String> batch = texts.subList(i, endIndex);
-                log.debug("处理嵌入向量批次: {}-{}", i, endIndex);
-                EmbeddingResponse response = embeddingModel.embedForResponse(batch);
-
-                for (int j = 0; j < response.getResults().size(); j++) {
-                    float[] embedding = response.getResults().get(j).getOutput();
-                    encodedEmbeddings.add(embedding);
-                }
-            }
-            log.info("生成嵌入向量成功, 嵌入向量数量: {}", encodedEmbeddings.size());
-            return encodedEmbeddings;
-        } catch (Exception e) {
-            log.error("生成嵌入向量失败: {}", e.getMessage(), e);
-            throw new RuntimeException("生成嵌入向量失败: " + e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public List<String> listAvailableModels() {
-        // Spring AI目前不提供模型列表API，返回默认模型
-        // 实际应用中，可以根据配置或者从系统属性中获取
-        List<String> models = new ArrayList<>();
-        models.add("gpt-3.5-turbo");
-        models.add("gpt-4");
-        return models;
+    private ChatOptions buildChatOptions(String options) {
+        ChatOptions.Builder builder = ChatOptions.builder();
+        JSONObject jsonObject = JSONObject.parseObject(options);
+        builder.model(jsonObject.getString("model"));
+        builder.temperature(jsonObject.getDouble("temperature"));
+        builder.maxTokens(jsonObject.getInteger("maxTokens"));
+        return builder.build();
     }
 }

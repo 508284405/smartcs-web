@@ -39,6 +39,11 @@ public class CsMessageDO extends BaseDO {
      * 消息类型 0=text 1=image 2=order_card 3=system
      */
     private Integer msgType;
+
+    /**
+     * 消息种类 'USER', 'ASSISTANT', 'SYSTEM', 'TOOL'
+     */
+    private String chatType;
     
     /**
      * 消息内容，JSON格式存储富文本

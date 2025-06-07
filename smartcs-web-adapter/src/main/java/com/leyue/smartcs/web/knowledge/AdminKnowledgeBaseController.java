@@ -62,7 +62,6 @@ public class AdminKnowledgeBaseController {
         return knowledgeBaseService.listKnowledgeBases(qry);
     }
 
-
     /**
      * 文本检索
      */

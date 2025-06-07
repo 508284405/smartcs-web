@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class EmbeddingWithScore {
-    private ChunkDTO embedding;
+    private ChunkDTO chunk;
     private Float score;
 }

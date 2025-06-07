@@ -11,28 +11,6 @@ import java.util.Map;
  * 包含向量检索和全文检索功能
  */
 public interface SearchGateway {
-    
-    // ========== 向量检索相关方法 ==========
-
-    /**
-     * 执行Top-K检索
-     *
-     * @return ID与相似度分数的映射
-     */
-    Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId);
-    
-    // ========== 全文检索相关方法 ==========
-    
-    /**
-     * 关键词搜索
-     *
-     * @param index   索引名称
-     * @param keyword 关键词
-     * @param k       返回数量
-     * @return ID与分数的映射
-     */
-    Map<Long, Double> searchByKeyword(String index, String keyword, int k);
-
     /**
      * 创建或更新索引文档
      *

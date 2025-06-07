@@ -1,28 +1,16 @@
 package com.leyue.smartcs.bot.executor;
 
-import com.alibaba.cola.dto.SingleResponse;
-import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.api.MessageService;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import com.leyue.smartcs.domain.bot.PromptTemplate;
-import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.Chunk;
-import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.Faq;
-import com.leyue.smartcs.dto.bot.BotChatRequest;
-import com.leyue.smartcs.dto.bot.BotChatResponse;
+import java.util.UUID;
 
-import com.leyue.smartcs.dto.chat.MessageDTO;
-import com.leyue.smartcs.dto.chat.SendMessageCmd;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import com.alibaba.cola.dto.SingleResponse;
+import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+import com.leyue.smartcs.dto.bot.BotChatRequest;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 聊天命令执行器
@@ -33,31 +21,13 @@ import java.util.stream.Collectors;
 public class ChatCmdExe {
 
     private final LLMGateway llmGateway;
-    private final SearchGateway searchGateway;
-    private final FaqGateway faqGateway;
-    private final ChunkGateway chunkGateway;
-    private final MessageService messageService;
-    private final PromptTemplateGateway promptTemplateGateway;
-
-    // 默认检索数量
-    private static final int DEFAULT_TOP_K = 5;
-    // 默认相似度阈值
-    private static final float DEFAULT_THRESHOLD = 0.7f;
-    // 默认模板标识
-    private static final String DEFAULT_TEMPLATE_KEY = "RAG_QUERY";
-    // 历史消息数量限制
-    private static final int MAX_HISTORY_MESSAGES = 10;
-
     /**
      * 执行聊天命令
      *
      * @param request 聊天请求
      * @return 聊天响应
      */
-    public SingleResponse<BotChatResponse> execute(BotChatRequest request) {
-        long startTime = System.currentTimeMillis();
-        log.info("执行聊天命令: {}", request);
-
+    public SingleResponse<String> execute(BotChatRequest request) {
         try {
             // 参数校验
             if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
@@ -80,212 +50,12 @@ public class ChatCmdExe {
                 sessionId = sessionIdLong.toString();
             }
 
-            // 从chat message服务获取历史消息
-            List<MessageDTO> historyMessages = new ArrayList<>();
-            if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-                historyMessages = messageService.getSessionMessagesWithPagination(sessionIdLong, 0, MAX_HISTORY_MESSAGES);
-            }
-
-            // 存储用户问题到chat message服务
-            SendMessageCmd userMessageCmd = new SendMessageCmd();
-            userMessageCmd.setSessionId(sessionIdLong);
-            userMessageCmd.setSenderRole(0); // 用户角色
-            userMessageCmd.setMsgType(0); // 文本消息
-            userMessageCmd.setContent(request.getQuestion());
-            MessageDTO userMessage = messageService.sendMessage(userMessageCmd);
-
-            // 获取知识检索结果
-            List<Map<String, Object>> searchResults = getSearchResults(request.getQuestion(), request.getTopK());
-
-            // 构建Prompt
-            String prompt = buildPrompt(request, historyMessages, searchResults);
-
-            // 调用LLM生成回答
-            Map<String, Object> options = new HashMap<>();
-            if (request.getTemperature() != null) {
-                options.put("temperature", request.getTemperature().doubleValue());
-            }
-            if (request.getMaxTokens() != null) {
-                options.put("maxTokens", request.getMaxTokens());
-            }
-            if (request.getModel() != null && !request.getModel().isEmpty()) {
-                options.put("model", request.getModel());
-            }
-
-            String answer = llmGateway.generateAnswer(prompt, options);
-
-            // 存储bot回答到chat message服务
-            SendMessageCmd botMessageCmd = new SendMessageCmd();
-            botMessageCmd.setSessionId(sessionIdLong);
-            botMessageCmd.setSenderRole(2); // 机器人角色
-            botMessageCmd.setMsgType(0); // 文本消息
-            botMessageCmd.setContent(answer);
-            MessageDTO botMessage = messageService.sendMessage(botMessageCmd);
-
-            // 构建响应
-            BotChatResponse response = buildResponse(sessionId, answer, searchResults, request.getModel(), startTime);
-
-            log.info("聊天命令执行完成，耗时: {}ms", System.currentTimeMillis() - startTime);
-            return SingleResponse.of(response);
+            String answer = llmGateway.generateAnswer(sessionId, request.getQuestion(), request.getBotId());
+            return SingleResponse.of(answer);
 
         } catch (Exception e) {
             log.error("聊天命令执行失败: {}", e.getMessage(), e);
             throw new BizException("聊天命令执行失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * 获取知识检索结果
-     *
-     * @param question 问题
-     * @param topK     返回数量
-     * @return 检索结果
-     */
-    private List<Map<String, Object>> getSearchResults(String question, Integer topK) {
-        int k = topK != null && topK > 0 ? topK : DEFAULT_TOP_K;
-
-        // 首先尝试文本检索
-        Map<Long, Double> textResults = searchGateway.searchByKeyword(Constants.FAQ_INDEX_REDISEARCH, question, k);
-
-        if (!textResults.isEmpty()) {
-            return textResults.entrySet().stream()
-                    .map(entry -> {
-                        Map<String, Object> result = new HashMap<>();
-                        Optional<Faq> optionalFaq = faqGateway.findById(entry.getKey());
-                        if (optionalFaq.isPresent()) {
-                            Faq faq = optionalFaq.get();
-                            result.put("id", faq.getId());
-                            result.put("question", faq.getQuestion());
-                            result.put("answer", faq.getAnswer());
-                            result.put("score", entry.getValue());
-                        }
-                        return result;
-                    })
-                    .collect(Collectors.toList());
-        }
-
-        // 如果文本检索没有结果，则尝试向量检索（需要先生成嵌入向量）
-        try {
-            Map<Long, Double> searchTopK = searchGateway.searchTopK(Constants.EMBEDDING_INDEX_REDISEARCH, question, k,null,null);
-            return searchTopK.entrySet().stream()
-                    .map(entry -> {
-                        Chunk embedding = chunkGateway.findById(entry.getKey());
-                        if (embedding != null) {
-                            Map<String, Object> result = new HashMap<>();
-                            result.put("id", embedding.getContentId());
-                            result.put("content", embedding.getText());
-                            result.put("score", entry.getValue());
-                            return result;
-                        }
-                        return new HashMap<String, Object>();
-                    })
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            log.warn("向量检索失败: {}", e.getMessage());
-        }
-
-        return new ArrayList<>();
-    }
-
-    /**
-     * 构建Prompt
-     *
-     * @param request       聊天请求
-     * @param historyMessages 历史消息
-     * @param searchResults 检索结果
-     * @return Prompt
-     */
-    private String buildPrompt(BotChatRequest request, List<MessageDTO> historyMessages, List<Map<String, Object>> searchResults) {
-        // 获取Prompt模板
-        PromptTemplate promptTemplate = promptTemplateGateway.findByTemplateKey(DEFAULT_TEMPLATE_KEY)
-                .orElseGet(() -> {
-                    return PromptTemplate.builder()
-                            .templateKey(DEFAULT_TEMPLATE_KEY)
-                            .templateContent("""
-                                    {{question}}
-                                    {{history}}
-                                    """)
-                            .build();
-                });
-
-        // 准备变量
-        Map<String, Object> variables = new HashMap<>();
-
-        // 设置问题
-        variables.put("question", request.getQuestion());
-
-        // 设置历史消息
-        if (Boolean.TRUE.equals(request.getIncludeHistory()) && !historyMessages.isEmpty()) {
-            // 构建历史对话记录，包含用户和bot的对话
-            String history = historyMessages.stream()
-                    .map(msg -> {
-                        String role = msg.getSenderRole() == 0 ? "user" : 
-                                     msg.getSenderRole() == 2 ? "assistant" : "agent";
-                        return role + ": " + msg.getContent();
-                    })
-                    .collect(Collectors.joining("\n"));
-            variables.put("history", history);
-        } else {
-            variables.put("history", "");
-        }
-
-        // 设置知识文档
-        if (!searchResults.isEmpty()) {
-            StringBuilder docs = new StringBuilder();
-            for (int i = 0; i < searchResults.size(); i++) {
-                Map<String, Object> result = searchResults.get(i);
-                String type = (String) result.get("type");
-                if ("FAQ".equals(type)) {
-                    docs.append("FAQ ").append(i + 1).append(":\n");
-                    docs.append("问题: ").append(result.get("question")).append("\n");
-                    docs.append("答案: ").append(result.get("answer")).append("\n\n");
-                } else if ("DOC".equals(type)) {
-                    docs.append("文档 ").append(i + 1).append(" (").append(result.get("docTitle")).append("):\n");
-                    docs.append(result.get("content")).append("\n\n");
-                }
-            }
-            variables.put("docs", docs.toString());
-        } else {
-            variables.put("docs", "无相关知识");
-        }
-
-        // 填充模板
-        return promptTemplate.format(variables);
-    }
-
-    /**
-     * 构建响应
-     *
-     * @param sessionId     会话ID
-     * @param answer        回答
-     * @param searchResults 检索结果
-     * @param modelId       模型ID
-     * @param startTime     开始时间
-     * @return 聊天响应
-     */
-    private BotChatResponse buildResponse(String sessionId, String answer, List<Map<String, Object>> searchResults,
-                                          String modelId, long startTime) {
-        // 构建知识来源
-        List<BotChatResponse.KnowledgeSource> sources = new ArrayList<>();
-        for (Map<String, Object> result : searchResults) {
-            String type = (String) result.get("type");
-            BotChatResponse.KnowledgeSource source = BotChatResponse.KnowledgeSource.builder()
-                    .type(type)
-                    .contentId(result.get("id") instanceof Long ? (Long) result.get("id") : null)
-                    .title("FAQ".equals(type) ? (String) result.get("question") : (String) result.get("docTitle"))
-                    .snippet("FAQ".equals(type) ? (String) result.get("answer") : (String) result.get("content"))
-                    .score(result.get("score") instanceof Float ? (Float) result.get("score") : 0f)
-                    .build();
-            sources.add(source);
-        }
-
-        // 构建响应
-        return BotChatResponse.builder()
-                .sessionId(sessionId)
-                .answer(answer)
-                .sources(sources)
-                .modelId(modelId)
-                .processTime(System.currentTimeMillis() - startTime)
-                .build();
     }
 } 

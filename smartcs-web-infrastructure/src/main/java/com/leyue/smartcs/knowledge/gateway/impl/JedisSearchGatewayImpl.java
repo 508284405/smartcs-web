@@ -1,27 +1,18 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
-
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.utils.RedisearchUtils;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Component;
 import redis.clients.jedis.UnifiedJedis;
-import redis.clients.jedis.search.Document;
-import redis.clients.jedis.search.Query;
-import redis.clients.jedis.search.SearchResult;
 import redis.clients.jedis.search.schemafields.SchemaField;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 基于Jedis的搜索网关实现
@@ -33,94 +24,6 @@ import redis.clients.jedis.search.schemafields.SchemaField;
 public class JedisSearchGatewayImpl implements SearchGateway {
 
     private final UnifiedJedis unifiedJedis;
-    private final LLMGateway llmGateway;
-
-    // ========== 向量检索相关方法 ==========
-
-    @Override
-    public Map<Long, Double> searchTopK(String index, String keyword, int k, Long kbId, Long contentId) {
-        // 使用LLM Gateway生成查询向量
-        List<float[]> queryVectors = llmGateway.generateEmbeddings(Collections.singletonList(keyword));
-        if (queryVectors.isEmpty()) {
-            log.warn("无法为关键词生成向量: {}", keyword);
-            return new HashMap<>();
-        }
-
-        // Query for KNN, assuming 'embedding' is the vector field name. 如果kbId不为空或者contentId不为空，则添加过滤条件
-        String queryString = "*=>[KNN $K @embedding $BLOB AS distance]";
-        if (kbId != null || contentId != null) {
-            if (kbId != null) {
-                queryString += " AND kbId:" + kbId.toString();
-            }
-            if (contentId != null) {
-                queryString += " AND contentId:" + contentId.toString();
-            }
-        }
-        Query query = new Query(queryString)
-                .returnFields("embedding", "distance", "score")
-                .addParam("K", String.valueOf(k))
-                .addParam("BLOB", RedisearchUtils.floatArrayToByteArray(queryVectors.get(0)))
-                .setSortBy("distance", true)
-                .dialect(2);
-
-        Map<Long, Double> resultMap = new HashMap<>();
-        try {
-            log.info("queryString: {}", JSONObject.toJSONString(query));
-            SearchResult searchResult = unifiedJedis.ftSearch(index, query);
-            if (searchResult.getTotalResults() > 0) {
-                for (Document doc : searchResult.getDocuments()) {
-                    try {
-                        String docId = doc.getId();
-                        Long id = Long.parseLong(docId.substring(index.length() + 1));
-                        // The score is returned in the 'score' field due to "AS score" score -> 527579744
-                        doc.getProperties().forEach(entry -> {
-                            if ("distance".equals(entry.getKey())) {
-                                resultMap.put(id, Double.parseDouble((String) entry.getValue()));
-                            }
-                        });
-                    } catch (Exception e) {
-                        log.warn("解析向量搜索结果失败 for docId: {}", doc.getId(), e);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("向量搜索失败: 索引={}", index, e);
-            return new HashMap<>();
-        }
-        return resultMap;
-    }
-
-    // ========== 全文检索相关方法 ==========
-
-    @Override
-    public Map<Long, Double> searchByKeyword(String index, String keyword, int k) {
-        // 构建模糊查询语句
-        String queryString = "*" + escapeQueryChars(keyword) + "*";
-        Query query = new Query(queryString)
-                .limit(0, k)
-                .returnFields("score");
-
-        Map<Long, Double> resultMap = new HashMap<>();
-        try {
-            SearchResult searchResult = unifiedJedis.ftSearch(index, query);
-            if (searchResult.getTotalResults() > 0) {
-                for (Document doc : searchResult.getDocuments()) {
-                    try {
-                        String docId = doc.getId();
-                        Long id = Long.parseLong(docId.substring(index.length() + 1));
-                        resultMap.put(id, doc.getScore());
-                    } catch (Exception e) {
-                        log.warn("解析搜索结果失败 for docId: {}", doc.getId(), e);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("关键词搜索失败: 索引={}, 关键词={}", index, keyword, e);
-            return new HashMap<>();
-        }
-        return resultMap;
-    }
-
     @Override
     public boolean indexDocument(String index, Long id, Object source) {
         try {
@@ -130,7 +33,6 @@ public class JedisSearchGatewayImpl implements SearchGateway {
 
             // 使用Jedis存储为哈希 (RediSearch会根据索引配置自动索引)
             unifiedJedis.hset(documentKey, documentMap);
-
             log.info("成功索引文档: index={}, id={}", index, id);
             return true;
         } catch (Exception e) {

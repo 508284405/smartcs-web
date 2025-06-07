@@ -17,7 +17,7 @@ import static com.leyue.smartcs.domain.common.Constants.EMBEDDING_INDEX_REDISEAR
 /**
  * 应用启动时初始化 RediSearch 索引
  */
-@Component
+// @Component
 @RequiredArgsConstructor
 @Slf4j
 public class RediSearchIndexInitializer implements CommandLineRunner {

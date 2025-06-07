@@ -1,11 +1,17 @@
 package com.leyue.smartcs.knowledge.executor.query;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
@@ -15,6 +21,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
 import com.leyue.smartcs.dto.knowledge.FaqSearchQry;
+import com.leyue.smartcs.dto.knowledge.SearchResultsDTO;
 import com.leyue.smartcs.knowledge.convertor.FaqConvertor;
 
 import lombok.RequiredArgsConstructor;
@@ -26,6 +33,7 @@ public class FaqSearchQryExe {
     private final FaqGateway faqGateway;
     private final SearchGateway searchGateway;
     private final FaqConvertor faqConvertor;
+    private final VectorStore vectorStore;
 
     public MultiResponse<FaqDTO> execute(FaqSearchQry qry) {
         return searchFaq(qry.getKeyword(), qry.getK());
@@ -40,38 +48,35 @@ public class FaqSearchQryExe {
      */
     private MultiResponse<FaqDTO> searchFaq(String keyword, int k) {
         // 调用全文检索查询FAQ
-        Map<Long, Double> faqSearchResults = searchGateway.searchTopK(Constants.FAQ_INDEX_REDISEARCH, keyword, k, null,
-                null);
-
-        // 没有结果则返回null
-        if (faqSearchResults == null || faqSearchResults.isEmpty()) {
-            return MultiResponse.of(new ArrayList<>(0));
+        SearchRequest searchRequest = SearchRequest.builder()
+                .query(keyword)
+                .topK(k)
+                .build();
+        List<Document> documents = vectorStore.similaritySearch(searchRequest);
+        if(documents==null||documents.isEmpty()){
+            return MultiResponse.of(Collections.emptyList());
         }
-        // 批量获取FAQ详情
-        List<Faq> faqs = faqGateway.findByIds(faqSearchResults.keySet());
+        List<SearchResultsDTO> searchResults = documents.stream()
+                .map(document -> SearchResultsDTO.builder()
+                        .type("FAQ")
+                        .chunkId(Long.parseLong(document.getId()))
+                        .chunk(document.getText())
+                        .score(document.getScore())
+                        .build())
+                .collect(Collectors.toList());
+        Set<Long> faqIds = searchResults.stream().map(SearchResultsDTO::getChunkId).collect(Collectors.toSet());
+        List<Faq> faqs = faqGateway.findByIds(faqIds);
         Map<Long, Faq> faqMap = faqs.stream().collect(Collectors.toMap(Faq::getId, Function.identity()));
-
-        // 查询详情
-        List<FaqDTO> faqResults = new ArrayList<>();
-        for (Map.Entry<Long, Double> entry : faqSearchResults.entrySet()) {
-            Long faqId = entry.getKey();
-            Faq faq = faqMap.get(faqId);
-            if (faq == null) {
-                continue;
+        List<FaqDTO> faqDTOs = searchResults.stream().map(result -> {
+            Faq faq = faqMap.get(result.getChunkId());
+            if(faq!=null){
+                FaqDTO faqDTO = faqConvertor.toDTO(faq);
+                faqDTO.setScore(result.getScore());
+                return faqDTO;
             }
-            FaqDTO faqDTO = faqConvertor.toDTO(faq);
-            faqDTO.setScore(entry.getValue());
-            faqResults.add(faqDTO);
-
-            // 更新命中次数
-            faqGateway.incrementHitCount(faqId);
-        }
-
-        if (faqResults.isEmpty()) {
-            return MultiResponse.of(new ArrayList<>(0));
-        }
-
-        return MultiResponse.of(faqResults);
+            return null;
+        }).collect(Collectors.toList());
+        return MultiResponse.of(faqDTOs);
     }
 
 }

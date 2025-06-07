@@ -1,5 +1,7 @@
 package com.leyue.smartcs.dto.bot;
 
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,35 +19,18 @@ public class BotChatRequest {
     /**
      * 会话ID
      */
+    @NotEmpty(message = "会话ID不能为空")
     private String sessionId;
+
+    /**
+     * 机器人ID
+     */
+    @NotNull(message = "机器人ID不能为空")
+    private Long botId;
 
     /**
      * 用户问题
      */
+    @NotEmpty(message = "问题不能为空")
     private String question;
-
-    /**
-     * 是否包含历史消息
-     */
-    private Boolean includeHistory = true;
-
-    /**
-     * 模型 可选
-     */
-    private String model;
-
-    /**
-     * 温度参数（可选）
-     */
-    private Float temperature;
-
-    /**
-     * 最大输出token数（可选）
-     */
-    private Integer maxTokens;
-
-    /**
-     * 知识库检索数量（可选）
-     */
-    private Integer topK;
-} 
+}
