@@ -10,7 +10,7 @@ public class MyCustomDbDialect implements JdbcChatMemoryRepositoryDialect {
 
     @Override
     public String getInsertMessageSql() {
-        return "INSERT INTO t_cs_message (session_id, content, chat_type, created_at) VALUES (?, ?, ?, ?)";
+        return "INSERT INTO t_cs_message (session_id, msg_id, content, chat_type, timestamp) VALUES (?, UUID(), ?, ?, ?)";
     }
 
     /**
@@ -20,7 +20,7 @@ public class MyCustomDbDialect implements JdbcChatMemoryRepositoryDialect {
      */
     @Override
     public String getSelectMessagesSql() {
-        return "SELECT content, chat_type FROM t_cs_message WHERE session_id = ? order by created_at";
+        return "SELECT content, chat_type FROM t_cs_message WHERE session_id = ? order by timestamp";
     }
 
     /**

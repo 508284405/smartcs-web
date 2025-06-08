@@ -38,7 +38,7 @@ public interface CsMessageMapper extends BaseMapper<CsMessageDO> {
      * @param limit 限制数量
      * @return 消息列表
      */
-    List<CsMessageDO> findMessagesBySessionIdBeforeMessageId(@Param("sessionId") Long sessionId, @Param("beforeMessageId") Long beforeMessageId, @Param("limit") int limit);
+    List<CsMessageDO> findMessagesBySessionIdBeforeMessageId(@Param("sessionId") Long sessionId, @Param("beforeMessageId") String beforeMessageId, @Param("limit") int limit);
     
     /**
      * 根据会话ID查询消息列表（分页）

@@ -12,6 +12,7 @@ import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -38,7 +39,7 @@ public class LLMGatewayImpl implements LLMGateway {
     private final VectorStore vectorStore;
 
     @Override
-    public String generateAnswer(String sessionId, String question, Long botId) {
+    public String generateAnswer(String sessionId, String question, Long botId, boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
         PromptTemplate promptTemplate = getPromptTemplate(botProfile);
         ChatClient chatClient = buildChatClient(botProfile);
@@ -48,7 +49,7 @@ public class LLMGatewayImpl implements LLMGateway {
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM生成
-            return buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions)
+            return buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions, isRag)
                     .call()
                     .content();
         } catch (Exception e) {
@@ -58,7 +59,7 @@ public class LLMGatewayImpl implements LLMGateway {
     }
 
     @Override
-    public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer) {
+    public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer, boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
         PromptTemplate promptTemplate = getPromptTemplate(botProfile);
         ChatClient chatClient = buildChatClient(botProfile);
@@ -68,7 +69,7 @@ public class LLMGatewayImpl implements LLMGateway {
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM流式生成
-            buildBasePrompt(chatClient, sessionId, botId,question, promptTemplate, chatOptions)
+            buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions, isRag)
                     .stream()
                     .content()
                     .doOnNext(content -> {
@@ -135,20 +136,23 @@ public class LLMGatewayImpl implements LLMGateway {
      * @param chatOptions    ChatOptions
      * @return ChatClientRequestSpec
      */
-    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, Long botId, String question,
-                                                             PromptTemplate promptTemplate, ChatOptions chatOptions) {
-        return chatClient.prompt()
+    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, Long botId,
+            String question, PromptTemplate promptTemplate, ChatOptions chatOptions, boolean isRag) {
+        ChatClientRequestSpec requestSpec = chatClient.prompt()
                 .system(promptTemplate.getTemplateContent())
                 .user(question)
                 .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId)) // 会话ID
                 .advisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
-                .advisors(a -> a.param("botId", botId))
-                .advisors(QuestionAnswerAdvisor.builder(vectorStore)
-                        .searchRequest(SearchRequest.builder()
-                                .similarityThreshold(0.8d)
-                                .topK(6).build())
-                        .build()) // RAG
-                .options(chatOptions);
+                .advisors(a -> a.param("botId", botId));
+        if (isRag) {
+            requestSpec.advisors(QuestionAnswerAdvisor.builder(vectorStore)
+                    .searchRequest(SearchRequest.builder()
+                            .similarityThreshold(0.8d)
+                            .topK(6)
+                            .build())
+                    .build());
+        }
+        return requestSpec.options(chatOptions);
     }
 
     /**

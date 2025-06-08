@@ -282,4 +282,11 @@ public class SessionGatewayImpl implements SessionGateway {
                 .eq(CsSessionDO::getSessionId, sessionId)
                 .set(CsSessionDO::getSessionState, sessionState.getCode()));
     }
+
+    @Override
+    public void updateSessionAgent(Long sessionId, Long targetBotId) {
+        sessionMapper.update(new LambdaUpdateWrapper<CsSessionDO>()
+                .eq(CsSessionDO::getSessionId, sessionId)
+                .set(CsSessionDO::getAgentId, targetBotId));
+    }
 }

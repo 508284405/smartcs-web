@@ -16,7 +16,7 @@ public class GetMessagesQry {
     /**
      * 消息ID，获取该消息之前的历史，为空则获取最新消息
      */
-    private final Long beforeMessageId;
+    private final String beforeMessageId;
 
     /**
      * 限制数量

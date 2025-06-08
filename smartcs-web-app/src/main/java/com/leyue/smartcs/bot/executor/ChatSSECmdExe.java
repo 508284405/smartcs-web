@@ -1,46 +1,19 @@
 package com.leyue.smartcs.bot.executor;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.ai.vectorstore.filter.Filter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
-import com.leyue.smartcs.config.context.UserContext;
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.PromptTemplate;
-import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.Session;
-import com.leyue.smartcs.domain.chat.domainservice.MessageDomainService;
 import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
-import com.leyue.smartcs.domain.chat.enums.MessageType;
-import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import com.leyue.smartcs.domain.chat.enums.SessionState;
-import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.Chunk;
-import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
 import com.leyue.smartcs.dto.bot.SSEMessage;
-import com.leyue.smartcs.dto.knowledge.SearchResultsDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,17 +26,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ChatSSECmdExe {
 
-    private final MessageDomainService messageDomainService;
     private final LLMGateway llmGateway;
-    private final PromptTemplateGateway promptTemplateGateway;
-    private final SearchGateway searchGateway;
-    private final VectorStore vectorStore;
-    private final ChunkGateway chunkGateway;
-    private final BotProfileGateway botProfileGateway;
     private final SessionDomainService sessionDomainService;
-
-    // 历史消息数量限制
-    private static final int MAX_HISTORY_MESSAGES = 50;
 
     /**
      * 执行SSE聊天命令
@@ -94,30 +58,25 @@ public class ChatSSECmdExe {
                         : request.getQuestion());
             }
 
+            // 对比接收人ID，不同则切换targetId
+            if (session.getAgentId() != request.getTargetBotId()) {
+                sessionDomainService.updateSessionAgent(sessionId, request.getTargetBotId());
+            }
+
             // 发送进度消息：开始处理
             sendProgressMessage(emitter, sessionId, "开始处理您的问题...");
 
-            // // 从chat message服务获取历史消息
-            // List<Message> historyMessages = new ArrayList<>();
-            // if (Boolean.TRUE.equals(request.getIncludeHistory())) {
-            //     historyMessages = messageDomainService.getSessionMessagesWithPagination(sessionId, 0,
-            //             MAX_HISTORY_MESSAGES);
-            // }
-
-            // // 存储用户问题到chat message服务
-            // messageDomainService.sendMessage(
-            //         sessionId,
-            //         UserContext.getCurrentUser().getId(),
-            //         SenderRole.USER,
-            //         MessageType.TEXT,
-            //         request.getQuestion(),
-            //         null);
-
-            // 发送进度消息：检索知识
+                // 发送进度消息：检索知识
             sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
-
+            
             // 发送进度消息：调用AI
             sendProgressMessage(emitter, sessionId, "正在调用AI生成回答...");
+
+            // 发送进度消息：生成回答
+            sendProgressMessage(emitter, sessionId, "正在生成回答...");
+
+            // 根据是否选择kb或者内容id，决定是否使用RAG
+            boolean isRag = request.getKnowledgeBaseId() != null || request.getContentId() != null;
 
             // 使用流式生成
             StringBuilder fullAnswer = new StringBuilder();
@@ -137,16 +96,7 @@ public class ChatSSECmdExe {
                     log.error("发送流式数据失败: {}", e.getMessage());
                     throw new RuntimeException(e);
                 }
-            });
-
-            // // 存储消息
-            // messageDomainService.sendMessage(
-            //         sessionId,
-            //         request.getTargetBotId(),
-            //         SenderRole.BOT,
-            //         MessageType.TEXT,
-            //         fullAnswer.toString(),
-            //         null);
+            }, isRag);
 
             // 构建最终响应
             BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(),

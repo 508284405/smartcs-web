@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ChatCmdExe {
 
     private final LLMGateway llmGateway;
+
     /**
      * 执行聊天命令
      *
@@ -50,7 +51,7 @@ public class ChatCmdExe {
                 sessionId = sessionIdLong.toString();
             }
 
-            String answer = llmGateway.generateAnswer(sessionId, request.getQuestion(), request.getBotId());
+            String answer = llmGateway.generateAnswer(sessionId, request.getQuestion(), request.getBotId(), false);
             return SingleResponse.of(answer);
 
         } catch (Exception e) {
@@ -58,4 +59,4 @@ public class ChatCmdExe {
             throw new BizException("聊天命令执行失败: " + e.getMessage());
         }
     }
-} 
+}

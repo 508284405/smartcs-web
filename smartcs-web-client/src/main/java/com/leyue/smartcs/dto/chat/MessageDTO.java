@@ -1,7 +1,8 @@
 package com.leyue.smartcs.dto.chat;
 
+import java.util.Date;
+
 import lombok.Data;
-import java.util.List;
 
 /**
  * 消息DTO
@@ -11,32 +12,12 @@ public class MessageDTO {
     /**
      * 消息ID
      */
-    private Long msgId;
+    private String msgId;
     
     /**
      * 会话ID
      */
     private Long sessionId;
-    
-    /**
-     * 发送者ID
-     */
-    private Long senderId;
-    
-    /**
-     * 发送者昵称
-     */
-    private String senderName;
-    
-    /**
-     * 发送者头像
-     */
-    private String senderAvatar;
-    
-    /**
-     * 发送者角色 0=用户 1=客服 2=机器人
-     */
-    private Integer senderRole;
     
     /**
      * 消息类型 0=text 1=image 2=order_card 3=system
@@ -47,14 +28,19 @@ public class MessageDTO {
      * 消息内容
      */
     private String content;
-    
-    /**
-     * @提及的用户列表
-     */
-    private List<Long> atList;
-    
+
     /**
      * 创建时间
      */
     private Long createdAt;
+
+    /**
+     * 聊天类型
+     */
+    private String chatType;
+
+    /**
+     * 时间戳
+     */
+    private Date timestamp;
 }

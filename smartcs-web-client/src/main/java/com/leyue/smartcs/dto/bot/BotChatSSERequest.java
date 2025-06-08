@@ -31,6 +31,7 @@ public class BotChatSSERequest {
      * 是否包含历史消息
      */
     @NotNull(message = "是否包含历史消息不能为空")
+    @Builder.Default
     private Boolean includeHistory = true;
 
     /**

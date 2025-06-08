@@ -12,8 +12,9 @@ public interface LLMGateway {
      * @param prompt 提示语
      * @param options 选项参数
      * @return 生成的回答
+     * @param isRag 是否使用RAG
      */
-    String generateAnswer(String sessionId, String question, Long botId);
+    String generateAnswer(String sessionId, String question, Long botId, boolean isRag);
     
     /**
      * 流式生成回答
@@ -21,6 +22,7 @@ public interface LLMGateway {
      * @param question 问题
      * @param botId 机器人ID
      * @param chunkConsumer 流式数据消费者
+     * @param isRag 是否使用RAG
      */
-    void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer);
+    void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer, boolean isRag);
 } 

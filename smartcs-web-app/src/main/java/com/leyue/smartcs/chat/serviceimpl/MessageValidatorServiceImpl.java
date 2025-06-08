@@ -29,10 +29,6 @@ public class MessageValidatorServiceImpl implements MessageValidatorService {
             throw new IllegalArgumentException("会话ID不能为空");
         }
 
-        if (!StringUtils.hasText(message.getFromUserId())) {
-            throw new IllegalArgumentException("发送者ID不能为空");
-        }
-
         if (!StringUtils.hasText(message.getContent())) {
             throw new IllegalArgumentException("消息内容不能为空");
         }
@@ -55,22 +51,22 @@ public class MessageValidatorServiceImpl implements MessageValidatorService {
         }
 
         // 验证内容类型
-        if (!StringUtils.hasText(message.getContentType())) {
+        if (!StringUtils.hasText(message.getMessageType())) {
             // 默认设置为文本类型
-            message.setContentType("TEXT");
+            message.setMessageType("TEXT");
         } else {
             // 验证内容类型是否有效
-            String contentType = message.getContentType().toUpperCase();
+            String contentType = message.getMessageType().toUpperCase();
             if (!contentType.equals("TEXT") &&
                     !contentType.equals("IMAGE") &&
                     !contentType.equals("FILE") &&
                     !contentType.equals("AUDIO") &&
                     !contentType.equals("VIDEO")) {
-                throw new IllegalArgumentException("无效的内容类型: " + message.getContentType());
+                throw new IllegalArgumentException("无效的内容类型: " + message.getMessageType());
             }
 
             // 设置标准化的内容类型
-            message.setContentType(contentType);
+            message.setMessageType(contentType);
         }
 
         log.debug("消息验证通过: {}", message);

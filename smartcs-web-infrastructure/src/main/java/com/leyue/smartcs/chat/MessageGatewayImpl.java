@@ -23,15 +23,15 @@ public class MessageGatewayImpl implements MessageGateway {
     private final MessageConverter messageConverter;
     
     @Override
-    public Long sendMessage(Message message) {
+    public String sendMessage(Message message) {
         CsMessageDO csMessageDO = messageConverter.toDataObject(message);
         messageMapper.insert(csMessageDO);
         return csMessageDO.getMsgId();
     }
     
     @Override
-    public Optional<Message> findById(Long msgId) {
-        CsMessageDO csMessageDO = messageMapper.selectById(msgId);
+    public Optional<Message> findById(String msgId) {
+        CsMessageDO csMessageDO = messageMapper.selectByMessageId(msgId);
         return Optional.ofNullable(messageConverter.toDomain(csMessageDO));
     }
     
@@ -44,7 +44,7 @@ public class MessageGatewayImpl implements MessageGateway {
     }
     
     @Override
-    public List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, Long beforeMessageId, int limit) {
+    public List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, String beforeMessageId, int limit) {
         List<CsMessageDO> csMessageDOList = messageMapper.findMessagesBySessionIdBeforeMessageId(sessionId, beforeMessageId, limit);
         return csMessageDOList.stream()
                 .map(messageConverter::toDomain)

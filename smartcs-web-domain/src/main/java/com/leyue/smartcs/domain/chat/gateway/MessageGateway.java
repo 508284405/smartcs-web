@@ -14,7 +14,7 @@ public interface MessageGateway {
      * @param message 消息对象
      * @return 消息ID
      */
-    Long sendMessage(Message message);
+    String sendMessage(Message message);
     
     /**
      * 根据ID查询消息
@@ -22,7 +22,7 @@ public interface MessageGateway {
      * @param msgId 消息ID
      * @return 消息对象
      */
-    Optional<Message> findById(Long msgId);
+    Optional<Message> findById(String msgId);
     
     /**
      * 根据会话ID查询消息列表
@@ -41,7 +41,7 @@ public interface MessageGateway {
      * @param limit 限制数量
      * @return 消息列表
      */
-    List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, Long beforeMessageId, int limit);
+    List<Message> findMessagesBySessionIdBeforeMessageId(Long sessionId, String beforeMessageId, int limit);
     
     /**
      * 根据会话ID分页查询消息

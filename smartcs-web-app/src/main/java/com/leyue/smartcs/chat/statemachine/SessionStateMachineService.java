@@ -1,21 +1,22 @@
 package com.leyue.smartcs.chat.statemachine;
 
-import com.leyue.smartcs.domain.chat.Session;
-import com.leyue.smartcs.domain.chat.enums.SessionEvent;
-import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
-import com.leyue.smartcs.domain.chat.enums.SessionState;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
 import org.springframework.statemachine.config.StateMachineFactory;
 import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 
+import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
+import com.leyue.smartcs.domain.chat.Session;
+import com.leyue.smartcs.domain.chat.enums.SessionEvent;
+import com.leyue.smartcs.domain.chat.enums.SessionState;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 会话状态机服务

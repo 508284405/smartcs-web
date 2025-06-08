@@ -191,4 +191,8 @@ public class SessionDomainService {
     public Session findById(Long sessionId) {
         return sessionGateway.findBySessionId(sessionId).orElse(null);
     }
+
+    public void updateSessionAgent(Long sessionId, Long targetBotId) {
+        sessionGateway.updateSessionAgent(sessionId, targetBotId);
+    }
 }

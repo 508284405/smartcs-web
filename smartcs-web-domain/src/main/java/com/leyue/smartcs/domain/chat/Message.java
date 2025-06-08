@@ -1,9 +1,10 @@
 package com.leyue.smartcs.domain.chat;
 
+import java.util.Date;
+
 import com.leyue.smartcs.domain.chat.enums.MessageType;
-import com.leyue.smartcs.domain.chat.enums.SenderRole;
+
 import lombok.Data;
-import java.util.List;
 
 /**
  * 消息领域模型
@@ -13,22 +14,13 @@ public class Message {
     /**
      * 消息ID
      */
-    private Long msgId;
+    private String msgId;
     
     /**
      * 会话ID
      */
     private Long sessionId;
     
-    /**
-     * 发送者ID
-     */
-    private Long senderId;
-    
-    /**
-     * 发送者角色
-     */
-    private SenderRole senderRole;
     
     /**
      * 消息类型
@@ -39,16 +31,22 @@ public class Message {
      * 消息内容
      */
     private String content;
-    
+
     /**
-     * @提及的用户列表
+     * 聊天类型
      */
-    private List<Long> atList;
-    
+    private String chatType;
+
     /**
      * 创建时间
      */
     private Long createdAt;
+
+    /**
+     * 时间戳
+     */
+    private Date timestamp;
+
     
     /**
      * 检查是否为文本消息
@@ -62,26 +60,5 @@ public class Message {
      */
     public boolean isImageMessage() {
         return MessageType.IMAGE.equals(this.msgType);
-    }
-    
-    /**
-     * 检查消息是否来自客服
-     */
-    public boolean isFromAgent() {
-        return SenderRole.AGENT.equals(this.senderRole);
-    }
-    
-    /**
-     * 检查消息是否来自用户
-     */
-    public boolean isFromUser() {
-        return SenderRole.USER.equals(this.senderRole);
-    }
-    
-    /**
-     * 检查消息是否来自机器人
-     */
-    public boolean isFromBot() {
-        return SenderRole.BOT.equals(this.senderRole);
     }
 }

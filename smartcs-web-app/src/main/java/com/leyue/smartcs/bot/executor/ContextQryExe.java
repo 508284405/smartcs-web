@@ -113,12 +113,9 @@ public class ContextQryExe {
         Long lastUpdatedAt = System.currentTimeMillis();
         
         for (MessageDTO message : messages) {
-            String role = message.getSenderRole() == 0 ? "user" : 
-                         message.getSenderRole() == 2 ? "assistant" : "agent";
-            
             BotContextDTO.Message messageDTO = BotContextDTO.Message.builder()
-                    .id(message.getMsgId().toString())
-                    .role(role)
+                    .id(message.getMsgId())
+                    .role(message.getChatType())
                     .content(message.getContent())
                     .createdAt(message.getCreatedAt())
                     .build();

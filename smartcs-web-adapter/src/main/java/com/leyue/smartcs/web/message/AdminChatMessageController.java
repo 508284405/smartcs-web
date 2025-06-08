@@ -26,20 +26,20 @@ public class AdminChatMessageController {
     private final MessageService messageService;
     private final ChatMessageConvertor messageConvertor;
 
-    /**
-     * 发送消息
-     *
-     * @param request 发送消息请求
-     * @return 消息视图对象
-     */
-    @PostMapping
-    public SingleResponse<MessageVO> sendMessage(@RequestBody SendMessageRequest request) {
-        SendMessageCmd cmd = new SendMessageCmd();
-        messageConvertor.copyToCmd(request, cmd);
+    // /**
+    //  * 发送消息
+    //  *
+    //  * @param request 发送消息请求
+    //  * @return 消息视图对象
+    //  */
+    // @PostMapping
+    // public SingleResponse<MessageVO> sendMessage(@RequestBody SendMessageRequest request) {
+    //     SendMessageCmd cmd = new SendMessageCmd();
+    //     messageConvertor.copyToCmd(request, cmd);
 
-        MessageDTO messageDTO = messageService.sendMessage(cmd);
-        return SingleResponse.of(messageConvertor.toVO(messageDTO));
-    }
+    //     MessageDTO messageDTO = messageService.sendMessage(cmd);
+    //     return SingleResponse.of(messageConvertor.toVO(messageDTO));
+    // }
 
     /**
      * 获取会话消息历史

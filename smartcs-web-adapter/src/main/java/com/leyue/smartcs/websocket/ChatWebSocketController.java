@@ -48,16 +48,16 @@ public class ChatWebSocketController {
         }
 
         // 设置发送者ID和时间
-        chatMessage.setFromUserId(String.valueOf(userId));
+//        chatMessage.setFromUserId(String.valueOf(userId));
         chatMessage.setCreateTime(System.currentTimeMillis());
 
         // 检查用户类型，从会话属性中获取
-        if (headerAccessor.getSessionAttributes() != null) {
-            Object userType = headerAccessor.getSessionAttributes().get("userType");
-            if (userType != null) {
-                chatMessage.setFromUserType(userType.toString());
-            }
-        }
+//        if (headerAccessor.getSessionAttributes() != null) {
+//            Object userType = headerAccessor.getSessionAttributes().get("userType");
+//            if (userType != null) {
+//                chatMessage.setFromUserType(userType.toString());
+//            }
+//        }
 
         // 验证消息
         AckMessage ackMessage = new AckMessage();

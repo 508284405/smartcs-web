@@ -132,4 +132,6 @@ public interface SessionGateway {
      * @param sessionState 会话状态
      */
     void updateSessionStatus(Long sessionId, SessionState sessionState);
+
+    void updateSessionAgent(Long sessionId, Long targetBotId);
 }

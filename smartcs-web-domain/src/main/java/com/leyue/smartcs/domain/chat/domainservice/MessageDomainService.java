@@ -1,19 +1,21 @@
 package com.leyue.smartcs.domain.chat.domainservice;
 
-import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.domain.chat.Message;
-import com.leyue.smartcs.domain.chat.enums.MessageType;
-import com.leyue.smartcs.domain.chat.enums.SenderRole;
-import com.leyue.smartcs.domain.chat.Session;
-import com.leyue.smartcs.domain.chat.gateway.MessageGateway;
-import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
-import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.domain.chat.Message;
+import com.leyue.smartcs.domain.chat.Session;
+import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.SenderRole;
+import com.leyue.smartcs.domain.chat.gateway.MessageGateway;
+import com.leyue.smartcs.domain.chat.gateway.SessionGateway;
+import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 消息领域服务
@@ -66,17 +68,14 @@ public class MessageDomainService {
         
         // 创建消息
         Message message = new Message();
-        message.setMsgId(idGeneratorGateway.generateId());
+        message.setMsgId(idGeneratorGateway.generateIdStr());
         message.setSessionId(sessionId);
-        message.setSenderId(senderId);
-        message.setSenderRole(senderRole);
         message.setMsgType(messageType);
         message.setContent(content);
-        message.setAtList(atList);
         message.setCreatedAt(System.currentTimeMillis());
         
         // 发送消息
-        Long msgId = messageGateway.sendMessage(message);
+        String msgId = messageGateway.sendMessage(message);
         message.setMsgId(msgId);
         
         // 更新会话最后消息时间
@@ -93,7 +92,7 @@ public class MessageDomainService {
      * @param limit 限制数量
      * @return 消息列表
      */
-    public List<Message> getSessionMessages(Long sessionId, Long beforeMessageId, int limit) {
+    public List<Message> getSessionMessages(Long sessionId, String beforeMessageId, int limit) {
         // 检查会话是否存在
         Optional<Session> sessionOpt = sessionGateway.findBySessionId(sessionId);
         if (sessionOpt.isEmpty()) {

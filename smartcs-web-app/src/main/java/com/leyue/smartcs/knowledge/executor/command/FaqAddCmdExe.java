@@ -1,22 +1,23 @@
 package com.leyue.smartcs.knowledge.executor.command;
 
+import static com.leyue.smartcs.domain.common.Constants.*;
+
+import java.util.Optional;
+
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
+import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.dto.knowledge.FaqAddCmd;
 import com.leyue.smartcs.dto.knowledge.FaqDTO;
+import com.leyue.smartcs.knowledge.convertor.FaqConvertor;
+
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import static com.leyue.smartcs.domain.common.Constants.FAQ_INDEX_REDISEARCH;
 
 
 /**
@@ -29,6 +30,7 @@ public class FaqAddCmdExe {
     
     private final FaqGateway faqGateway;
     private final SearchGateway searchGateway;
+    private final FaqConvertor faqConvertor;
     
 
     @PostConstruct
@@ -90,48 +92,11 @@ public class FaqAddCmdExe {
             }
         } catch (Exception e) {
             log.error("FAQ搜索索引同步异常: {}", savedFaq.getId(), e);
-            return SingleResponse.of(convertToDTO(savedFaq));
+            return SingleResponse.of(faqConvertor.toDTO(savedFaq));
         }
         
         // 转换并返回结果
-        FaqDTO faqDTO = convertToDTO(savedFaq);
+        FaqDTO faqDTO = faqConvertor.toDTO(savedFaq);
         return SingleResponse.of(faqDTO);
     }
-    
-    /**
-     * 转换为DTO
-     * @param faq FAQ实体
-     * @return FAQ DTO
-     */
-    private FaqDTO convertToDTO(Faq faq) {
-        if (faq == null) {
-            return null;
-        }
-        FaqDTO dto = new FaqDTO();
-        dto.setId(faq.getId());
-        dto.setQuestion(faq.getQuestion());
-        dto.setAnswer(faq.getAnswer());
-        dto.setHitCount(faq.getHitCount());
-        dto.setVersion(faq.getVersion());
-        dto.setCreatedAt(faq.getCreatedAt());
-        dto.setUpdatedAt(faq.getUpdatedAt());
-        return dto;
-    }
-
-    /**
-     * 转换为搜索文档
-     * @param faq FAQ实体
-     * @return 搜索文档
-     */
-    private Map<Object, Object> convertToSearchDocument(Faq faq) {
-        Map<Object, Object> document = new HashMap<>();
-        document.put("question", faq.getQuestion());
-        document.put("answer", faq.getAnswer());
-        document.put("enabled", faq.getEnabled());
-        document.put("hitCount", faq.getHitCount());
-        document.put("version", faq.getVersion());
-        document.put("createdAt", faq.getCreatedAt());
-        document.put("updatedAt", faq.getUpdatedAt());
-        return document;
-    }
-} 
+}
