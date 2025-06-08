@@ -33,11 +33,6 @@ public class ChunkUpdateCmdExe {
             if (existingChunk == null) {
                 throw new BizException("CHUNK_NOT_FOUND", "切片不存在: " + cmd.getId());
             }
-            
-            // 更新切片信息
-            if (cmd.getChunkIndex() != null) {
-                existingChunk.setChunkIndex(cmd.getChunkIndex());
-            }
             if (cmd.getContent() != null) {
                 existingChunk.setContent(cmd.getContent());
             }

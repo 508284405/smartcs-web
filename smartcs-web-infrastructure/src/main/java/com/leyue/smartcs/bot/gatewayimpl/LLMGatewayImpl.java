@@ -1,8 +1,16 @@
 package com.leyue.smartcs.bot.gatewayimpl;
 
-import java.util.Optional;
-import java.util.function.Consumer;
-
+import com.alibaba.cola.exception.BizException;
+import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.config.ModelBeanManagerService;
+import com.leyue.smartcs.config.context.UserContext;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.PromptTemplate;
+import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
+import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
+import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
@@ -13,17 +21,8 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Component;
 
-import com.alibaba.cola.exception.BizException;
-import com.alibaba.fastjson2.JSONObject;
-import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.PromptTemplate;
-import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
-import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
-import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * LLM网关实现
@@ -49,7 +48,7 @@ public class LLMGatewayImpl implements LLMGateway {
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM生成
-            return buildBasePrompt(chatClient, sessionId, question, promptTemplate, chatOptions)
+            return buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions)
                     .call()
                     .content();
         } catch (Exception e) {
@@ -69,7 +68,7 @@ public class LLMGatewayImpl implements LLMGateway {
             ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
 
             // 调用LLM流式生成
-            buildBasePrompt(chatClient, sessionId, question, promptTemplate, chatOptions)
+            buildBasePrompt(chatClient, sessionId, botId,question, promptTemplate, chatOptions)
                     .stream()
                     .content()
                     .doOnNext(content -> {
@@ -104,6 +103,7 @@ public class LLMGatewayImpl implements LLMGateway {
 
     /**
      * 获取Prompt模板
+     *
      * @param botProfile 机器人配置
      * @return Prompt模板
      */
@@ -114,6 +114,7 @@ public class LLMGatewayImpl implements LLMGateway {
 
     /**
      * 构建ChatClient
+     *
      * @param botProfile 机器人配置
      * @return ChatClient
      */
@@ -125,19 +126,23 @@ public class LLMGatewayImpl implements LLMGateway {
 
     /**
      * 构建基础Prompt
-     * @param chatClient ChatClient
-     * @param sessionId 会话ID
-     * @param question 问题
+     *
+     * @param chatClient     ChatClient
+     * @param sessionId      会话ID
+     * @param botId
+     * @param question       问题
      * @param promptTemplate Prompt模板
-     * @param chatOptions ChatOptions
+     * @param chatOptions    ChatOptions
      * @return ChatClientRequestSpec
      */
-    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, String question, 
-                                                            PromptTemplate promptTemplate, ChatOptions chatOptions) {
+    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, Long botId, String question,
+                                                             PromptTemplate promptTemplate, ChatOptions chatOptions) {
         return chatClient.prompt()
                 .system(promptTemplate.getTemplateContent())
                 .user(question)
-                .advisors(a -> a.param("session_id", sessionId)) // 会话ID
+                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId)) // 会话ID
+                .advisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
+                .advisors(a -> a.param("botId", botId))
                 .advisors(QuestionAnswerAdvisor.builder(vectorStore)
                         .searchRequest(SearchRequest.builder()
                                 .similarityThreshold(0.8d)
@@ -148,6 +153,7 @@ public class LLMGatewayImpl implements LLMGateway {
 
     /**
      * 构建ChatOptions
+     *
      * @param options 选项
      * @return ChatOptions
      */

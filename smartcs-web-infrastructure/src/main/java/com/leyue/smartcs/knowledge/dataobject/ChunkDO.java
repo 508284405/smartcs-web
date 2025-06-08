@@ -25,7 +25,7 @@ public class ChunkDO extends BaseDO {
      * 段落序号
      */
     @TableField("chunk_index")
-    private Integer chunkIndex;
+    private String chunkIndex;
     
     /**
      * 切片token数

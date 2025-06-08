@@ -28,13 +28,10 @@ public class ChunkCreateCmdExe {
      * @return 切片信息
      */
     public SingleResponse<ChunkDTO> execute(ChunkCreateCmd cmd) {
-        log.info("开始创建切片，内容ID: {}, 段落序号: {}", cmd.getContentId(), cmd.getChunkIndex());
-        
         try {
             // 构建切片领域对象
             Chunk chunk = Chunk.builder()
                     .contentId(cmd.getContentId())
-                    .chunkIndex(cmd.getChunkIndex())
                     .content(cmd.getContent())
                     .tokenSize(cmd.getTokenSize())
                     .metadata(cmd.getMetadata())

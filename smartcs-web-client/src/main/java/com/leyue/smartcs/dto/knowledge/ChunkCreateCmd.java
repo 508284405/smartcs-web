@@ -17,12 +17,6 @@ public class ChunkCreateCmd {
     private Long contentId;
     
     /**
-     * 段落序号
-     */
-    @NotNull(message = "段落序号不能为空")
-    private Integer chunkIndex;
-    
-    /**
      * 切片内容文本
      */
     @NotBlank(message = "切片内容不能为空")

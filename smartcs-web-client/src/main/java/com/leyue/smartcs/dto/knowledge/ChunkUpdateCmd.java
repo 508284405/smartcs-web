@@ -16,11 +16,6 @@ public class ChunkUpdateCmd {
     private Long id;
     
     /**
-     * 段落序号
-     */
-    private Integer chunkIndex;
-    
-    /**
      * 切片内容文本
      */
     private String content;

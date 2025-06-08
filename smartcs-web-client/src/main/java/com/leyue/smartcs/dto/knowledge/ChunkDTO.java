@@ -27,7 +27,7 @@ public class ChunkDTO {
     /**
      * 段落序号
      */
-    private Integer chunkIndex;
+    private String chunkIndex;
     
     /**
      * 切片内容文本

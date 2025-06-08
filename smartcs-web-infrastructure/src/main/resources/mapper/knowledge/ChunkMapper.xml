@@ -6,8 +6,8 @@
     <resultMap id="BaseResultMap" type="com.leyue.smartcs.knowledge.dataobject.ChunkDO">
         <id column="id" property="id" jdbcType="BIGINT"/>
         <result column="content_id" property="contentId" jdbcType="BIGINT"/>
-        <result column="chunk_index" property="chunkIndex" jdbcType="INTEGER"/>
-        <result column="text" property="text" jdbcType="LONGVARCHAR"/>
+        <result column="chunk_index" property="chunkIndex" jdbcType="VARCHAR"/>
+        <result column="content" property="content" jdbcType="LONGVARCHAR"/>
         <result column="token_size" property="tokenSize" jdbcType="INTEGER"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
         <result column="created_at" property="createdAt" jdbcType="BIGINT"/>
@@ -26,10 +26,10 @@
             keyProperty="id"
             parameterType="com.leyue.smartcs.knowledge.dataobject.ChunkDO"
             keyColumn="id">
-        insert into t_kb_chunk (content_id, chunk_index, text, token_size, created_by, created_at, updated_at)
+        insert into t_kb_chunk (content_id, chunk_index, content, token_size, created_by, created_at, updated_at)
         values
         <foreach collection="chunks" item="chunk" separator=",">
-            (#{chunk.contentId}, #{chunk.chunkIndex}, #{chunk.text}, #{chunk.tokenSize}, #{chunk.createdBy}, #{chunk.createdAt}, #{chunk.updatedAt})
+            (#{chunk.contentId}, #{chunk.chunkIndex}, #{chunk.content}, #{chunk.tokenSize}, #{chunk.createdBy}, #{chunk.createdAt}, #{chunk.updatedAt})
         </foreach>
     </insert>
 
@@ -40,25 +40,4 @@
             update t_kb_chunk set vector_id = #{chunk.vectorId} where id = #{chunk.id}
         </foreach>
     </update>
-
-    <!-- 根据内容ID查询切片列表 -->
-    <select id="selectByContentId" resultType="com.leyue.smartcs.knowledge.dataobject.ChunkDO">
-        SELECT id, content_id, chunk_index, content, token_size, metadata, 
-               create_time, update_time, create_by, update_by, is_deleted
-        FROM t_kb_chunk
-        WHERE content_id = #{contentId}
-          AND is_deleted = 0
-        ORDER BY chunk_index ASC
-    </select>
-
-    <!-- 根据关键词搜索切片 -->
-    <select id="selectByKeyword" resultType="com.leyue.smartcs.knowledge.dataobject.ChunkDO">
-        SELECT id, content_id, chunk_index, content, token_size, metadata, 
-               create_time, update_time, create_by, update_by, is_deleted
-        FROM t_kb_chunk
-        WHERE content LIKE CONCAT('%', #{keyword}, '%')
-          AND is_deleted = 0
-        ORDER BY chunk_index ASC
-    </select>
-
 </mapper>

@@ -103,7 +103,7 @@ public class ContentParsingCmdExe {
                 chunk.setContentId(contentId);
                 chunk.setContent(document.getText());
                 chunk.setMetadata(JSON.toJSONString(document.getMetadata()));
-                chunk.setChunkIndex(Integer.parseInt(document.getId()));
+                chunk.setChunkIndex(document.getId());
                 chunk.setCreateTime(System.currentTimeMillis());
                 chunk.setUpdateTime(System.currentTimeMillis());
                 return chunk;

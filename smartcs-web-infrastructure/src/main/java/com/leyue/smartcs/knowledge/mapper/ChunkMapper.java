@@ -25,18 +25,4 @@ public interface ChunkMapper extends BaseMapper<ChunkDO> {
      * @param chunks 切片列表
      */
     void updateBatchVectorId(@Param("chunks") List<ChunkDO> chunks);
-
-    /**
-     * 根据内容ID查询切片列表
-     * @param contentId 内容ID
-     * @return 切片列表
-     */
-    List<ChunkDO> selectByContentId(@Param("contentId") Long contentId);
-    
-    /**
-     * 根据关键词搜索切片
-     * @param keyword 关键词
-     * @return 切片列表
-     */
-    List<ChunkDO> selectByKeyword(@Param("keyword") String keyword);
 } 

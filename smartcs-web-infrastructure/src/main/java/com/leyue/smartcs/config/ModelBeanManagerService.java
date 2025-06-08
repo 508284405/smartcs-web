@@ -1,22 +1,27 @@
 package com.leyue.smartcs.config;
 
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
-import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.model.SimpleApiKey;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.openai.OpenAiChatOptions.Builder;
 import org.springframework.ai.openai.api.OpenAiApi;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Service;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
+import com.google.gson.JsonObject;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 模型Bean管理服务
@@ -26,12 +31,12 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Slf4j
 public class ModelBeanManagerService {
-    
+
     private final ApplicationContext applicationContext;
-    
+
     // 存储已创建的Bean名称，用于管理Bean生命周期
     private final Map<String, String> beanRegistry = new ConcurrentHashMap<>();
-    
+
     // 重启ModelBean
     public void restartModelBean(BotProfile botProfile) {
         destroyModelBean(botProfile);
@@ -40,22 +45,23 @@ public class ModelBeanManagerService {
 
     /**
      * 根据机器人配置创建对应的模型Bean
+     * 
      * @param botProfile 机器人配置
      * @return Bean名称
      */
     public String createModelBean(BotProfile botProfile) {
         try {
             String beanName = generateBeanName(botProfile);
-            
+
             // 检查Bean是否已存在
             if (beanRegistry.containsKey(getBeanKey(botProfile))) {
                 log.info("模型Bean已存在，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
                 return beanName;
             }
-            
-            DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) 
-                    ((ConfigurableApplicationContext) applicationContext).getBeanFactory();
-            
+
+            DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) ((ConfigurableApplicationContext) applicationContext)
+                    .getBeanFactory();
+
             // 根据厂商和模型类型创建不同的Bean
             if (botProfile.getVendor() == VendorTypeEnum.OPENAI) {
                 if (botProfile.getModelType() == ModelTypeEnum.CHAT) {
@@ -65,21 +71,22 @@ public class ModelBeanManagerService {
                 }
             }
             // TODO: 添加其他厂商的Bean创建逻辑
-            
+
             // 注册Bean
             beanRegistry.put(getBeanKey(botProfile), beanName);
             log.info("成功创建模型Bean，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
-            
+
             return beanName;
-            
+
         } catch (Exception e) {
             log.error("创建模型Bean失败，botId: {}, error: {}", botProfile.getBotId(), e.getMessage(), e);
             throw new RuntimeException("创建模型Bean失败: " + e.getMessage(), e);
         }
     }
-    
+
     /**
      * 销毁模型Bean
+     * 
      * @param botProfile 机器人配置
      * @return 是否成功
      */
@@ -87,82 +94,87 @@ public class ModelBeanManagerService {
         try {
             String beanKey = getBeanKey(botProfile);
             String beanName = beanRegistry.get(beanKey);
-            
+
             if (beanName == null) {
                 log.warn("未找到对应的Bean，botId: {}", botProfile.getBotId());
                 return true;
             }
-            
-            DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) 
-                    ((ConfigurableApplicationContext) applicationContext).getBeanFactory();
-            
+
+            DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) ((ConfigurableApplicationContext) applicationContext)
+                    .getBeanFactory();
+
             if (beanFactory.containsBeanDefinition(beanName)) {
                 beanFactory.removeBeanDefinition(beanName);
                 beanRegistry.remove(beanKey);
                 log.info("成功销毁模型Bean，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
             }
-            
+
             return true;
-            
+
         } catch (Exception e) {
             log.error("销毁模型Bean失败，botId: {}, error: {}", botProfile.getBotId(), e.getMessage(), e);
             return false;
         }
     }
-    
+
     /**
      * 创建OpenAI Chat模型Bean
      */
-    private void createOpenAiChatModelBean(DefaultListableBeanFactory beanFactory, String beanName, BotProfile botProfile) {
-        BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(OpenAiChatModel.class);
-        
+    private void createOpenAiChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
+            BotProfile botProfile) {
         // 创建OpenAiApi配置
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl(botProfile.getBaseUrl())
                 .apiKey(botProfile.getApiKey())
                 .build();
-        
-        beanDefinitionBuilder.addConstructorArgValue(openAiApi);
+
+        // 使用builder模式构建OpenAiChatModel实例
+        OpenAiChatModel chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .defaultOptions(getOpenAiChatOptions(botProfile.getOptions()))
+                .build();
         // TODO: 添加更多配置参数，如options中的具体模型配置
-        
-        beanFactory.registerBeanDefinition(beanName, beanDefinitionBuilder.getBeanDefinition());
+
+        // 注册已构建的实例
+        beanFactory.registerSingleton(beanName, chatModel);
     }
-    
+
     /**
      * 创建OpenAI Embedding模型Bean
      */
-    private void createOpenAiEmbeddingModelBean(DefaultListableBeanFactory beanFactory, String beanName, BotProfile botProfile) {
-        BeanDefinitionBuilder beanDefinitionBuilder = BeanDefinitionBuilder.genericBeanDefinition(OpenAiEmbeddingModel.class);
-        
+    private void createOpenAiEmbeddingModelBean(DefaultListableBeanFactory beanFactory, String beanName,
+            BotProfile botProfile) {
         // 创建OpenAiApi配置
         OpenAiApi openAiApi = OpenAiApi.builder()
                 .baseUrl(botProfile.getBaseUrl())
                 .apiKey(botProfile.getApiKey())
                 .build();
-        
-        beanDefinitionBuilder.addConstructorArgValue(openAiApi);
+
+        // 使用构造器创建OpenAiEmbeddingModel实例
+        OpenAiEmbeddingModel embeddingModel = new OpenAiEmbeddingModel(openAiApi);
         // TODO: 添加更多配置参数，如options中的具体模型配置
-        
-        beanFactory.registerBeanDefinition(beanName, beanDefinitionBuilder.getBeanDefinition());
+
+        // 注册已构建的实例
+        beanFactory.registerSingleton(beanName, embeddingModel);
     }
-    
+
     /**
      * 生成Bean名称
      */
     private String generateBeanName(BotProfile botProfile) {
-        return String.format("%s_%s_model_%d", 
-                botProfile.getVendor().getCode(), 
-                botProfile.getModelType().getCode(), 
+        return String.format("%s_%s_model_%d",
+                botProfile.getVendor().getCode(),
+                botProfile.getModelType().getCode(),
                 botProfile.getBotId());
     }
-    
+
     /**
      * 生成Bean注册key
      */
     public String getBeanKey(BotProfile botProfile) {
-        return String.format("%s:%s:%d", 
-                botProfile.getVendor().getCode(), 
-                botProfile.getModelType().getCode(), 
+        return String.format("%s:%s:%d",
+                botProfile.getVendor().getCode(),
+                botProfile.getModelType().getCode(),
                 botProfile.getBotId());
     }
 
@@ -180,6 +192,30 @@ public class ModelBeanManagerService {
 
     // 获取第一个Bean
     public Object getFirstModelBean() {
-        return applicationContext.getBean(beanRegistry.keySet().iterator().next());
+        return applicationContext.getBean(beanRegistry.values().iterator().next());
     }
-} 
+
+    private OpenAiChatOptions getOpenAiChatOptions(String model) {
+        JSONObject jsonObject = JSON.parseObject(model);
+        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
+        if (jsonObject.containsKey("model")) {
+            builder.model(jsonObject.getString("model"));
+        }
+        if (jsonObject.containsKey("temperature")) {
+            builder.temperature(jsonObject.getDouble("temperature"));
+        }
+        if (jsonObject.containsKey("maxTokens")) {
+            builder.maxTokens(jsonObject.getIntValue("maxTokens"));
+        }
+        if (jsonObject.containsKey("topP")) {
+            builder.topP(jsonObject.getDouble("topP"));
+        }
+        if (jsonObject.containsKey("frequencyPenalty")) {
+            builder.frequencyPenalty(jsonObject.getDouble("frequencyPenalty"));
+        }
+        if (jsonObject.containsKey("presencePenalty")) {
+            builder.presencePenalty(jsonObject.getDouble("presencePenalty"));
+        }
+        return builder.build();
+    }
+}
