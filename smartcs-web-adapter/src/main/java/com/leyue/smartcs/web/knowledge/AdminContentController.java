@@ -1,12 +1,15 @@
 package com.leyue.smartcs.web.knowledge;
 
 import com.alibaba.cola.dto.PageResponse;
+import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ContentService;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
+import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 
 import jakarta.validation.Valid;
 
@@ -70,5 +73,13 @@ public class AdminContentController {
     @PostMapping("/{id}/parse")
     public Response triggerContentParsing(@PathVariable Long id) {
         return contentService.triggerContentParsing(id);
+    }
+
+    /**
+     * 向量搜索文档内容
+     */
+    @PostMapping("/vector-search")
+    public MultiResponse<DocumentSearchResultDTO> vectorSearch(@RequestBody @Valid DocumentSearchRequest request) {
+        return contentService.vectorSearch(request);
     }
 } 

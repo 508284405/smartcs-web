@@ -68,4 +68,11 @@ public interface ChunkGateway {
      * @param chunks 切片列表
      */
     List<Long> saveBatch(List<Chunk> chunks);
+
+    /**
+     * 查询chunk
+     * @param chunkId
+     * @return
+     */
+    Chunk findByChunkId(String chunkId);
 } 

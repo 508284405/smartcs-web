@@ -1,11 +1,14 @@
 package com.leyue.smartcs.api;
 
+import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
+import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 
 /**
@@ -54,4 +57,12 @@ public interface ContentService {
      * @return 操作结果
      */
     Response triggerContentParsing(Long contentId);
+
+        
+    /**
+     * 向量搜索文档内容
+     * @param request 搜索请求
+     * @return 搜索结果
+     */
+    MultiResponse<DocumentSearchResultDTO> vectorSearch(DocumentSearchRequest request);
 } 

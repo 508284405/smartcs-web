@@ -1,8 +1,10 @@
 package com.leyue.smartcs.knowledge.gateway.impl;
 
 import com.alibaba.cola.dto.PageResponse;
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
@@ -102,5 +104,12 @@ public class ChunkGatewayImpl implements ChunkGateway {
         List<ChunkDO> chunkDOList = chunks.stream().map(chunkConverter::toDO).collect(Collectors.toList());
         chunkMapper.insertBatch(chunkDOList);
         return chunkDOList.stream().map(ChunkDO::getId).collect(Collectors.toList());
+    }
+
+    @Override
+    public Chunk findByChunkId(String chunkId) {
+        ChunkDO chunkDO = chunkMapper.selectOne(Wrappers.<ChunkDO>lambdaQuery()
+                .eq(ChunkDO::getChunkIndex, chunkId));
+        return chunkConverter.toDomain(chunkDO);
     }
 }
