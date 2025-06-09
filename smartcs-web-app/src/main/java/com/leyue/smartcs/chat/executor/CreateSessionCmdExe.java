@@ -3,6 +3,7 @@ package com.leyue.smartcs.chat.executor;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.dto.chat.CreateSessionCmd;
 import com.leyue.smartcs.dto.chat.SessionDTO;
+import com.leyue.smartcs.dto.data.ErrorCode;
 import com.leyue.smartcs.chat.convertor.SessionConvertor;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
@@ -15,10 +16,10 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class CreateSessionCmdExe {
-    
+
     private final SessionDomainService sessionDomainService;
     private final SessionConvertor sessionConvertor;
-    
+
     /**
      * 执行创建会话命令
      *
@@ -29,12 +30,13 @@ public class CreateSessionCmdExe {
         // 等待中会话最多只能有一条
         Session waitingSession = sessionDomainService.getWaitingSession(cmd.getCustomerId());
         if (waitingSession != null) {
-            throw new BizException("客户等待中会话最多只能有一条");
+            throw new BizException(ErrorCode.SESSION_WAITING_MAX_ONE.getErrCode(),
+                    ErrorCode.SESSION_WAITING_MAX_ONE.getErrDesc());
         }
 
         // 创建会话
         Session session = sessionDomainService.createSession(cmd.getCustomerId());
-        
+
         // 转换为DTO
         return sessionConvertor.toDTO(session);
     }

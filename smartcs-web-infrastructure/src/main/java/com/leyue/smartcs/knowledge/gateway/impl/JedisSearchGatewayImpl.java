@@ -6,12 +6,10 @@ import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
 import com.leyue.smartcs.dto.knowledge.IndexInfoDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import redis.clients.jedis.UnifiedJedis;
 import redis.clients.jedis.search.schemafields.SchemaField;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -21,7 +19,6 @@ import java.util.Set;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Primary
 public class JedisSearchGatewayImpl implements SearchGateway {
 
     private final UnifiedJedis unifiedJedis;
@@ -55,20 +52,6 @@ public class JedisSearchGatewayImpl implements SearchGateway {
             log.error("删除文档失败: index={}, id={}", index, id, e);
             return false;
         }
-    }
-
-    /**
-     * 转义RediSearch查询中的特殊字符
-     *
-     * @param input 输入字符串
-     * @return 转义后的字符串
-     */
-    private String escapeQueryChars(String input) {
-        if (input == null) {
-            return "";
-        }
-        // 转义RediSearch查询中的特殊字符
-        return input.replaceAll("([,\\\\/\\!\\{\\}\\[\\]\\(\\)\\\"\\^~\\*:])", "\\\\$1");
     }
 
     // ========== 索引管理相关方法 ==========

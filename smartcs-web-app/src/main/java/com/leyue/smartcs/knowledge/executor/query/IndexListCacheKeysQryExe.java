@@ -5,9 +5,11 @@ import com.leyue.smartcs.dto.knowledge.ListIndexCacheKeysQry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.search.index.IndexInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -17,33 +19,44 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class IndexListCacheKeysQryExe {
-    
+
     private final RedissonClient redissonClient;
-    
+
     /**
      * 执行列出索引缓存键查询
+     *
      * @param qry 查询条件
      * @return 缓存键列表
      */
     public List<String> execute(ListIndexCacheKeysQry qry) {
         log.info("执行列出索引缓存键查询: {}", qry);
-        
+
         // 参数校验
         if (qry.getIndexName() == null || qry.getIndexName().trim().isEmpty()) {
             throw new BizException("索引名称不能为空");
         }
-        
+
         try {
-            String pattern = qry.getIndexName() + ":*";
-            
-            // 使用pattern扫描匹配的键
-            Iterable<String> keys = redissonClient.getKeys().getKeysByPattern(pattern);
-            
-            List<String> result = new ArrayList<>();
-            for (String key : keys) {
-                result.add(key);
+            IndexInfo indexInfo = redissonClient.getSearch().info(qry.getIndexName());
+            if (indexInfo == null) {
+                log.warn("索引不存在: {}", qry.getIndexName());
+                return new ArrayList<>();
             }
             
+            String[] prefixes = (String[]) indexInfo.getDefinition().get("prefixes");
+            List<String> result = new ArrayList<>();
+            
+            if (prefixes != null) {
+                for (String prefix : prefixes) {
+                    // 使用SCAN命令安全遍历匹配前缀的键，避免阻塞Redis
+                    String pattern = prefix + "*";
+                    Iterable<String> iterable = redissonClient.getKeys().getKeysByPattern(pattern, 100);
+                    for (String s : iterable) {
+                        result.add(s);
+                    }
+                }
+            }
+
             log.info("成功列出索引缓存键: 索引={}, 键数量={}", qry.getIndexName(), result.size());
             return result;
         } catch (Exception e) {
