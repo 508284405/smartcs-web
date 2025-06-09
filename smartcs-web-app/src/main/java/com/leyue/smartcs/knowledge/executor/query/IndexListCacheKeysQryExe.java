@@ -5,11 +5,11 @@ import com.leyue.smartcs.dto.knowledge.ListIndexCacheKeysQry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.options.KeysScanOptions;
 import org.redisson.api.search.index.IndexInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -42,15 +42,18 @@ public class IndexListCacheKeysQryExe {
                 log.warn("索引不存在: {}", qry.getIndexName());
                 return new ArrayList<>();
             }
-            
+
             String[] prefixes = (String[]) indexInfo.getDefinition().get("prefixes");
             List<String> result = new ArrayList<>();
-            
+
             if (prefixes != null) {
                 for (String prefix : prefixes) {
                     // 使用SCAN命令安全遍历匹配前缀的键，避免阻塞Redis
                     String pattern = prefix + "*";
-                    Iterable<String> iterable = redissonClient.getKeys().getKeysByPattern(pattern, 100);
+                    KeysScanOptions scanOptions = KeysScanOptions.defaults()
+                            .pattern(pattern)
+                            .limit(Integer.MAX_VALUE);
+                    Iterable<String> iterable = redissonClient.getKeys().getKeys(scanOptions);
                     for (String s : iterable) {
                         result.add(s);
                     }
