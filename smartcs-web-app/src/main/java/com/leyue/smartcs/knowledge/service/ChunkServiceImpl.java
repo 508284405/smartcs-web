@@ -1,4 +1,4 @@
-package com.leyue.smartcs.knowledge.serviceimpl;
+package com.leyue.smartcs.knowledge.service;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;

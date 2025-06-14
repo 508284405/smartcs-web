@@ -1,5 +1,11 @@
 package com.leyue.smartcs.web.mcp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leyue.smartcs.mcp.WeatherToolsService;
+import io.modelcontextprotocol.server.McpServer;
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.server.transport.WebMvcSseServerTransportProvider;
+import io.modelcontextprotocol.spec.McpSchema;
 import org.springframework.ai.mcp.McpToolUtils;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -8,14 +14,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leyue.smartcs.mcp.WeatherToolsService;
-
-import io.modelcontextprotocol.server.McpServer;
-import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.WebMvcSseServerTransportProvider;
-import io.modelcontextprotocol.spec.McpSchema;
 
 @Configuration
 public class WeatherServiceProvider {
