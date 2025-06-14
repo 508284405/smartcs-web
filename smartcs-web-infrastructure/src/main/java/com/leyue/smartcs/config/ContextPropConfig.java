@@ -15,6 +15,9 @@ public class ContextPropConfig {
      *      <groupId>io.micrometer</groupId>
      *      <artifactId>context-propagation</artifactId>
      * </dependency>
+     * spring:
+     *     reactor:
+     *         context-propagation: auto # Boot 3.2+ 原生支持
      */
     @PostConstruct
     void init() {
