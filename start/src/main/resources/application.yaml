@@ -16,6 +16,8 @@ spring:
         allowed-headers: "*"
         allow-credentials: true
         max-age: 3600
+  reactor:
+    context-propagation: auto # Boot 3.2+ 原生支持
 
 # 日志配置
 logging:
@@ -23,7 +25,9 @@ logging:
     root: info
     com:
       leyue:
-        smartcs: debug
+        smartcs:
+          config:
+            feign: debug
 #server:
 #  servlet:
 #    context-path: /smartcs

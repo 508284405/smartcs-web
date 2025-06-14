@@ -42,33 +42,33 @@ public class PermissionInterceptor implements HandlerInterceptor {
             }
         }
 
-        // 获取token
-        String token = request.getHeader("Authorization");
-        if (token == null || token.isEmpty()) {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            return false;
-        }
-
-        // 验证token并获取用户信息
-        boolean isValid = userService.validateUserToken(token);
-        if (!isValid) {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            return false;
-        }
-
-        // 获取当前用户信息
-        UserContext.UserInfo currentUser = UserContext.getCurrentUser();
-        if (currentUser == null) {
-            response.setStatus(HttpStatus.UNAUTHORIZED.value());
-            return false;
-        }
-
-        if (currentUser.isAdmin()) {
-            return true;
-        }
+//        // 获取token
+//        String token = request.getHeader("Authorization");
+//        if (token == null || token.isEmpty()) {
+//            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+//            return false;
+//        }
+//
+//        // 验证token并获取用户信息
+//        boolean isValid = userService.validateUserToken(token);
+//        if (!isValid) {
+//            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+//            return false;
+//        }
+//
+//        // 获取当前用户信息
+//        UserContext.UserInfo currentUser = UserContext.getCurrentUser();
+//        if (currentUser == null) {
+//            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+//            return false;
+//        }
+//
+//        if (currentUser.isAdmin()) {
+//            return true;
+//        }
 
         // 检查用户权限
-        List<String> permissions = currentUser.getPermissions();
+//        List<String> permissions = currentUser.getPermissions();
 //        if (permissions == null || permissions.isEmpty()) {
 //            response.setStatus(HttpStatus.FORBIDDEN.value());
 //            return false;

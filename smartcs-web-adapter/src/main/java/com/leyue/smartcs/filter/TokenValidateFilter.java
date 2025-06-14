@@ -9,11 +9,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.reactivestreams.Publisher;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.AntPathMatcher;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -26,7 +30,7 @@ public class TokenValidateFilter implements Filter {
 
     private final UserService userService;
     private final WhiteListProperties whiteListProperties;
-    
+
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     @Override
@@ -34,10 +38,10 @@ public class TokenValidateFilter implements Filter {
             throws IOException, ServletException {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
-        
+
         // 获取请求路径
         String requestUri = httpRequest.getRequestURI();
-        
+
         // 检查白名单，如果在白名单中则直接放行，无需token校验
         for (String pattern : whiteListProperties.getWhiteList()) {
             if (pathMatcher.match(pattern, requestUri)) {
