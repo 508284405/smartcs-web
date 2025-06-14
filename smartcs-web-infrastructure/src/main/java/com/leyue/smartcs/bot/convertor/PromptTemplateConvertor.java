@@ -3,7 +3,7 @@ package com.leyue.smartcs.bot.convertor;
 import org.mapstruct.Mapper;
 
 import com.leyue.smartcs.bot.dataobject.BotPromptTemplateDO;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateDTO;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateDTO;
 import com.leyue.smartcs.domain.bot.PromptTemplate;
 
 /**

@@ -24,6 +24,6 @@ logging:
     com:
       leyue:
         smartcs: debug
-server:
-  servlet:
-    context-path: /smartcs
+#server:
+#  servlet:
+#    context-path: /smartcs

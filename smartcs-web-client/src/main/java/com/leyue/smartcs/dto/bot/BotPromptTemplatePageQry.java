@@ -1,4 +1,4 @@
-package com.leyue.smartcs.bot.dto;
+package com.leyue.smartcs.dto.bot;
 
 import com.alibaba.cola.dto.PageQuery;
 import lombok.Data;

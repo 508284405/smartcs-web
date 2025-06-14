@@ -4,11 +4,11 @@ import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
-import com.leyue.smartcs.bot.api.BotPromptTemplateService;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateCreateCmd;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateDTO;
-import com.leyue.smartcs.bot.dto.BotPromptTemplatePageQry;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateUpdateCmd;
+import com.leyue.smartcs.api.BotPromptTemplateService;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateCreateCmd;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateDTO;
+import com.leyue.smartcs.dto.bot.BotPromptTemplatePageQry;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateUpdateCmd;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.annotation.Resource;

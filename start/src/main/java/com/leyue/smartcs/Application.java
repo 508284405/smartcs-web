@@ -1,5 +1,7 @@
 package com.leyue.smartcs;
 
+import org.springframework.ai.mcp.server.autoconfigure.McpServerAutoConfiguration;
+import org.springframework.ai.mcp.server.autoconfigure.McpWebMvcServerAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -13,7 +15,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * @author Frank Zhang
  */
 @EnableDiscoveryClient
-@SpringBootApplication(scanBasePackages = {"com.leyue.smartcs", "com.alibaba.cola"})
+@SpringBootApplication(scanBasePackages = {"com.leyue.smartcs", "com.alibaba.cola"}, exclude = {McpServerAutoConfiguration.class,
+        McpWebMvcServerAutoConfiguration.class})
 @EnableFeignClients(basePackages = "com.leyue.smartcs.**.feign")
 @EnableScheduling
 @EnableConfigurationProperties

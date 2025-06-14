@@ -1,6 +1,6 @@
 package com.leyue.smartcs.domain.bot.gateway;
 
-import com.leyue.smartcs.bot.dto.BotPromptTemplatePageQry;
+import com.leyue.smartcs.dto.bot.BotPromptTemplatePageQry;
 import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.alibaba.cola.dto.PageResponse;
 

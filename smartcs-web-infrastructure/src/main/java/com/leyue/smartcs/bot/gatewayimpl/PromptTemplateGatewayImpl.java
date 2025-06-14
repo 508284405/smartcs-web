@@ -5,7 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leyue.smartcs.bot.convertor.PromptTemplateConvertor;
 import com.leyue.smartcs.bot.dataobject.BotPromptTemplateDO;
-import com.leyue.smartcs.bot.dto.BotPromptTemplatePageQry;
+import com.leyue.smartcs.dto.bot.BotPromptTemplatePageQry;
 import com.leyue.smartcs.bot.mapper.BotProfileMapper;
 import com.leyue.smartcs.bot.mapper.BotPromptTemplateMapper;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;

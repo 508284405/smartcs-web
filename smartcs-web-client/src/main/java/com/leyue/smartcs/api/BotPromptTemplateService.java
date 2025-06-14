@@ -1,13 +1,13 @@
-package com.leyue.smartcs.bot.api;
+package com.leyue.smartcs.api;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateCreateCmd;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateDTO;
-import com.leyue.smartcs.bot.dto.BotPromptTemplatePageQry;
-import com.leyue.smartcs.bot.dto.BotPromptTemplateUpdateCmd;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateCreateCmd;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateDTO;
+import com.leyue.smartcs.dto.bot.BotPromptTemplatePageQry;
+import com.leyue.smartcs.dto.bot.BotPromptTemplateUpdateCmd;
 
 /**
  * Bot Prompt模板管理服务接口
