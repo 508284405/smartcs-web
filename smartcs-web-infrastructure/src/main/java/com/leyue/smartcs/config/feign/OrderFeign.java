@@ -1,10 +1,8 @@
 package com.leyue.smartcs.config.feign;
 
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.cloud.openfeign.SpringQueryMap;
+import org.springframework.web.bind.annotation.*;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
@@ -18,7 +16,7 @@ import com.leyue.smartcs.dto.sse.AddressDTO;
 public interface OrderFeign {
 
     @GetMapping("/api/orders/user")
-    PageResponse<OrderDTO> listOrders(OrderQueryDTO qry);
+    PageResponse<OrderDTO> listOrders(@SpringQueryMap OrderQueryDTO qry);
 
     @GetMapping("/api/orders/{orderNumber}")
     SingleResponse<OrderDTO> getOrder(@PathVariable("orderNumber") String orderNumber);

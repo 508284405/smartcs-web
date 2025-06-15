@@ -1,17 +1,26 @@
 package com.leyue.smartcs.config.feign;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import feign.Feign;
 import feign.Logger;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
+import feign.codec.Encoder;
+import jakarta.servlet.http.HttpServletRequest;
 import okhttp3.OkHttpClient;
+import org.springframework.beans.factory.ObjectFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
+import org.springframework.cloud.openfeign.support.SpringEncoder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.codec.json.Jackson2JsonEncoder;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -31,6 +40,22 @@ public class FeignConfig {
     @Bean
     Logger.Level feignLoggerLevel() {
         return Logger.Level.FULL;
+    }
+
+    @Bean
+    public Encoder feignEncoder() {
+        // 1) 创建只序列化非空字段的 ObjectMapper
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+        // 2) 将其交给 Spring 的 HttpMessageConverters
+        HttpMessageConverter<?> jacksonConverter =
+                new MappingJackson2HttpMessageConverter(mapper);
+        ObjectFactory<HttpMessageConverters> factory =
+                () -> new HttpMessageConverters(jacksonConverter);
+
+        // 3) 用 SpringEncoder 包装，再给 Feign 使用
+        return new SpringEncoder(factory);
     }
 
     @Bean
