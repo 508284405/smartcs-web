@@ -27,8 +27,8 @@ public class ClientSse {
 
 	public static void main(String[] args) {
 		var transport = HttpClientSseClientTransport.builder("http://localhost:8082")
-				.requestBuilder(HttpRequest.newBuilder().header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjMsInVzZXJuYW1lIjoid2FuZ3l1Iiwic3ViIjoiMyIsImlhdCI6MTc0OTczODM5NywiZXhwIjoxNzQ5NzU2Mzk3LCJqdGkiOiJlMmVjOGU1NC1jNTZkLTRiYTctOWI1OC0zNzg1NDY2ZDdjNDAiLCJpc3MiOiJ1c2VyLWNlbnRlciJ9.sN8W1P8XnTNSItZrHMj6jgPsdL4FYtzUuToS1oT5Go8"))
-				.sseEndpoint("/sse2")
+				.requestBuilder(HttpRequest.newBuilder().header("Authorization", "Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOjEsInVzZXJuYW1lIjoiYWRtaW4iLCJzdWIiOiIxIiwiaWF0IjoxNzQ5OTU2OTcyLCJleHAiOjE3NDk5NzQ5NzIsImp0aSI6IjkxOGJlZTQxLTYwMzctNDRjYy05YWUzLThlODQ0ZDlhOWM5ZiIsImlzcyI6InVzZXItY2VudGVyIn0.vikDuNQLgqsj5BuZk24u83AYnrDVXtq1xjLhSYiyhz8"))
+				.sseEndpoint("/mcp/order/sse")
 				.build();
 		new SampleClient(transport).run();
 	}

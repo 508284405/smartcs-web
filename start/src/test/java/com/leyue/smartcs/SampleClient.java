@@ -46,16 +46,13 @@ public class SampleClient {
 		// List and demonstrate tools
 		ListToolsResult toolsList = client.listTools();
 		System.out.println("Available Tools = " + toolsList);
-		toolsList.tools().stream().forEach(tool -> {
+		toolsList.tools().forEach(tool -> {
 			System.out.println("Tool: " + tool.name() + ", description: " + tool.description() + ", schema: " + tool.inputSchema());
 		});
 
-		CallToolResult weatherForcastResult = client.callTool(new CallToolRequest("getWeatherForecastByLocation",
-				Map.of("latitude", "47.6062", "longitude", "-122.3321")));
-		System.out.println("Weather Forcast: " + weatherForcastResult);
-
-		CallToolResult alertResult = client.callTool(new CallToolRequest("getAlerts", Map.of("state", "NY")));
-		System.out.println("Alert Response = " + alertResult);
+		CallToolResult orderResult = client.callTool(new CallToolRequest("queryOrder",
+				Map.of()));
+		System.out.println("Weather Forcast: " + orderResult);
 
 		client.closeGracefully();
 
