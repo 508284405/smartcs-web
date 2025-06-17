@@ -50,10 +50,6 @@ public class BotSSEServiceImpl implements BotSSEService {
             // 真正的业务推送由线程池里的工作线程负责，它们通过 SseBuilder 向同一 HTTP 连接不断 send() 数据。直到sse.complete()。
             RequestContextHolder.setRequestAttributes(attributes);
             try {
-                // 发送开始消息
-                sse.event("start").id("start_" + sessionId)
-                        .send(JSON.toJSONString(SSEMessage.start(sessionId)));
-
                 // 执行聊天命令
                 chatSSECmdExe.execute(request, sse);
 

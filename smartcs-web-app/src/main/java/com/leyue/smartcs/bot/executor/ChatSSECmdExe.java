@@ -1,12 +1,16 @@
 package com.leyue.smartcs.bot.executor;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.function.ServerResponse.SseBuilder;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
+import com.leyue.smartcs.common.constant.Constants;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.chat.Session;
 import com.leyue.smartcs.domain.chat.domainservice.SessionDomainService;
@@ -16,6 +20,7 @@ import com.leyue.smartcs.dto.bot.BotChatSSEResponse;
 import com.leyue.smartcs.dto.bot.SSEMessage;
 
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -28,15 +33,23 @@ public class ChatSSECmdExe {
 
     private final LLMGateway llmGateway;
     private final SessionDomainService sessionDomainService;
+    private final RedissonClient redissonClient;
 
     /**
      * 执行SSE聊天命令
      */
+    @SneakyThrows
     public void execute(BotChatSSERequest request, SseBuilder sse) throws IOException {
         long startTime = System.currentTimeMillis();
         Long sessionId = request.getSessionId();
-
+        // 锁住当前会话sessionId的SSE响应状态，避免在LLM回复期间，客户端重试
+        RLock lock = redissonClient.getLock(Constants.SSE_SESSION_LOCK_PREFIX + sessionId);
         try {
+            if (!lock.tryLock(10, TimeUnit.SECONDS)) {
+                sendErrorMessage(sse, sessionId, "会话繁忙，请稍后再试");
+                return;
+            }
+
             // 参数校验
             if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
                 throw new BizException("问题不能为空");
@@ -57,6 +70,8 @@ public class ChatSSECmdExe {
                         ? request.getQuestion().substring(0, 15)
                         : request.getQuestion());
             }
+            // 发送开始消息
+            sendStartMessage(sse, sessionId);
 
             // 对比接收人ID，不同则切换targetId
             if (session.getAgentId() != request.getTargetBotId()) {
@@ -66,9 +81,9 @@ public class ChatSSECmdExe {
             // 发送进度消息：开始处理
             sendProgressMessage(sse, sessionId, "开始处理您的问题...");
 
-                // 发送进度消息：检索知识
+            // 发送进度消息：检索知识
             sendProgressMessage(sse, sessionId, "正在检索相关知识...");
-            
+
             // 发送进度消息：调用AI
             sendProgressMessage(sse, sessionId, "正在调用AI生成回答...");
 
@@ -80,23 +95,24 @@ public class ChatSSECmdExe {
 
             // 使用流式生成
             StringBuilder fullAnswer = new StringBuilder();
-            llmGateway.generateAnswerStream(sessionId.toString(), request.getQuestion(), request.getTargetBotId(), (chunk) -> {
-                try {
-                    fullAnswer.append(chunk);
+            llmGateway.generateAnswerStream(sessionId.toString(), request.getQuestion(), request.getTargetBotId(),
+                    (chunk) -> {
+                        try {
+                            fullAnswer.append(chunk);
 
-                    // 发送流式数据
-                    BotChatSSEResponse response = BotChatSSEResponse.builder()
-                            .sessionId(sessionId)
-                            .answer(chunk)
-                            .finished(false)
-                            .build();
+                            // 发送流式数据
+                            BotChatSSEResponse response = BotChatSSEResponse.builder()
+                                    .sessionId(sessionId)
+                                    .answer(chunk)
+                                    .finished(false)
+                                    .build();
 
-                    sendDataMessage(sse, sessionId, response);
-                } catch (IOException e) {
-                    log.error("发送流式数据失败: {}", e.getMessage());
-                    throw new RuntimeException(e);
-                }
-            }, isRag);
+                            sendDataMessage(sse, sessionId, response);
+                        } catch (IOException e) {
+                            log.error("发送流式数据失败: {}", e.getMessage());
+                            throw new RuntimeException(e);
+                        }
+                    }, isRag);
 
             // 构建最终响应
             BotChatSSEResponse finalResponse = buildFinalResponse(sessionId, fullAnswer.toString(),
@@ -106,14 +122,15 @@ public class ChatSSECmdExe {
             sendCompleteMessage(sse, sessionId, finalResponse);
 
             log.info("SSE聊天命令执行完成，耗时: {}ms", System.currentTimeMillis() - startTime);
-
         } catch (Exception e) {
             log.error("SSE聊天命令执行失败: {}", e.getMessage(), e);
-            sendErrorMessage(sse, sessionId, e.getMessage());
+            sendErrorMessage(sse, sessionId, "服务繁忙，请稍后再试");
+        } finally {
+            if (lock.isLocked()) {
+                lock.unlock();
+            }
         }
     }
-
-    
 
     /**
      * 构建最终响应
@@ -160,5 +177,13 @@ public class ChatSSECmdExe {
         SSEMessage sseMessage = SSEMessage.error(sessionId, error);
         sse.event("error").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
         sse.complete();
+    }
+
+    /**
+     * 发送开始消息
+     */
+    private void sendStartMessage(SseBuilder sse, Long sessionId) throws IOException {
+        SSEMessage sseMessage = SSEMessage.start(sessionId);
+        sse.event("start").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
     }
 }
