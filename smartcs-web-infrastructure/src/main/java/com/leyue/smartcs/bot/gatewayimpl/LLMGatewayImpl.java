@@ -31,6 +31,7 @@ import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommo
 import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties;
 import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties.SseParameters;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.ObjectProvider;
@@ -80,7 +81,7 @@ public class LLMGatewayImpl implements LLMGateway {
 
     @Override
     public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer,
-                                     boolean isRag) {
+            boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
         log.info("流式生成回答, sessionId: {}", sessionId);
 
@@ -140,12 +141,11 @@ public class LLMGatewayImpl implements LLMGateway {
      *
      * @return ChatClient
      */
-    private ChatClient buildChatClient(BotProfile botProfile, String sessionId, Long botId,
-                                       boolean isRag) {
-        // 构建ChatOptions
-        ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
+    private ChatClient buildChatClient(BotProfile botProfile, String sessionId, Long botId, boolean isRag) {
         // 构建ChatModel
         ChatModel chatModel = buildChatModel(botProfile);
+        // 构建ChatOptions
+        ChatOptions chatOptions = buildChatOptions(botProfile.getOptions(),chatModel);
         // 系统prompt模板
         PromptTemplate promptTemplate = getPromptTemplate(botProfile);
         // 构建MCP客户端
@@ -232,8 +232,18 @@ public class LLMGatewayImpl implements LLMGateway {
      * @param options 选项
      * @return ChatOptions
      */
-    private ChatOptions buildChatOptions(String options) {
-        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
+    private ChatOptions buildChatOptions(String options, ChatModel chatModel) {
+        // 根据options构建ChatOptions
+        if (chatModel instanceof OpenAiChatModel) {
+            // OpenAiChatOptions是工具调用的ChatOptions，会将工具名称发送给LLM
+            OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
+            JSONObject jsonObject = JSONObject.parseObject(options);
+            builder.model(jsonObject.getString("model")); // 模型
+            builder.temperature(jsonObject.getDouble("temperature")); // 温度
+            builder.maxTokens(jsonObject.getInteger("maxTokens")); // 最大token数
+            return builder.build();
+        }
+        ChatOptions.Builder builder = ChatOptions.builder();
         JSONObject jsonObject = JSONObject.parseObject(options);
         builder.model(jsonObject.getString("model"));
         builder.temperature(jsonObject.getDouble("temperature"));
