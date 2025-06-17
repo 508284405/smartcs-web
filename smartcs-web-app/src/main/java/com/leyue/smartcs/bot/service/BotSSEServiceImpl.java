@@ -8,6 +8,8 @@ import com.leyue.smartcs.dto.bot.SSEMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -69,7 +71,9 @@ public class BotSSEServiceImpl implements BotSSEService {
         });
 
         // 异步处理聊天请求
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         CompletableFuture.runAsync(() -> {
+            RequestContextHolder.setRequestAttributes(attributes);
             try {
                 // 发送开始消息
                 emitter.send(SseEmitter.event()
@@ -91,6 +95,8 @@ public class BotSSEServiceImpl implements BotSSEService {
                     log.error("发送错误消息失败: {}", ioException.getMessage());
                 }
                 emitter.complete();
+            } finally {
+                RequestContextHolder.resetRequestAttributes();
             }
         }, commonThreadPoolExecutor);
 

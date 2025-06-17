@@ -27,7 +27,7 @@ public class WebSocketEventListener {
     public void handleWebSocketConnectListener(SessionConnectedEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
         String sessionId = headerAccessor.getSessionId();
-        log.info("WebSocket连接成功: sessionId={}", sessionId);
+        log.debug("WebSocket连接成功: sessionId={}", sessionId);
         String userId = event.getUser().getName();
 
 

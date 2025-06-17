@@ -40,6 +40,7 @@ public class OrderToolsService {
     
     @Tool(description = "查询订单详情")
     public SingleResponse<OrderDTO> getOrder(String orderNumber, ToolContext toolContext) {
+        log.info("工具名称{}，查询订单详情，订单编号: {}", "getOrder",orderNumber);
         return orderGetQryExe.execute(orderNumber);
     }
     

@@ -2,6 +2,7 @@ package com.leyue.smartcs.bot.gatewayimpl;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.bot.BotProfile;
@@ -9,19 +10,40 @@ import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
+import io.modelcontextprotocol.client.McpClient;
+import io.modelcontextprotocol.client.McpSyncClient;
+import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
+import io.modelcontextprotocol.spec.McpSchema;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.ChatClient.ChatClientRequestSpec;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
+import org.springframework.ai.mcp.client.autoconfigure.NamedClientMcpTransport;
+import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
+import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommonProperties;
+import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties;
+import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties.SseParameters;
+import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -37,21 +59,19 @@ public class LLMGatewayImpl implements LLMGateway {
     private final ChatMemory chatMemory;
     private final PromptTemplateGateway promptTemplateGateway;
     private final VectorStore vectorStore;
+    private final McpSseClientProperties sseProperties;
+    private final ObjectProvider<ObjectMapper> objectMapperProvider;
+    private final McpSyncClientConfigurer mcpSyncClientConfigurer;
+    private final McpClientCommonProperties commonProperties;
 
     @Override
     public String generateAnswer(String sessionId, String question, Long botId, boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
-        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
-        ChatClient chatClient = buildChatClient(botProfile);
-
+        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, isRag);
         try {
             log.info("生成回答, sessionId: {}", sessionId);
-            ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
-
             // 调用LLM生成
-            return buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions, isRag)
-                    .call()
-                    .content();
+            return chatClient.prompt(question).call().content();
         } catch (Exception e) {
             log.error("生成回答失败: {}", e.getMessage(), e);
             throw new BizException("生成回答失败: " + e.getMessage(), e);
@@ -59,17 +79,15 @@ public class LLMGatewayImpl implements LLMGateway {
     }
 
     @Override
-    public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer, boolean isRag) {
+    public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer,
+                                     boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
-        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
-        ChatClient chatClient = buildChatClient(botProfile);
+        log.info("流式生成回答, sessionId: {}", sessionId);
 
+        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, isRag);
         try {
-            log.info("流式生成回答, sessionId: {}", sessionId);
-            ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
-
             // 调用LLM流式生成
-            buildBasePrompt(chatClient, sessionId, botId, question, promptTemplate, chatOptions, isRag)
+            chatClient.prompt(question)
                     .stream()
                     .content()
                     .doOnNext(content -> {
@@ -85,6 +103,10 @@ public class LLMGatewayImpl implements LLMGateway {
             log.error("流式生成回答失败: {}", e.getMessage(), e);
             throw new BizException("流式生成回答失败: " + e.getMessage(), e);
         }
+    }
+
+    private ChatModel buildChatModel(BotProfile botProfile) {
+        return (ChatModel) modelBeanManagerService.getModelBean(botProfile);
     }
 
     private BotProfile getBotProfile(Long botId) {
@@ -116,43 +138,92 @@ public class LLMGatewayImpl implements LLMGateway {
     /**
      * 构建ChatClient
      *
-     * @param botProfile 机器人配置
      * @return ChatClient
      */
-    private ChatClient buildChatClient(BotProfile botProfile) {
-        ChatModel chatModel = (ChatModel) modelBeanManagerService.getModelBean(botProfile);
-        return ChatClient.builder(chatModel)
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build()).build();
-    }
-
-    /**
-     * 构建基础Prompt
-     *
-     * @param chatClient     ChatClient
-     * @param sessionId      会话ID
-     * @param botId
-     * @param question       问题
-     * @param promptTemplate Prompt模板
-     * @param chatOptions    ChatOptions
-     * @return ChatClientRequestSpec
-     */
-    private ChatClient.ChatClientRequestSpec buildBasePrompt(ChatClient chatClient, String sessionId, Long botId,
-            String question, PromptTemplate promptTemplate, ChatOptions chatOptions, boolean isRag) {
-        ChatClientRequestSpec requestSpec = chatClient.prompt()
-                .system(promptTemplate.getTemplateContent())
-                .user(question)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId)) // 会话ID
-                .advisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
-                .advisors(a -> a.param("botId", botId));
+    private ChatClient buildChatClient(BotProfile botProfile, String sessionId, Long botId,
+                                       boolean isRag) {
+        // 构建ChatOptions
+        ChatOptions chatOptions = buildChatOptions(botProfile.getOptions());
+        // 构建ChatModel
+        ChatModel chatModel = buildChatModel(botProfile);
+        // 系统prompt模板
+        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
+        // 构建MCP客户端
+        List<McpSyncClient> mcpSyncClients = buildMcpSyncClients();
+        ChatClient.Builder builder = ChatClient.builder(chatModel)
+                .defaultSystem(promptTemplate.getTemplateContent())
+                .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClients))
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId))
+                .defaultAdvisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
+                .defaultAdvisors(a -> a.param("botId", botId));
         if (isRag) {
-            requestSpec.advisors(QuestionAnswerAdvisor.builder(vectorStore)
+            builder.defaultAdvisors(QuestionAnswerAdvisor.builder(vectorStore)
                     .searchRequest(SearchRequest.builder()
                             .similarityThreshold(0.8d)
                             .topK(6)
                             .build())
                     .build());
         }
-        return requestSpec.options(chatOptions);
+        builder.defaultOptions(chatOptions);
+        return builder.build();
+    }
+
+    private List<McpSyncClient> buildMcpSyncClients() {
+        ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
+
+        List<NamedClientMcpTransport> namedTransports = new ArrayList<>();
+
+        for (Map.Entry<String, SseParameters> serverParameters : sseProperties.getConnections().entrySet()) {
+
+            String baseUrl = serverParameters.getValue().url();
+            String sseEndpoint = serverParameters.getValue().sseEndpoint() != null
+                    ? serverParameters.getValue().sseEndpoint()
+                    : "/sse";
+            var transport = HttpClientSseClientTransport.builder(baseUrl)
+                    .sseEndpoint(sseEndpoint)
+                    .clientBuilder(HttpClient.newBuilder())
+                    .requestBuilder(HttpRequest.newBuilder().header("Authorization", getAuthorization()))
+                    .objectMapper(objectMapper)
+                    .build();
+            namedTransports.add(new NamedClientMcpTransport(serverParameters.getKey(), transport));
+        }
+        List<McpSyncClient> mcpSyncClients = new ArrayList<>();
+
+        if (!CollectionUtils.isEmpty(namedTransports)) {
+            for (NamedClientMcpTransport namedTransport : namedTransports) {
+
+                McpSchema.Implementation clientInfo = new McpSchema.Implementation(
+                        this.connectedClientName(commonProperties.getName(), namedTransport.name()),
+                        commonProperties.getVersion());
+
+                McpClient.SyncSpec spec = McpClient.sync(namedTransport.transport())
+                        .clientInfo(clientInfo)
+                        .requestTimeout(commonProperties.getRequestTimeout());
+
+                spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
+
+                var client = spec.build();
+                client.initialize();
+                client.ping();
+                mcpSyncClients.add(client);
+            }
+        }
+
+        return mcpSyncClients;
+    }
+
+    private String getAuthorization() {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (attributes instanceof ServletRequestAttributes servletRequestAttributes) {
+            HttpServletRequest request = servletRequestAttributes.getRequest();
+            return request.getHeader("Authorization");
+        }
+        return null;
+    }
+
+    private String connectedClientName(String clientName, String serverConnectionName) {
+        return clientName + " - " + serverConnectionName;
     }
 
     /**
@@ -162,7 +233,7 @@ public class LLMGatewayImpl implements LLMGateway {
      * @return ChatOptions
      */
     private ChatOptions buildChatOptions(String options) {
-        ChatOptions.Builder builder = ChatOptions.builder();
+        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
         JSONObject jsonObject = JSONObject.parseObject(options);
         builder.model(jsonObject.getString("model"));
         builder.temperature(jsonObject.getDouble("temperature"));

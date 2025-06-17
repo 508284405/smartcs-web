@@ -31,7 +31,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             // 其他情况：直接调用 toString()
             body = raw.toString();
         }
-        log.info("WebSocket 拦截到消息，payload 转为字符串后内容：{}", body);
+        log.debug("WebSocket 拦截到消息，payload 转为字符串后内容：{}", body);
         return message;
     }
 }
