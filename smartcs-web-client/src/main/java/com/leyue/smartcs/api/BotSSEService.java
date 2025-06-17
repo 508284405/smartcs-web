@@ -12,5 +12,5 @@ public interface BotSSEService {
      * @param request SSE聊天请求
      * @return SSE发射器对象
      */
-    Object chatSSE(BotChatSSERequest request);
+    void chatSSE(BotChatSSERequest request,Object sse);
 } 

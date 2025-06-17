@@ -1,20 +1,24 @@
 package com.leyue.smartcs.bot.service;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.servlet.function.ServerResponse.SseBuilder;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 import com.alibaba.fastjson2.JSON;
 import com.leyue.smartcs.api.BotSSEService;
 import com.leyue.smartcs.bot.executor.ChatSSECmdExe;
 import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.SSEMessage;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Bot SSE服务实现类
@@ -29,77 +33,42 @@ public class BotSSEServiceImpl implements BotSSEService {
     private final Executor commonThreadPoolExecutor;
 
     @Override
-    public Object chatSSE(BotChatSSERequest request) {
+    @SneakyThrows
+    public void chatSSE(BotChatSSERequest request, Object sseBuilder) {
+        SseBuilder sse = (SseBuilder) sseBuilder;
         // 生成会话ID
         Long sessionId = request.getSessionId();
-        if (sessionId == null) {
-            return SSEMessage.error(null, "会话ID不能为空");
-        }
-
-        // 创建SSE发射器
-        SseEmitter emitter = new SseEmitter(500000L);
-
-        // 设置完成和超时回调
-        emitter.onCompletion(() -> {
-            log.info("SSE连接完成: sessionId={}", sessionId);
-        });
-
-        emitter.onTimeout(() -> {
-            log.warn("SSE连接超时: sessionId={}", sessionId);
-            try {
-                emitter.send(SseEmitter.event()
-                        .id("timeout_" + sessionId)
-                        .name("timeout")
-                        .data(JSON.toJSONString(SSEMessage.error(sessionId, "连接超时"))));
-            } catch (IOException e) {
-                log.error("发送超时消息失败: {}", e.getMessage());
-            }
-            emitter.complete();
-        });
-
-        emitter.onError((throwable) -> {
-            log.error("SSE连接错误: sessionId={}, error={}", sessionId, throwable.getMessage());
-            try {
-                emitter.send(SseEmitter.event()
-                        .id("error_" + sessionId)
-                        .name("error")
-                        .data(JSON.toJSONString(SSEMessage.error(sessionId, throwable.getMessage()))));
-            } catch (IOException e) {
-                log.error("发送错误消息失败: {}", e.getMessage());
-            }
-            emitter.complete();
-        });
 
         // 异步处理聊天请求
+        // 在 SSE（Server-Sent Events）场景里，客户端会保持与服务端的 HTTP 连接长时间不断开，服务端要持续、分片地把消息推送到这条连接上。这种“长轮询 / 长连接”如果直接由处理 HTTP 请求的主线程（Servlet 线程）来完成，会导致：
+        // 线程长时间占用而无法释放，影响容器并发能力；
+        // 其中的业务逻辑（模型推理、数据库 / 外部接口交互等）往往耗时且不可预估，更容易把线程池拖空；
+        // 一旦逻辑里出现阻塞或异常，恢复成本高、影响面大。
+        // SSE只是一座桥梁，无论是主线程还是其他任何线程都可以进行推流(在SSE关闭之前sse.complete())。
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
         CompletableFuture.runAsync(() -> {
+            // 真正的业务推送由线程池里的工作线程负责，它们通过 SseBuilder 向同一 HTTP 连接不断 send() 数据。直到sse.complete()。
             RequestContextHolder.setRequestAttributes(attributes);
             try {
                 // 发送开始消息
-                emitter.send(SseEmitter.event()
-                        .id("start_" + sessionId)
-                        .name("start")
-                        .data(JSON.toJSONString(SSEMessage.start(sessionId))));
+                sse.event("start").id("start_" + sessionId)
+                        .send(JSON.toJSONString(SSEMessage.start(sessionId)));
 
                 // 执行聊天命令
-                chatSSECmdExe.execute(request, emitter);
+                chatSSECmdExe.execute(request, sse);
 
             } catch (Exception e) {
                 log.error("SSE聊天处理失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
                 try {
-                    emitter.send(SseEmitter.event()
-                            .id("error_" + sessionId)
-                            .name("error")
-                            .data(JSON.toJSONString(SSEMessage.error(sessionId, e.getMessage()))));
+                    sse.event("error").id("error_" + sessionId).data(JSON.toJSONString(SSEMessage.error(sessionId, e.getMessage())));
                 } catch (IOException ioException) {
                     log.error("发送错误消息失败: {}", ioException.getMessage());
                 }
-                emitter.complete();
+                sse.complete();
             } finally {
                 RequestContextHolder.resetRequestAttributes();
             }
         }, commonThreadPoolExecutor);
-
-        return emitter;
+        // Servlet 线程便结束本次请求处理，归还到应用服务器线程池，可去服务其它请求。
     }
-} 
+}

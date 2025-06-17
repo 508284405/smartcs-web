@@ -3,7 +3,7 @@ package com.leyue.smartcs.bot.executor;
 import java.io.IOException;
 
 import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.servlet.function.ServerResponse.SseBuilder;
 
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
@@ -32,7 +32,7 @@ public class ChatSSECmdExe {
     /**
      * 执行SSE聊天命令
      */
-    public void execute(BotChatSSERequest request, SseEmitter emitter) throws IOException {
+    public void execute(BotChatSSERequest request, SseBuilder sse) throws IOException {
         long startTime = System.currentTimeMillis();
         Long sessionId = request.getSessionId();
 
@@ -64,16 +64,16 @@ public class ChatSSECmdExe {
             }
 
             // 发送进度消息：开始处理
-            sendProgressMessage(emitter, sessionId, "开始处理您的问题...");
+            sendProgressMessage(sse, sessionId, "开始处理您的问题...");
 
                 // 发送进度消息：检索知识
-            sendProgressMessage(emitter, sessionId, "正在检索相关知识...");
+            sendProgressMessage(sse, sessionId, "正在检索相关知识...");
             
             // 发送进度消息：调用AI
-            sendProgressMessage(emitter, sessionId, "正在调用AI生成回答...");
+            sendProgressMessage(sse, sessionId, "正在调用AI生成回答...");
 
             // 发送进度消息：生成回答
-            sendProgressMessage(emitter, sessionId, "正在生成回答...");
+            sendProgressMessage(sse, sessionId, "正在生成回答...");
 
             // 根据是否选择kb或者内容id，决定是否使用RAG
             boolean isRag = request.getKnowledgeBaseId() != null || request.getContentId() != null;
@@ -91,7 +91,7 @@ public class ChatSSECmdExe {
                             .finished(false)
                             .build();
 
-                    sendDataMessage(emitter, sessionId, response);
+                    sendDataMessage(sse, sessionId, response);
                 } catch (IOException e) {
                     log.error("发送流式数据失败: {}", e.getMessage());
                     throw new RuntimeException(e);
@@ -103,13 +103,13 @@ public class ChatSSECmdExe {
                     startTime);
 
             // 发送完成消息
-            sendCompleteMessage(emitter, sessionId, finalResponse);
+            sendCompleteMessage(sse, sessionId, finalResponse);
 
             log.info("SSE聊天命令执行完成，耗时: {}ms", System.currentTimeMillis() - startTime);
 
         } catch (Exception e) {
             log.error("SSE聊天命令执行失败: {}", e.getMessage(), e);
-            sendErrorMessage(emitter, sessionId, e.getMessage());
+            sendErrorMessage(sse, sessionId, e.getMessage());
         }
     }
 
@@ -131,46 +131,34 @@ public class ChatSSECmdExe {
     /**
      * 发送进度消息
      */
-    private void sendProgressMessage(SseEmitter emitter, Long sessionId, String message) throws IOException {
+    private void sendProgressMessage(SseBuilder sse, Long sessionId, String message) throws IOException {
         SSEMessage sseMessage = SSEMessage.progress(sessionId, message);
-        emitter.send(SseEmitter.event()
-                .id(sseMessage.getId())
-                .name("progress")
-                .data(JSON.toJSONString(sseMessage)));
+        sse.event("progress").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
     }
 
     /**
      * 发送数据消息
      */
-    private void sendDataMessage(SseEmitter emitter, Long sessionId, Object data) throws IOException {
+    private void sendDataMessage(SseBuilder sse, Long sessionId, Object data) throws IOException {
         SSEMessage sseMessage = SSEMessage.data(sessionId, data);
-        emitter.send(SseEmitter.event()
-                .id(sseMessage.getId())
-                .name("data")
-                .data(JSON.toJSONString(sseMessage)));
+        sse.event("data").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
     }
 
     /**
      * 发送完成消息
      */
-    private void sendCompleteMessage(SseEmitter emitter, Long sessionId, Object finalData) throws IOException {
+    private void sendCompleteMessage(SseBuilder sse, Long sessionId, Object finalData) throws IOException {
         SSEMessage sseMessage = SSEMessage.complete(sessionId, finalData);
-        emitter.send(SseEmitter.event()
-                .id(sseMessage.getId())
-                .name("complete")
-                .data(JSON.toJSONString(sseMessage)));
-        emitter.complete();
+        sse.event("complete").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
+        sse.complete();
     }
 
     /**
      * 发送错误消息
      */
-    private void sendErrorMessage(SseEmitter emitter, Long sessionId, String error) throws IOException {
+    private void sendErrorMessage(SseBuilder sse, Long sessionId, String error) throws IOException {
         SSEMessage sseMessage = SSEMessage.error(sessionId, error);
-        emitter.send(SseEmitter.event()
-                .id(sseMessage.getId())
-                .name("error")
-                .data(JSON.toJSONString(sseMessage)));
-        emitter.complete();
+        sse.event("error").id(sseMessage.getId()).data(JSON.toJSONString(sseMessage));
+        sse.complete();
     }
 }

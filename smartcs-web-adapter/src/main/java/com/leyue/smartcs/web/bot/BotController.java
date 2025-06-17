@@ -1,21 +1,13 @@
 package com.leyue.smartcs.web.bot;
 
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.BotService;
 import com.leyue.smartcs.dto.bot.BotChatRequest;
 import com.leyue.smartcs.dto.bot.BotContextDTO;
 import com.leyue.smartcs.dto.common.SingleClientObject;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * Bot控制器
@@ -25,9 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class BotController {
-    
+
     private final BotService botService;
-    
+
     /**
      * 处理聊天请求
      */
@@ -36,7 +28,7 @@ public class BotController {
         log.info("收到聊天请求: {}", request);
         return botService.chat(request);
     }
-    
+
     /**
      * 获取聊天上下文
      */
@@ -46,7 +38,7 @@ public class BotController {
         SingleClientObject<String> param = SingleClientObject.of(sessionId);
         return botService.getContext(param);
     }
-    
+
     /**
      * 删除聊天上下文
      */
