@@ -4,9 +4,6 @@ import java.io.IOException;
 import java.time.Duration;
 
 import org.springframework.context.annotation.Bean;
-import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.function.RouterFunction;
@@ -20,7 +17,6 @@ import com.leyue.smartcs.dto.bot.BotChatSSERequest;
 import com.leyue.smartcs.dto.bot.SSEMessage;
 
 import jakarta.servlet.ServletException;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
