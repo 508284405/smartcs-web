@@ -20,18 +20,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        // 注册权限拦截器，拦截所有API请求
-        registry.addInterceptor(permissionInterceptor)
-                .addPathPatterns("/api/**")
-                // 排除不需要权限验证的路径
-                .excludePathPatterns(
-                        "/api/users/login",
-                        "/api/users/register",
-                        "/api/users/verify-code",
-                        "/api/users/forgot-password",
-                        "/api/users/reset-password",
-                        "/error/**"
-                );
+        // 取消注册权限拦截器，拦截所有API请求，由网关服务支持
+//        registry.addInterceptor(permissionInterceptor)
     }
 
     @Bean
