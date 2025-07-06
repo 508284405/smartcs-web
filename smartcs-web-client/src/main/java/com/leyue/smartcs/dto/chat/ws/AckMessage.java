@@ -36,6 +36,6 @@ public class AckMessage extends WebSocketMessage {
     private String errorMessage;
     
     public AckMessage() {
-        setType("ACK");
+        super.setType("ACK");
     }
 }

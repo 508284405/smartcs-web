@@ -41,6 +41,6 @@ public class SystemMessage extends WebSocketMessage {
     private Long createTime;
     
     public SystemMessage() {
-        setType("SYSTEM");
+        super.setType("SYSTEM");
     }
 }

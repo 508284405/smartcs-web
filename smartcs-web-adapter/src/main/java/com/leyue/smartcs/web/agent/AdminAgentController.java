@@ -1,13 +1,14 @@
-package com.leyue.smartcs.web;
+package com.leyue.smartcs.web.agent;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.api.AgentServic;
 import com.leyue.smartcs.dto.AgentServiceListQry;
 import com.leyue.smartcs.dto.data.AgentServiceDTO;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 管理端客服控制器
@@ -28,4 +29,4 @@ public class AdminAgentController {
     public MultiResponse<AgentServiceDTO> getAgentList(AgentServiceListQry qry) {
         return agentServic.getAgentList(qry);
     }
-} 
+}

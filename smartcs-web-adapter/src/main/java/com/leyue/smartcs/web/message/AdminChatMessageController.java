@@ -1,19 +1,22 @@
 package com.leyue.smartcs.web.message;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.PageResponse;
-import com.alibaba.cola.dto.SingleResponse;
-import com.leyue.smartcs.dto.chat.MessageVO;
-import com.leyue.smartcs.dto.chat.SendMessageRequest;
-import com.leyue.smartcs.chat.convertor.ChatMessageConvertor;
 import com.leyue.smartcs.api.MessageService;
+import com.leyue.smartcs.chat.convertor.ChatMessageConvertor;
 import com.leyue.smartcs.dto.chat.GetMessagesQry;
 import com.leyue.smartcs.dto.chat.MessageDTO;
-import com.leyue.smartcs.dto.chat.SendMessageCmd;
-import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.*;
+import com.leyue.smartcs.dto.chat.MessageVO;
 
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 运营端消息管理控制器

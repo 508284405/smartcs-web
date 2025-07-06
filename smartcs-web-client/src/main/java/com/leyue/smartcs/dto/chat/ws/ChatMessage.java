@@ -46,6 +46,6 @@ public class ChatMessage extends WebSocketMessage {
     private Long createTime;
     
     public ChatMessage() {
-        setType("CHAT");
+        super.setType("CHAT");
     }
 }
