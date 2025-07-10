@@ -51,7 +51,7 @@ public class ChatMessageController {
     @GetMapping("/session/{sessionId}/page")
     public PageResponse<MessageDTO> getSessionMessagesWithPagination(
             @PathVariable Long sessionId, 
-            @RequestParam(defaultValue = "0") int offset, 
+            @RequestParam(defaultValue = "0") int offset,
             @RequestParam(defaultValue = "20") int limit) {
         List<MessageDTO> messageDTOList = messageService.getSessionMessagesWithPagination(sessionId, offset, limit);
         return PageResponse.of(messageDTOList,0,0,0);

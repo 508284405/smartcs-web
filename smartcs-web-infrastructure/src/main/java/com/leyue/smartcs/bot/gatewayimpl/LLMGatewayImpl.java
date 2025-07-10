@@ -10,6 +10,7 @@ import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
+import com.leyue.smartcs.bot.advisor.FusionQuestionAnswerAdvisor;
 import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
@@ -68,9 +70,15 @@ public class LLMGatewayImpl implements LLMGateway {
     @Override
     public String generateAnswer(String sessionId, String question, Long botId, boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
-        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, isRag);
+        ChatClient chatClient;
+        if (isRag) {
+            // 使用RAG-Fusion技术
+            chatClient = buildChatClientWithFusion(botProfile, sessionId, botId, question);
+        } else {
+            chatClient = buildChatClient(botProfile, sessionId, botId, false);
+        }
         try {
-            log.info("生成回答, sessionId: {}", sessionId);
+            log.info("生成回答, sessionId: {}, isRag: {}", sessionId, isRag);
             // 调用LLM生成
             return chatClient.prompt(question).call().content();
         } catch (Exception e) {
@@ -83,9 +91,15 @@ public class LLMGatewayImpl implements LLMGateway {
     public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer,
             boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
-        log.info("流式生成回答, sessionId: {}", sessionId);
+        log.info("流式生成回答, sessionId: {}, isRag: {}", sessionId, isRag);
 
-        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, isRag);
+        ChatClient chatClient;
+        if (isRag) {
+            // 使用RAG-Fusion技术
+            chatClient = buildChatClientWithFusion(botProfile, sessionId, botId, question);
+        } else {
+            chatClient = buildChatClient(botProfile, sessionId, botId, false);
+        }
         try {
             // 调用LLM流式生成
             chatClient.prompt(question)
@@ -165,6 +179,43 @@ public class LLMGatewayImpl implements LLMGateway {
                             .build())
                     .build());
         }
+        builder.defaultOptions(chatOptions);
+        return builder.build();
+    }
+
+    /**
+     * 构建带RAG-Fusion的ChatClient
+     *
+     * @return ChatClient
+     */
+    private ChatClient buildChatClientWithFusion(BotProfile botProfile, String sessionId, Long botId, String question) {
+        // 构建ChatModel
+        ChatModel chatModel = buildChatModel(botProfile);
+        // 构建ChatOptions
+        ChatOptions chatOptions = buildChatOptions(botProfile.getOptions(),chatModel);
+        // 系统prompt模板
+        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
+        // 构建MCP客户端
+        List<McpSyncClient> mcpSyncClients = buildMcpSyncClients();
+        
+        // 使用RAG-Fusion技术
+        FusionQuestionAnswerAdvisor fusionAdvisor = new FusionQuestionAnswerAdvisor(vectorStore,chatModel,null);
+        String fusionContext = fusionAdvisor.performFusionSearch(question);
+
+        // 将融合后的上下文添加到系统消息中
+        String systemPrompt = promptTemplate.getTemplateContent();
+        if (!fusionContext.isEmpty()) {
+            systemPrompt = systemPrompt + "\n\n基于以下上下文回答问题:\n" + fusionContext;
+        }
+        
+        ChatClient.Builder builder = ChatClient.builder(chatModel)
+                .defaultSystem(systemPrompt)
+                .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClients))
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId))
+                .defaultAdvisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
+                .defaultAdvisors(a -> a.param("botId", botId));
+        
         builder.defaultOptions(chatOptions);
         return builder.build();
     }
