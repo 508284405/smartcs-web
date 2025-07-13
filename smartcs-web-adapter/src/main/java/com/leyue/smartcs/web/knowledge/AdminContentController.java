@@ -8,6 +8,7 @@ import com.leyue.smartcs.api.ContentService;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 
@@ -41,6 +42,14 @@ public class AdminContentController {
     @PutMapping
     public Response updateContent(@RequestBody @Valid ContentUpdateCmd cmd) {
         return contentService.updateContent(cmd);
+    }
+    
+    /**
+     * 更新内容状态
+     */
+    @PutMapping("/status")
+    public Response updateContentStatus(@RequestBody @Valid ContentStatusUpdateCmd cmd) {
+        return contentService.updateContentStatus(cmd);
     }
     
     /**
@@ -78,7 +87,7 @@ public class AdminContentController {
     /**
      * 向量搜索文档内容
      */
-    @PostMapping("/vector-search")
+    @PostMapping("/search")
     public MultiResponse<DocumentSearchResultDTO> vectorSearch(@RequestBody @Valid DocumentSearchRequest request) {
         return contentService.vectorSearch(request);
     }

@@ -29,8 +29,12 @@ public class ContentListQry extends PageQuery {
     private String contentType;
     
     /**
-     * 内容状态 uploaded/parsed/vectorized
+     * 内容状态 enabled/disabled
      */
-    @Pattern(regexp = "^(uploaded|parsed|vectorized)$", message = "状态只能是uploaded、parsed或vectorized")
     private String status;
-} 
+
+    /**
+     * 分段模式 general/parent_child
+     */
+    private String segmentMode;
+}

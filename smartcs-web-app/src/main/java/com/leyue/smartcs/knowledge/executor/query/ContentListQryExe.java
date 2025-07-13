@@ -58,6 +58,11 @@ public class ContentListQryExe {
             queryWrapper.eq(ContentDO::getStatus, qry.getStatus());
         }
         
+        // 分段模式过滤
+        if (StringUtils.hasText(qry.getSegmentMode())) {
+            queryWrapper.eq(ContentDO::getSegmentMode, qry.getSegmentMode());
+        }
+        
         // 按更新时间倒序排列
         queryWrapper.orderByDesc(ContentDO::getUpdatedAt);
         

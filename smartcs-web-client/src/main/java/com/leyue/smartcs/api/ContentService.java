@@ -7,6 +7,7 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
@@ -29,6 +30,13 @@ public interface ContentService {
      * @return 更新结果
      */
     Response updateContent(ContentUpdateCmd cmd);
+    
+    /**
+     * 更新内容状态
+     * @param cmd 状态更新命令
+     * @return 更新结果
+     */
+    Response updateContentStatus(ContentStatusUpdateCmd cmd);
     
     /**
      * 根据ID查询内容

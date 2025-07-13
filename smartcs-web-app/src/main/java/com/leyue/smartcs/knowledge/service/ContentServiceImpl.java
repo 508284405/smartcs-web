@@ -8,11 +8,13 @@ import com.leyue.smartcs.api.ContentService;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.dto.knowledge.ContentCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentUpdateCmd;
+import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.knowledge.executor.command.ContentCreateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentUpdateCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.ContentStatusUpdateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentDeleteCmdExe;
 import com.leyue.smartcs.knowledge.executor.query.ContentGetQryExe;
 import com.leyue.smartcs.knowledge.executor.query.ContentListQryExe;
@@ -33,6 +35,9 @@ public class ContentServiceImpl implements ContentService {
     
     @Autowired
     private ContentUpdateCmdExe contentUpdateCmdExe;
+    
+    @Autowired
+    private ContentStatusUpdateCmdExe contentStatusUpdateCmdExe;
     
     @Autowired
     private ContentDeleteCmdExe contentDeleteCmdExe;
@@ -58,6 +63,11 @@ public class ContentServiceImpl implements ContentService {
     @Override
     public Response updateContent(ContentUpdateCmd cmd) {
         return contentUpdateCmdExe.execute(cmd);
+    }
+
+    @Override
+    public Response updateContentStatus(ContentStatusUpdateCmd cmd) {
+        return contentStatusUpdateCmdExe.execute(cmd);
     }
 
     @Override

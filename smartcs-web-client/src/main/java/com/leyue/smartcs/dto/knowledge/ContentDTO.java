@@ -44,9 +44,24 @@ public class ContentDTO {
     private String textExtracted;
     
     /**
-     * 状态 uploaded/parsed/vectorized
+     * 状态 uploaded/parsed/vectorized/enabled/disabled
      */
     private String status;
+
+    /**
+     * 分段模式 general/parent_child
+     */
+    private String segmentMode;
+
+    /**
+     * 字符数
+     */
+    private Long charCount;
+
+    /**
+     * 召回次数
+     */
+    private Long recallCount;
     
     /**
      * 创建者ID

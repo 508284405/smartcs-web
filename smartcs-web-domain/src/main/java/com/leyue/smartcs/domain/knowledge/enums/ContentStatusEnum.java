@@ -12,7 +12,9 @@ public enum ContentStatusEnum {
     
     UPLOADED("uploaded", "已上传"),
     PARSED("parsed", "已解析"),
-    VECTORIZED("vectorized", "已向量化");
+    VECTORIZED("vectorized", "已向量化"),
+    ENABLED("enabled", "启用"),
+    DISABLED("disabled", "禁用");
     
     private final String code;
     private final String description;
@@ -57,7 +59,11 @@ public enum ContentStatusEnum {
             case PARSED:
                 return target == VECTORIZED;
             case VECTORIZED:
-                return false; // 已向量化状态不能再转换
+                return target == ENABLED || target == DISABLED;
+            case ENABLED:
+                return target == DISABLED;
+            case DISABLED:
+                return target == ENABLED;
             default:
                 return false;
         }

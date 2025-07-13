@@ -2,6 +2,7 @@ package com.leyue.smartcs.domain.knowledge;
 
 
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
+import com.leyue.smartcs.domain.knowledge.enums.SegmentMode;
 import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -52,9 +53,24 @@ public class Content {
     private String textExtracted;
 
     /**
-     * 状态 uploaded/parsed/vectorized
+     * 状态 uploaded/parsed/vectorized/enabled/disabled
      */
     private ContentStatusEnum status;
+
+    /**
+     * 分段模式 general/parent_child
+     */
+    private SegmentMode segmentMode;
+
+    /**
+     * 字符数
+     */
+    private Long charCount;
+
+    /**
+     * 召回次数
+     */
+    private Long recallCount;
 
     /**
      * 创建者ID
@@ -99,6 +115,24 @@ public class Content {
     }
 
     /**
+     * 检查内容是否已启用
+     *
+     * @return 是否已启用
+     */
+    public boolean isEnabled() {
+        return this.status == ContentStatusEnum.ENABLED;
+    }
+
+    /**
+     * 检查内容是否已禁用
+     *
+     * @return 是否已禁用
+     */
+    public boolean isDisabled() {
+        return this.status == ContentStatusEnum.DISABLED;
+    }
+
+    /**
      * 标记为已解析状态
      */
     public void markAsParsed() {
@@ -110,6 +144,35 @@ public class Content {
      */
     public void markAsVectorized() {
         this.status = ContentStatusEnum.VECTORIZED;
+    }
+
+    /**
+     * 启用内容
+     */
+    public void enable() {
+        if (this.status != null && this.status.canTransitionTo(ContentStatusEnum.ENABLED)) {
+            this.status = ContentStatusEnum.ENABLED;
+        } else {
+            throw new IllegalStateException("当前状态不能转换为启用状态");
+        }
+    }
+
+    /**
+     * 禁用内容
+     */
+    public void disable() {
+        if (this.status != null && this.status.canTransitionTo(ContentStatusEnum.DISABLED)) {
+            this.status = ContentStatusEnum.DISABLED;
+        } else {
+            throw new IllegalStateException("当前状态不能转换为禁用状态");
+        }
+    }
+
+    /**
+     * 增加召回次数
+     */
+    public void incrementRecallCount() {
+        this.recallCount = (this.recallCount == null ? 0 : this.recallCount) + 1;
     }
 
     /**

@@ -9,6 +9,9 @@
         <result column="title" property="title" jdbcType="VARCHAR"/>
         <result column="content_type" property="contentType" jdbcType="VARCHAR"/>
         <result column="status" property="status" jdbcType="VARCHAR"/>
+        <result column="segment_mode" property="segmentMode" jdbcType="VARCHAR"/>
+        <result column="char_count" property="charCount" jdbcType="BIGINT"/>
+        <result column="recall_count" property="recallCount" jdbcType="BIGINT"/>
         <result column="oss_url" property="ossUrl" jdbcType="VARCHAR"/>
         <result column="file_size" property="fileSize" jdbcType="BIGINT"/>
         <result column="file_type" property="fileType" jdbcType="VARCHAR"/>
@@ -20,7 +23,7 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, knowledge_base_id, title, content_type, status, oss_url, file_size, file_type, extracted_text, created_by, created_at, updated_at
+        id, knowledge_base_id, title, content_type, status, segment_mode, char_count, recall_count, oss_url, file_size, file_type, extracted_text, created_by, created_at, updated_at
     </sql>
 
 </mapper> 

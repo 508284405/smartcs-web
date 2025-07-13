@@ -45,7 +45,7 @@ public class ChatSSECmdExe {
         // 锁住当前会话sessionId的SSE响应状态，避免在LLM回复期间，客户端重试
         RLock lock = redissonClient.getLock(Constants.SSE_SESSION_LOCK_PREFIX + sessionId);
         try {
-            if (!lock.tryLock(10, TimeUnit.SECONDS)) {
+            if (!lock.tryLock()) {
                 sendErrorMessage(sse, sessionId, "会话繁忙，请稍后再试");
                 return;
             }

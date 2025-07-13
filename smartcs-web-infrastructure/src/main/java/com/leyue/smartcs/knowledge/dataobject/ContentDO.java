@@ -45,8 +45,26 @@ public class ContentDO extends BaseDO {
     private String fileType;
 
     /**
-     * 状态 uploaded/parsed/vectorized
+     * 状态 uploaded/parsed/vectorized/enabled/disabled
      */
     @TableField("status")
     private String status;
+
+    /**
+     * 分段模式 general/parent_child
+     */
+    @TableField("segment_mode")
+    private String segmentMode;
+
+    /**
+     * 字符数
+     */
+    @TableField("char_count")
+    private Long charCount;
+
+    /**
+     * 召回次数
+     */
+    @TableField("recall_count")
+    private Long recallCount;
 } 
