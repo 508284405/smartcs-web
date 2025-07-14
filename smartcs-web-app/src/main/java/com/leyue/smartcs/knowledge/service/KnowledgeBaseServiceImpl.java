@@ -9,6 +9,8 @@ import com.leyue.smartcs.dto.knowledge.*;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseCreateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseDeleteCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseUpdateCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeGeneralChunkCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeParentChildChunkCmdExe;
 import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseGetQryExe;
 import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseListQryExe;
 import com.leyue.smartcs.knowledge.executor.query.TextSearchQryExe;
@@ -34,10 +36,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private final TextSearchQryExe textSearchQryExe;
 
+    private final KnowledgeGeneralChunkCmdExe knowledgeGeneralChunkCmdExe;
+
+    private final KnowledgeParentChildChunkCmdExe knowledgeParentChildChunkCmdExe;
+
     @Override
     public MultiResponse<EmbeddingWithScore> searchByText(KnowledgeSearchQry qry) {
         return textSearchQryExe.execute(qry);
     }
+    
     @Override
     public SingleResponse<KnowledgeBaseDTO> createKnowledgeBase(KnowledgeBaseCreateCmd cmd) {
         return knowledgeBaseCreateCmdExe.execute(cmd);
@@ -61,5 +68,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Override
     public PageResponse<KnowledgeBaseDTO> listKnowledgeBases(KnowledgeBaseListQry qry) {
         return knowledgeBaseListQryExe.execute(qry);
+    }
+
+    @Override
+    public MultiResponse<ChunkDTO> generalChunk(KnowledgeGeneralChunkCmd cmd) {
+        return knowledgeGeneralChunkCmdExe.execute(cmd);
+    }
+
+    @Override
+    public MultiResponse<ChunkDTO> parentChildChunk(KnowledgeParentChildChunkCmd cmd) {
+        return knowledgeParentChildChunkCmdExe.execute(cmd);
     }
 }

@@ -69,4 +69,20 @@ public class AdminKnowledgeBaseController {
     public MultiResponse<EmbeddingWithScore> searchByText(@RequestBody @Valid KnowledgeSearchQry qry) {
         return knowledgeBaseService.searchByText(qry);
     }
+
+    /**
+     * 通用文档分块
+     */
+    @PostMapping("/chunk/general")
+    public MultiResponse<ChunkDTO> generalChunk(@RequestBody @Valid KnowledgeGeneralChunkCmd cmd) {
+        return knowledgeBaseService.generalChunk(cmd);
+    }
+
+    /**
+     * 父子文档分块
+     */
+    @PostMapping("/chunk/parent-child")
+    public MultiResponse<ChunkDTO> parentChildChunk(@RequestBody @Valid KnowledgeParentChildChunkCmd cmd) {
+        return knowledgeBaseService.parentChildChunk(cmd);
+    }
 } 

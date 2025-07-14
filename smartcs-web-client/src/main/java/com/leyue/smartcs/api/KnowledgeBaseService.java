@@ -53,4 +53,18 @@ public interface KnowledgeBaseService {
      * @return 检索结果
      */
     MultiResponse<EmbeddingWithScore> searchByText(KnowledgeSearchQry qry);
+
+    /**
+     * 通用文档分块
+     * @param cmd 通用分块命令
+     * @return 分块结果
+     */
+    MultiResponse<ChunkDTO> generalChunk(KnowledgeGeneralChunkCmd cmd);
+
+    /**
+     * 父子文档分块
+     * @param cmd 父子分块命令
+     * @return 分块结果
+     */
+    MultiResponse<ChunkDTO> parentChildChunk(KnowledgeParentChildChunkCmd cmd);
 } 
