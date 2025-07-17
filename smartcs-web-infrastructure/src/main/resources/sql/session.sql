@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS t_cs_message (
 CREATE TABLE IF NOT EXISTS t_cs_session (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
     session_id BIGINT COMMENT '会话ID',
+    t_cs_session ADD COLUMN session_name VARCHAR(50) COMMENT '会话名称',
     customer_id BIGINT COMMENT '客户ID',
     agent_id BIGINT COMMENT '客服ID',
     session_state INT COMMENT '会话状态 0=排队 1=进行中 2=已结束',

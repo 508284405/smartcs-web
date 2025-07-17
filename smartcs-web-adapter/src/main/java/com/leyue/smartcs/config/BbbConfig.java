@@ -12,9 +12,10 @@ public class BbbConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")  // 配置允许跨域的路径
-                .allowedOrigins("*")  // 允许的前端源
+                .allowedOriginPatterns("*")  // 允许的前端源
                 .allowedMethods("*")  // 允许的请求方法
                 .allowedHeaders("*")  // 允许的请求头
+                .allowCredentials(true)
                 .maxAge(3600);  // 预检请求的有效期
     }
 }

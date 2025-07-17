@@ -37,6 +37,12 @@ public class TokenValidateFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
+        // 兼容CORS预检请求，直接放行
+        if ("OPTIONS".equalsIgnoreCase(httpRequest.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         // 获取请求路径
         String requestUri = httpRequest.getRequestURI();
 
