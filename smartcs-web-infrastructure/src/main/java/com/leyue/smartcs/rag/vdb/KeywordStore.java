@@ -1,6 +1,6 @@
 package com.leyue.smartcs.rag.vdb;
 
-import org.springframework.ai.document.Document;
+import dev.langchain4j.data.document.Document;
 
 import java.util.List;
 

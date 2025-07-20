@@ -8,10 +8,10 @@ import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.segment.TextSegment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
@@ -38,20 +38,19 @@ public class KnowledgeGeneralChunkCmdExe {
      */
     public MultiResponse<ChunkDTO> execute(KnowledgeGeneralChunkCmd cmd) {
         try {
-            // 使用TikaDocumentReader读取文档
             // 将OSS URL转换为Resource对象
             Resource resource = new UrlResource(cmd.getFileUrl());
 
-            // 使用TikaDocumentReader解析文档
-            TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
-            // 只会有一个文档
-            List<Document> documents = tikaDocumentReader.read();
+            // 创建LangChain4j文档 - 简化处理，直接读取文本内容
+            String content = new String(resource.getInputStream().readAllBytes());
+            Document document = Document.from(content);
+            
             // 获取聊天模型
-            ChatModel chatModel = (ChatModel) modelBeanManagerService.getFirstModelBean();
+            ChatLanguageModel chatModel = (ChatLanguageModel) modelBeanManagerService.getFirstModelBean();
 
             // 文本预处理
             List<Document> preprocessedTexts = textPreprocessor.preprocessText(
-                    documents,
+                    List.of(document),
                     cmd.getRemoveAllUrls(),
                     cmd.getUseQASegmentation(),
                     cmd.getQaLanguage(),
@@ -59,55 +58,33 @@ public class KnowledgeGeneralChunkCmdExe {
 
             List<ChunkDTO> allChunks = new ArrayList<>();
 
-            // 使用TokenTextSplitter进行分块
-            TokenTextSplitter splitter = new TokenTextSplitter(
-                    cmd.getChunkSize(),
-                    cmd.getOverlapSize(),
-                    cmd.getMinChunkSize(),
-                    cmd.getMaxChunkSize(),
-                    cmd.getKeepSeparator());
-            List<Document> chunks = splitter.apply(preprocessedTexts);
+            // 使用LangChain4j的文档分割器进行分块
+            var splitter = DocumentSplitters.recursive(cmd.getChunkSize(), cmd.getOverlapSize());
+            List<TextSegment> segments = splitter.splitAll(preprocessedTexts);
+            
             // 转换为ChunkDTO
-            for (int j = 0; j < chunks.size(); j++) {
-                Document doc = chunks.get(j);
-                ChunkDTO chunkDTO = convertToChunkDTO(doc, j);
+            for (int j = 0; j < segments.size(); j++) {
+                TextSegment segment = segments.get(j);
+                ChunkDTO chunkDTO = convertToChunkDTO(segment, j);
                 allChunks.add(chunkDTO);
             }
-
-            log.info("通用文档分块完成，共生成 {} 个分块", allChunks.size());
 
             return MultiResponse.of(allChunks);
 
         } catch (Exception e) {
-            log.error("通用文档分块失败", e);
-            throw new BizException("CHUNK_GENERAL_FAILED", "通用文档分块失败: " + e.getMessage());
+            log.error("通用文档分块失败: {}", e.getMessage(), e);
+            throw new BizException("通用文档分块失败: " + e.getMessage());
         }
     }
 
     /**
-     * 将Spring AI的Document转换为ChunkDTO
+     * 转换为ChunkDTO
      */
-    private ChunkDTO convertToChunkDTO(Document document, int chunkIndex) {
-        String chunkId = String.format("text_%d_chunk_%d", chunkIndex);
-        String metadata = String.format("{\"chunkIndex\":%d}", chunkIndex);
-
-        return ChunkDTO.builder()
-                .chunkIndex(chunkId)
-                .content(document.getText())
-                .tokenSize(estimateTokenSize(document.getText()))
-                .metadata(metadata)
-                .createTime(System.currentTimeMillis())
-                .updateTime(System.currentTimeMillis())
-                .build();
-    }
-
-    /**
-     * 估算token数量（简单估算：中文字符 * 1.5）
-     */
-    private Integer estimateTokenSize(String content) {
-        if (content == null || content.isEmpty()) {
-            return 0;
-        }
-        return (int) (content.length() * 1.5);
+    private ChunkDTO convertToChunkDTO(TextSegment segment, int index) {
+        ChunkDTO chunkDTO = new ChunkDTO();
+        chunkDTO.setChunkIndex(String.valueOf(index));
+        chunkDTO.setContent(segment.text());
+        chunkDTO.setMetadata(segment.metadata() != null ? segment.metadata().toString() : "{}");
+        return chunkDTO;
     }
 }

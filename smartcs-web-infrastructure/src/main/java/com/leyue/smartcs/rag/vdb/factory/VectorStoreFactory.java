@@ -1,8 +1,7 @@
 package com.leyue.smartcs.rag.vdb.factory;
 
-import com.leyue.smartcs.domain.rag.model.Dataset;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.data.embedding.Embedding;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -11,27 +10,24 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class VectorStoreFactory {
-    
-    @Autowired
-    @Qualifier("simpleVectorStore")
-    private VectorStore simpleVectorStore;
-    
-    @Autowired
-    @Qualifier("milvusVectorStore")
-    private VectorStore milvusVectorStore;
-    
-    @Autowired
-    @Qualifier("pgVectorStore")
-    private VectorStore pgVectorStore;
-    
-    public VectorStore get(Dataset dataset) {
-        switch (dataset.getIndexingTechnique()) {
-            case "high_quality":
-                return milvusVectorStore;  // 或 pg
-            case "economy":
-                return simpleVectorStore;
+
+    @Qualifier("simpleEmbeddingStore")
+    private EmbeddingStore<Embedding> simpleEmbeddingStore;
+
+    @Qualifier("milvusEmbeddingStore")
+    private EmbeddingStore<Embedding> milvusEmbeddingStore;
+
+    @Qualifier("pgVectorEmbeddingStore")
+    private EmbeddingStore<Embedding> pgVectorEmbeddingStore;
+
+    public EmbeddingStore<Embedding> get(String datasetType) {
+        switch (datasetType) {
+            case "milvus":
+                return milvusEmbeddingStore;
+            case "pgvector":
+                return pgVectorEmbeddingStore;
             default:
-                return simpleVectorStore;
+                return simpleEmbeddingStore;
         }
     }
 } 

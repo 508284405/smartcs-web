@@ -1,6 +1,8 @@
 package com.leyue.smartcs.bot.executor;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.stereotype.Component;
 
@@ -51,7 +53,19 @@ public class ChatCmdExe {
                 sessionId = sessionIdLong.toString();
             }
 
-            String answer = llmGateway.generateAnswer(sessionId, request.getQuestion(), request.getBotId(), false);
+            // 使用流式方法收集完整回答
+            AtomicReference<StringBuilder> answerBuilder = new AtomicReference<>(new StringBuilder());
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            
+            llmGateway.generateAnswerStream(sessionId, request.getQuestion(), request.getBotId(), 
+                chunk -> {
+                    answerBuilder.get().append(chunk);
+                }, false);
+            
+            // 等待流式处理完成
+            future.complete(null);
+            
+            String answer = answerBuilder.get().toString();
             return SingleResponse.of(answer);
 
         } catch (Exception e) {

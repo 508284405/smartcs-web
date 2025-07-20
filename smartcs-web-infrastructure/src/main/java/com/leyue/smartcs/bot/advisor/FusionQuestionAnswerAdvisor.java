@@ -1,16 +1,23 @@
 package com.leyue.smartcs.bot.advisor;
 
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.util.StringUtils;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -23,14 +30,19 @@ import java.util.stream.Collectors;
 @Slf4j
 public class FusionQuestionAnswerAdvisor {
 
-    private final VectorStore vectorStore;
+    private final EmbeddingStore<Document> embeddingStore;
+    private final EmbeddingModel embeddingModel;
     private final FusionConfig fusionConfig;
-    private final ChatModel chatModel;
+    private final StreamingChatModel streamingChatModel;
 
-    public FusionQuestionAnswerAdvisor(VectorStore vectorStore, ChatModel chatModel, FusionConfig fusionConfig) {
-        this.vectorStore = vectorStore;
+    public FusionQuestionAnswerAdvisor(EmbeddingStore<Document> embeddingStore,
+                                       EmbeddingModel embeddingModel,
+                                       StreamingChatModel streamingChatModel,
+                                       FusionConfig fusionConfig) {
+        this.embeddingStore = embeddingStore;
+        this.embeddingModel = embeddingModel;
+        this.streamingChatModel = streamingChatModel;
         this.fusionConfig = fusionConfig;
-        this.chatModel = chatModel;
     }
 
     /**
@@ -71,26 +83,60 @@ public class FusionQuestionAnswerAdvisor {
     }
 
     private String translateQuery(String userQuery) {
-//        Query query = new Query("Hvad er Danmarks hovedstad?");
-//
-//        QueryTransformer queryTransformer = TranslationQueryTransformer.builder()
-//                .chatClientBuilder(chatClientBuilder)
-//                .targetLanguage("english")
-//                .build();
-//
-//        Query transformedQuery = queryTransformer.transform(query);
+        // 暂时返回原查询，后续可添加翻译逻辑
         return userQuery;
+    }
+
+    /**
+     * AI Service接口定义 - 用于生成query变体
+     */
+    interface QueryGenerator {
+        @UserMessage("生成 {{maxQueries}} 个与下列问题相关的检索子查询：\n{{originalQuery}}\n子查询：")
+        void generateQueries(String maxQueries, String originalQuery, StreamingChatResponseHandler handler);
     }
 
     /**
      * 生成query变体
      */
     private List<String> generateQueries(String originalQuery) {
-        // 使用chatModel生成query变体
-        String prompt = "生成 {num_queries} 个与下列问题相关的检索子查询：\n{query}\n子查询：";
-        prompt = String.format(prompt, fusionConfig.getMaxQueries(), originalQuery);
-        String result = chatModel.call(prompt);
-        return Arrays.asList(result.split("\n"));
+        try {
+            // 使用AI Services创建query生成器
+            QueryGenerator queryGenerator = AiServices.builder(QueryGenerator.class)
+                    .streamingChatModel(streamingChatModel)
+                    .build();
+            
+            // 使用流式模型收集完整回答
+            StringBuilder resultBuilder = new StringBuilder();
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            
+            queryGenerator.generateQueries(
+                String.valueOf(fusionConfig.getMaxQueries()), 
+                originalQuery, 
+                new StreamingChatResponseHandler() {
+                    @Override
+                    public void onPartialResponse(String partialResponse) {
+                        resultBuilder.append(partialResponse);
+                    }
+
+                    @Override
+                    public void onCompleteResponse(dev.langchain4j.model.chat.response.ChatResponse completeResponse) {
+                        future.complete(null);
+                    }
+
+                    @Override
+                    public void onError(Throwable error) {
+                        future.completeExceptionally(error);
+                    }
+                }
+            );
+            
+            future.get();
+            return Arrays.asList(resultBuilder.toString().split("\n"));
+            
+        } catch (Exception e) {
+            log.error("生成query变体失败: {}", e.getMessage(), e);
+            return Arrays.asList(originalQuery);
+        }
     }
 
     /**
@@ -100,13 +146,18 @@ public class FusionQuestionAnswerAdvisor {
         List<CompletableFuture<List<Document>>> futures = queries.stream()
                 .map(query -> CompletableFuture.supplyAsync(() -> {
                     try {
-                        SearchRequest searchRequest = SearchRequest.builder()
-                                .query(query)
-                                .topK(fusionConfig.getTopK())
-                                .similarityThreshold(fusionConfig.getSimilarityThreshold())
+                        // 使用LangChain4j的向量检索
+                        Embedding queryEmbedding = embeddingModel.embed(query).content();
+                        EmbeddingSearchRequest request = EmbeddingSearchRequest.builder()
+                                .queryEmbedding(queryEmbedding)
+                                .maxResults(fusionConfig.getTopK())
+                                .minScore(fusionConfig.getSimilarityThreshold())
                                 .build();
-                        List<Document> results = vectorStore.similaritySearch(searchRequest);
-                        return results != null ? results : Collections.<Document>emptyList();
+                        List<EmbeddingMatch<Document>> matches =
+                                embeddingStore.search(request).matches();
+                        return matches.stream()
+                                .map(EmbeddingMatch::embedded)
+                                .collect(Collectors.toList());
                     } catch (Exception e) {
                         log.error("检索失败, query: {}, error: {}", query, e.getMessage());
                         return Collections.<Document>emptyList();
@@ -128,7 +179,7 @@ public class FusionQuestionAnswerAdvisor {
         Map<String, DocumentWithScore> documentMap = new ConcurrentHashMap<>();
 
         for (Document doc : allDocuments) {
-            String content = doc.getText();
+            String content = doc.text();
             if (StringUtils.hasText(content)) {
                 documentMap.computeIfAbsent(content, k -> new DocumentWithScore(doc, 0))
                         .incrementScore();
@@ -151,7 +202,7 @@ public class FusionQuestionAnswerAdvisor {
         int tokenCount = 0;
 
         for (Document doc : documents) {
-            String content = doc.getText();
+            String content = doc.text();
             if (StringUtils.hasText(content)) {
                 // 简单的token估算（实际应用中可用更精确的tokenizer）
                 int contentTokens = content.length() / 4;

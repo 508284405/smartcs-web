@@ -1,60 +1,36 @@
 package com.leyue.smartcs.bot.gatewayimpl;
 
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.concurrent.CompletableFuture;
+
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.SystemMessage;
+import dev.langchain4j.service.UserMessage;
+import dev.langchain4j.service.MemoryId;
+import dev.langchain4j.memory.ChatMemory;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.exception.BizException;
-import com.alibaba.fastjson2.JSONObject;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leyue.smartcs.bot.advisor.FusionQuestionAnswerAdvisor;
 import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.config.context.UserContext;
 import com.leyue.smartcs.domain.bot.BotProfile;
 import com.leyue.smartcs.domain.bot.PromptTemplate;
 import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.domain.bot.gateway.LLMGateway;
 import com.leyue.smartcs.domain.bot.gateway.PromptTemplateGateway;
-import io.modelcontextprotocol.client.McpClient;
-import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
-import io.modelcontextprotocol.spec.McpSchema;
-import jakarta.servlet.http.HttpServletRequest;
+
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections4.CollectionUtils;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
-import org.springframework.ai.mcp.client.autoconfigure.NamedClientMcpTransport;
-import org.springframework.ai.mcp.client.autoconfigure.configurer.McpSyncClientConfigurer;
-import org.springframework.ai.mcp.client.autoconfigure.properties.McpClientCommonProperties;
-import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties;
-import org.springframework.ai.mcp.client.autoconfigure.properties.McpSseClientProperties.SseParameters;
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
-import org.springframework.ai.rag.preretrieval.query.expansion.MultiQueryExpander;
-import org.springframework.ai.rag.preretrieval.query.transformation.CompressionQueryTransformer;
-import org.springframework.ai.rag.preretrieval.query.transformation.RewriteQueryTransformer;
-import org.springframework.ai.rag.preretrieval.query.transformation.TranslationQueryTransformer;
-import org.springframework.ai.rag.retrieval.search.VectorStoreDocumentRetriever;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.stereotype.Component;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
-
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
 
 /**
- * LLM网关实现
+ * LLM网关实现 - 使用LangChain4j AI Services
  */
 @Component
 @RequiredArgsConstructor
@@ -64,78 +40,105 @@ public class LLMGatewayImpl implements LLMGateway {
     private final ModelBeanManagerService modelBeanManagerService;
     private final ChatMemory chatMemory;
     private final PromptTemplateGateway promptTemplateGateway;
-    private final VectorStore vectorStore;
-    private final McpSseClientProperties sseProperties;
-    private final ObjectProvider<ObjectMapper> objectMapperProvider;
-    private final McpSyncClientConfigurer mcpSyncClientConfigurer;
-    private final McpClientCommonProperties commonProperties;
+    private final EmbeddingStore<Embedding> embeddingStore;
+    private final FusionQuestionAnswerAdvisor fusionQuestionAnswerAdvisor;
+
+
+
+    /**
+     * AI Service接口定义 - 用于流式聊天
+     */
+    interface StreamingChatAssistant {
+        @SystemMessage("{{systemPrompt}}")
+        void chat(@UserMessage String userMessage, @MemoryId String sessionId, StreamingChatResponseHandler handler);
+    }
+
     @Override
     public String generateAnswer(String sessionId, String question, Long botId, boolean isRag) {
-        BotProfile botProfile = getBotProfile(botId);
-        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, false);
-        try {
-            log.info("生成回答, sessionId: {}, isRag: {}", sessionId, isRag);
-            // 调用LLM生成
-            return chatClient.prompt(question).call().content();
-        } catch (Exception e) {
-            log.error("生成回答失败: {}", e.getMessage(), e);
-            throw new BizException("生成回答失败: " + e.getMessage(), e);
-        }
+        // 非流式方法已移除，统一使用流式方法
+        throw new UnsupportedOperationException("非流式方法已移除，请使用generateAnswerStream方法");
     }
 
     @Override
     public void generateAnswerStream(String sessionId, String question, Long botId, Consumer<String> chunkConsumer,
                                      boolean isRag) {
         BotProfile botProfile = getBotProfile(botId);
+        StreamingChatModel streamingChatModel = buildStreamingChatModel(botProfile);
+        
         log.info("流式生成回答, sessionId: {}, isRag: {}", sessionId, isRag);
 
-        ChatClient chatClient = buildChatClient(botProfile, sessionId, botId, false);
-        RetrievalAugmentationAdvisor advisor = RetrievalAugmentationAdvisor.builder()
-                .queryTransformers(RewriteQueryTransformer.builder() // 重写查询
-                                .chatClientBuilder(chatClient.mutate())
-                                .build(),
-                        CompressionQueryTransformer.builder()// 压缩查询
-                                .chatClientBuilder(chatClient.mutate())
-                                .build(),
-                        TranslationQueryTransformer.builder()
-                                .chatClientBuilder(chatClient.mutate())
-                                .targetLanguage("中文")
-                                .build() // 重写查询
-                )
-                .queryExpander(MultiQueryExpander.builder()
-                        .chatClientBuilder(chatClient.mutate())
-                        .includeOriginal(true)
-                        .numberOfQueries(5)
-                        .build())// Fusion
-                .documentRetriever(VectorStoreDocumentRetriever.builder() // 搜索向量库
-                        .similarityThreshold(0.80d)
-                        .vectorStore(vectorStore)
-                        .build())
-
-                .build();
         try {
-            // 调用LLM流式生成
-            chatClient.prompt(question)
-                    .advisors(advisor)
-                    .stream()
-                    .content()
-                    .doOnNext(content -> {
-                        if (content != null && !content.isEmpty()) {
-                            chunkConsumer.accept(content);
-                        }
-                    })
-                    .doOnComplete(() -> log.info("流式生成回答完成"))
-                    .doOnError(error -> log.error("流式生成回答失败: {}", error.getMessage()))
-                    .blockLast(); // 等待流完成
+            // 获取系统提示词
+            PromptTemplate promptTemplate = getPromptTemplate(botProfile);
+            String systemPrompt = promptTemplate.getTemplateContent();
+            
+            // 如果启用RAG，先进行向量检索
+            String userMessage = question;
+            if (isRag) {
+                String context = fusionQuestionAnswerAdvisor.performFusionSearch(question);
+                if (context != null && !context.isEmpty()) {
+                    userMessage = "上下文信息：\n" + context + "\n\n用户问题：" + question;
+                }
+            }
+            
+            // 使用AI Services创建流式聊天助手
+            StreamingChatAssistant assistant = AiServices.builder(StreamingChatAssistant.class)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
+                    .systemMessageProvider(memoryId -> systemPrompt)
+                    .build();
+            
+            // 创建CompletableFuture用于异步处理
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            
+            // 调用流式AI Service
+            assistant.chat(userMessage, sessionId, new StreamingChatResponseHandler() {
+                @Override
+                public void onPartialResponse(String partialResponse) {
+                    try {
+                        chunkConsumer.accept(partialResponse);
+                    } catch (Exception e) {
+                        log.error("处理流式响应失败: {}", e.getMessage(), e);
+                        future.completeExceptionally(e);
+                    }
+                }
 
+                @Override
+                public void onCompleteResponse(ChatResponse completeResponse) {
+                    try {
+                        log.info("流式生成回答完成, sessionId: {}", sessionId);
+                        future.complete(null);
+                    } catch (Exception e) {
+                        log.error("处理完成响应失败: {}", e.getMessage(), e);
+                        future.completeExceptionally(e);
+                    }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    log.error("流式生成回答失败: {}", error.getMessage(), error);
+                    future.completeExceptionally(error);
+                }
+            });
+            
+            // 等待流式处理完成
+            future.get();
+            
         } catch (Exception e) {
             log.error("流式生成回答失败: {}", e.getMessage(), e);
             throw new BizException("流式生成回答失败: " + e.getMessage(), e);
         }
     }
 
-    private ChatModel buildChatModel(BotProfile botProfile) {
-        return (ChatModel) modelBeanManagerService.getModelBean(botProfile);
+
+
+    private StreamingChatModel buildStreamingChatModel(BotProfile botProfile) {
+        Object modelBean = modelBeanManagerService.getModelBean(botProfile);
+        if (modelBean instanceof StreamingChatModel) {
+            return (StreamingChatModel) modelBean;
+        } else {
+            throw new BizException("不支持的模型类型: " + modelBean.getClass().getSimpleName());
+        }
     }
 
     private BotProfile getBotProfile(Long botId) {
@@ -162,112 +165,5 @@ public class LLMGatewayImpl implements LLMGateway {
     private PromptTemplate getPromptTemplate(BotProfile botProfile) {
         return promptTemplateGateway.findByTemplateKey(botProfile.getPromptKey())
                 .orElseThrow(() -> new BizException("Prompt模板不存在: " + botProfile.getPromptKey()));
-    }
-
-    /**
-     * 构建ChatClient
-     *
-     * @return ChatClient
-     */
-    private ChatClient buildChatClient(BotProfile botProfile, String sessionId, Long botId, boolean isRag) {
-        // 构建ChatModel
-        ChatModel chatModel = buildChatModel(botProfile);
-        // 构建ChatOptions
-        ChatOptions chatOptions = buildChatOptions(botProfile.getOptions(), chatModel);
-        // 系统prompt模板
-        PromptTemplate promptTemplate = getPromptTemplate(botProfile);
-        // 构建MCP客户端
-        List<McpSyncClient> mcpSyncClients = buildMcpSyncClients();
-        ChatClient.Builder builder = ChatClient.builder(chatModel)
-                .defaultSystem(promptTemplate.getTemplateContent())
-                .defaultToolCallbacks(new SyncMcpToolCallbackProvider(mcpSyncClients))
-                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
-                .defaultAdvisors(a -> a.param(ChatMemory.CONVERSATION_ID, sessionId))
-                .defaultAdvisors(a -> a.param("userId", UserContext.getCurrentUser().getId()))
-                .defaultAdvisors(a -> a.param("botId", botId));
-        builder.defaultOptions(chatOptions);
-        return builder.build();
-    }
-
-    private List<McpSyncClient> buildMcpSyncClients() {
-        ObjectMapper objectMapper = objectMapperProvider.getIfAvailable(ObjectMapper::new);
-
-        List<NamedClientMcpTransport> namedTransports = new ArrayList<>();
-
-        for (Map.Entry<String, SseParameters> serverParameters : sseProperties.getConnections().entrySet()) {
-
-            String baseUrl = serverParameters.getValue().url();
-            String sseEndpoint = serverParameters.getValue().sseEndpoint() != null
-                    ? serverParameters.getValue().sseEndpoint()
-                    : "/sse";
-            var transport = HttpClientSseClientTransport.builder(baseUrl)
-                    .sseEndpoint(sseEndpoint)
-                    .clientBuilder(HttpClient.newBuilder())
-                    .requestBuilder(HttpRequest.newBuilder().header("Authorization", getAuthorization()))
-                    .objectMapper(objectMapper)
-                    .build();
-            namedTransports.add(new NamedClientMcpTransport(serverParameters.getKey(), transport));
-        }
-        List<McpSyncClient> mcpSyncClients = new ArrayList<>();
-
-        if (!CollectionUtils.isEmpty(namedTransports)) {
-            for (NamedClientMcpTransport namedTransport : namedTransports) {
-
-                McpSchema.Implementation clientInfo = new McpSchema.Implementation(
-                        this.connectedClientName(commonProperties.getName(), namedTransport.name()),
-                        commonProperties.getVersion());
-
-                McpClient.SyncSpec spec = McpClient.sync(namedTransport.transport())
-                        .clientInfo(clientInfo)
-                        .requestTimeout(commonProperties.getRequestTimeout());
-
-                spec = mcpSyncClientConfigurer.configure(namedTransport.name(), spec);
-
-                var client = spec.build();
-                client.initialize();
-                client.ping();
-                mcpSyncClients.add(client);
-            }
-        }
-
-        return mcpSyncClients;
-    }
-
-    private String getAuthorization() {
-        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
-        if (attributes instanceof ServletRequestAttributes servletRequestAttributes) {
-            HttpServletRequest request = servletRequestAttributes.getRequest();
-            return request.getHeader("Authorization");
-        }
-        return null;
-    }
-
-    private String connectedClientName(String clientName, String serverConnectionName) {
-        return clientName + " - " + serverConnectionName;
-    }
-
-    /**
-     * 构建ChatOptions
-     *
-     * @param options 选项
-     * @return ChatOptions
-     */
-    private ChatOptions buildChatOptions(String options, ChatModel chatModel) {
-        // 根据options构建ChatOptions
-        if (chatModel instanceof OpenAiChatModel) {
-            // OpenAiChatOptions是工具调用的ChatOptions，会将工具名称发送给LLM
-            OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
-            JSONObject jsonObject = JSONObject.parseObject(options);
-            builder.model(jsonObject.getString("model")); // 模型
-            builder.temperature(jsonObject.getDouble("temperature")); // 温度
-            builder.maxTokens(jsonObject.getInteger("maxTokens")); // 最大token数
-            return builder.build();
-        }
-        ChatOptions.Builder builder = ChatOptions.builder();
-        JSONObject jsonObject = JSONObject.parseObject(options);
-        builder.model(jsonObject.getString("model"));
-        builder.temperature(jsonObject.getDouble("temperature"));
-        builder.maxTokens(jsonObject.getInteger("maxTokens"));
-        return builder.build();
     }
 }

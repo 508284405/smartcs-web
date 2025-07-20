@@ -9,6 +9,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class VectorStoreAutoConfig {
     
-    @Value("${spring.ai.vectorstore.type:memory}")
+    @Value("${langchain4j.vectorstore.type:memory}")
     private String vectorStoreType;
 } 

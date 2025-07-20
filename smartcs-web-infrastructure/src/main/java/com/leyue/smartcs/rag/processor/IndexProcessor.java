@@ -1,11 +1,15 @@
-package com.leyue.smartcs.domain.rag.processor;
-
-import com.leyue.smartcs.domain.rag.model.*;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+package com.leyue.smartcs.rag.processor;
 
 import java.util.List;
+
+import com.leyue.smartcs.domain.rag.model.Dataset;
+import com.leyue.smartcs.domain.rag.model.ExtractSetting;
+import com.leyue.smartcs.domain.rag.model.RetrieveParams;
+import com.leyue.smartcs.domain.rag.model.SegmentationRule;
+import com.leyue.smartcs.rag.ProcessorContext;
+
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 
 /**
  * 分段处理器抽象类
@@ -17,9 +21,9 @@ public abstract class IndexProcessor {
      * @param rule 分段规则
      * @param automatic 是否自动模式
      * @param model 嵌入模型
-     * @return TokenTextSplitter
+     * @return 分割器对象
      */
-    protected TokenTextSplitter getSplitter(SegmentationRule rule, boolean automatic, EmbeddingModel model) {
+    protected Object getSplitter(SegmentationRule rule, boolean automatic, EmbeddingModel model) {
         int maxTokens = rule.getMaxTokens();
         int chunkOverlap = rule.getChunkOverlap();
         String separator = rule.getSeparator();
@@ -34,10 +38,11 @@ public abstract class IndexProcessor {
         // 创建分割器
         if (separator != null && !separator.isEmpty()) {
             separator = separator.replace("\\n", "\n");
-            return new TokenTextSplitter(rule.getMaxChunkSize(),rule.getMinChunkSize(), chunkOverlap, chunkOverlap, rule.isKeepSeparator());
+            // 使用LangChain4j的DocumentSplitters
+            return dev.langchain4j.data.document.splitter.DocumentSplitters.recursive(maxTokens, chunkOverlap);
         } else {
             // 自动分割
-            return new TokenTextSplitter();  // 默认值
+            return dev.langchain4j.data.document.splitter.DocumentSplitters.recursive(maxTokens, chunkOverlap);
         }
     }
     

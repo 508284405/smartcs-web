@@ -1,31 +1,27 @@
 package com.leyue.smartcs.config;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.springframework.ai.openai.OpenAiChatModel;
-import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
-import org.springframework.ai.openai.OpenAiChatOptions.Builder;
-import org.springframework.ai.openai.api.OpenAiApi;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Service;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
-import com.google.gson.JsonObject;
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
-import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 模型Bean管理服务
- * 负责根据机器人配置动态创建和销毁SpringAI模型Bean
+ * 负责根据机器人配置动态创建和销毁LangChain4j模型Bean
  */
 @Service
 @RequiredArgsConstructor
@@ -45,7 +41,7 @@ public class ModelBeanManagerService {
 
     /**
      * 根据机器人配置创建对应的模型Bean
-     * 
+     *
      * @param botProfile 机器人配置
      * @return Bean名称
      */
@@ -65,7 +61,8 @@ public class ModelBeanManagerService {
             // 根据厂商和模型类型创建不同的Bean
             if (botProfile.getVendor() == VendorTypeEnum.OPENAI) {
                 if (botProfile.getModelType() == ModelTypeEnum.CHAT) {
-                    createOpenAiChatModelBean(beanFactory, beanName, botProfile);
+                    // 只创建流式模型
+                    createOpenAiStreamingChatModelBean(beanFactory, beanName, botProfile);
                 } else if (botProfile.getModelType() == ModelTypeEnum.EMBEDDING) {
                     createOpenAiEmbeddingModelBean(beanFactory, beanName, botProfile);
                 }
@@ -74,7 +71,8 @@ public class ModelBeanManagerService {
 
             // 注册Bean
             beanRegistry.put(getBeanKey(botProfile), beanName);
-            log.info("成功创建模型Bean，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
+            log.info("成功创建模型Bean，botId: {}, beanName: {}", 
+                    botProfile.getBotId(), beanName);
 
             return beanName;
 
@@ -86,7 +84,7 @@ public class ModelBeanManagerService {
 
     /**
      * 销毁模型Bean
-     * 
+     *
      * @param botProfile 机器人配置
      * @return 是否成功
      */
@@ -117,54 +115,72 @@ public class ModelBeanManagerService {
         }
     }
 
-    /**
-     * 创建OpenAI Chat模型Bean
-     */
-    private void createOpenAiChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
-            BotProfile botProfile) {
-        // 创建OpenAiApi配置
-        OpenAiApi openAiApi = OpenAiApi.builder()
-                .baseUrl(botProfile.getBaseUrl())
-                .apiKey(botProfile.getApiKey())
-                .build();
 
-        // 使用builder模式构建OpenAiChatModel实例
-        OpenAiChatModel chatModel = OpenAiChatModel.builder()
-                .openAiApi(openAiApi)
-                .defaultOptions(getOpenAiChatOptions(botProfile.getOptions()))
-                .build();
-        // TODO: 添加更多配置参数，如options中的具体模型配置
+
+    /**
+     * 创建OpenAI流式Chat模型Bean
+     */
+    private void createOpenAiStreamingChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
+                                                   BotProfile botProfile) {
+        JSONObject options = JSON.parseObject(botProfile.getOptions());
+
+        // 使用LangChain4j创建OpenAiStreamingChatModel实例
+        OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder =
+                OpenAiStreamingChatModel.builder()
+                        .baseUrl(botProfile.getBaseUrl())
+                        .apiKey(botProfile.getApiKey());
+
+        // 设置模型参数
+        if (options.containsKey("model")) {
+            builder.modelName(options.getString("model"));
+        }
+        if (options.containsKey("temperature")) {
+            builder.temperature(options.getDouble("temperature"));
+        }
+        if (options.containsKey("maxTokens")) {
+            builder.maxTokens(options.getIntValue("maxTokens"));
+        }
+        if (options.containsKey("topP")) {
+            builder.topP(options.getDouble("topP"));
+        }
+        if (options.containsKey("frequencyPenalty")) {
+            builder.frequencyPenalty(options.getDouble("frequencyPenalty"));
+        }
+        if (options.containsKey("presencePenalty")) {
+            builder.presencePenalty(options.getDouble("presencePenalty"));
+        }
+
+        OpenAiStreamingChatModel streamingChatModel = builder.build();
 
         // 注册已构建的实例
-        beanFactory.registerSingleton(beanName, chatModel);
+        beanFactory.registerSingleton(beanName, streamingChatModel);
     }
 
     /**
      * 创建OpenAI Embedding模型Bean
      */
     private void createOpenAiEmbeddingModelBean(DefaultListableBeanFactory beanFactory, String beanName,
-            BotProfile botProfile) {
-        // 创建OpenAiApi配置
-        OpenAiApi openAiApi = OpenAiApi.builder()
+                                                BotProfile botProfile) {
+        // 使用LangChain4j创建OpenAiEmbeddingModel实例
+        EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
                 .baseUrl(botProfile.getBaseUrl())
                 .apiKey(botProfile.getApiKey())
                 .build();
-
-        // 使用构造器创建OpenAiEmbeddingModel实例
-        OpenAiEmbeddingModel embeddingModel = new OpenAiEmbeddingModel(openAiApi);
-        // TODO: 添加更多配置参数，如options中的具体模型配置
 
         // 注册已构建的实例
         beanFactory.registerSingleton(beanName, embeddingModel);
     }
 
+
+
     /**
      * 生成Bean名称
      */
     private String generateBeanName(BotProfile botProfile) {
+        String modelType = botProfile.getModelType() == ModelTypeEnum.CHAT ? "streaming_chat" : botProfile.getModelType().getCode();
         return String.format("%s_%s_model_%d",
                 botProfile.getVendor().getCode(),
-                botProfile.getModelType().getCode(),
+                modelType,
                 botProfile.getBotId());
     }
 
@@ -172,9 +188,10 @@ public class ModelBeanManagerService {
      * 生成Bean注册key
      */
     public String getBeanKey(BotProfile botProfile) {
+        String modelType = botProfile.getModelType() == ModelTypeEnum.CHAT ? "streaming_chat" : botProfile.getModelType().getCode();
         return String.format("%s:%s:%d",
                 botProfile.getVendor().getCode(),
-                botProfile.getModelType().getCode(),
+                modelType,
                 botProfile.getBotId());
     }
 
@@ -193,29 +210,5 @@ public class ModelBeanManagerService {
     // 获取第一个Bean
     public Object getFirstModelBean() {
         return applicationContext.getBean(beanRegistry.values().iterator().next());
-    }
-
-    private OpenAiChatOptions getOpenAiChatOptions(String model) {
-        JSONObject jsonObject = JSON.parseObject(model);
-        OpenAiChatOptions.Builder builder = OpenAiChatOptions.builder();
-        if (jsonObject.containsKey("model")) {
-            builder.model(jsonObject.getString("model"));
-        }
-        if (jsonObject.containsKey("temperature")) {
-            builder.temperature(jsonObject.getDouble("temperature"));
-        }
-        if (jsonObject.containsKey("maxTokens")) {
-            builder.maxTokens(jsonObject.getIntValue("maxTokens"));
-        }
-        if (jsonObject.containsKey("topP")) {
-            builder.topP(jsonObject.getDouble("topP"));
-        }
-        if (jsonObject.containsKey("frequencyPenalty")) {
-            builder.frequencyPenalty(jsonObject.getDouble("frequencyPenalty"));
-        }
-        if (jsonObject.containsKey("presencePenalty")) {
-            builder.presencePenalty(jsonObject.getDouble("presencePenalty"));
-        }
-        return builder.build();
     }
 }

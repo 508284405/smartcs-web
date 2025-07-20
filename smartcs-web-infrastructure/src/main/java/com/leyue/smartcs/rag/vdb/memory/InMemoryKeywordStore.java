@@ -1,7 +1,7 @@
 package com.leyue.smartcs.rag.vdb.memory;
 
 import com.leyue.smartcs.rag.vdb.KeywordStore;
-import org.springframework.ai.document.Document;
+import dev.langchain4j.data.document.Document;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,8 +15,8 @@ public class InMemoryKeywordStore implements KeywordStore {
     @Override
     public void addTexts(List<Document> documents, List<String> keywordsList) {
         for (Document doc : documents) {
-            String docId = (String) doc.getMetadata().get("doc_id");
-            List<String> keywords = (keywordsList != null) ? keywordsList : extractKeywords(doc.getContent());
+            String docId = doc.metadata().getString("doc_id");
+            List<String> keywords = (keywordsList != null) ? keywordsList : extractKeywords(doc.text());
             store.put(docId, keywords);
         }
     }

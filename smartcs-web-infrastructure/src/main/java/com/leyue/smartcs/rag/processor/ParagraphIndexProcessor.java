@@ -1,112 +1,83 @@
 package com.leyue.smartcs.rag.processor;
 
-import com.leyue.smartcs.domain.rag.model.*;
-import com.leyue.smartcs.domain.rag.processor.IndexProcessor;
-import com.leyue.smartcs.rag.vdb.KeywordStore;
-import org.apache.commons.codec.digest.DigestUtils;
-import org.springframework.ai.document.Document;
+import com.alibaba.fastjson2.JSON;
+import com.leyue.smartcs.domain.knowledge.Chunk;
+import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
-import org.springframework.ai.document.DocumentReader;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
-public class ParagraphIndexProcessor extends IndexProcessor {
-    
-    private final VectorStore vectorStore;
-    private final KeywordStore keywordStore;
-    
-    public ParagraphIndexProcessor(VectorStore vectorStore, KeywordStore keywordStore) {
-        this.vectorStore = vectorStore;
-        this.keywordStore = keywordStore;
-    }
-    
-    @Override
-    public List<Document> extract(ExtractSetting setting, ProcessorContext ctx) {
+/**
+ * 段落索引处理器
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class ParagraphIndexProcessor {
+
+    private final EmbeddingStore<Embedding> embeddingStore;
+    private final ChunkGateway chunkGateway;
+    private final EmbeddingModel embeddingModel;
+
+    /**
+     * 处理段落索引
+     */
+    public void processParagraphIndex(List<Chunk> chunks) {
+        log.info("开始处理段落索引，共 {} 个段落", chunks.size());
+
         try {
-            Resource resource = new UrlResource(setting.getFileUrl());
-            DocumentReader reader = new TikaDocumentReader(resource);
-            return reader.read();
+            // 转换为文档
+            List<Document> docs = new ArrayList<>();
+            for (Chunk chunk : chunks) {
+                Map<String, Object> metadataMap = JSON.parseObject(chunk.getMetadata(), Map.class);
+                metadataMap.put("chunkId", chunk.getId());
+                metadataMap.put("contentId", chunk.getContentId());
+                Metadata metadata = Metadata.from(metadataMap);
+                Document doc = Document.from(chunk.getContent(), metadata);
+                docs.add(doc);
+            }
+
+            // 生成嵌入向量并存储
+            for (Document doc : docs) {
+                Embedding embedding = embeddingModel.embed(doc.text()).content();
+                embeddingStore.add(embedding);
+            }
+
+            log.info("段落索引处理完成");
+
         } catch (Exception e) {
-            throw new RuntimeException("提取文档失败", e);
+            log.error("段落索引处理失败", e);
+            throw new RuntimeException("段落索引处理失败", e);
         }
     }
-    
-    @Override
-    public List<Document> transform(List<Document> docs, ProcessorContext ctx) {
-        Rule rule = ctx.getProcessRule();
-        boolean automatic = "automatic".equals(rule.getMode());
-        TokenTextSplitter splitter = getSplitter(rule.getSegmentation(), automatic, ctx.getEmbeddingModelInstance());
-        
-        List<Document> splitDocs = splitter.apply(docs);
-        List<Document> result = new ArrayList<>();
-        
-        for (Document doc : splitDocs) {
-            String content = doc.getText().trim();
-            if (!content.isEmpty()) {
-                String docId = UUID.randomUUID().toString();
-                String docHash = DigestUtils.sha256Hex(content);
-                doc.getMetadata().put("doc_id", docId);
-                doc.getMetadata().put("doc_hash", docHash);
-                result.add(doc);
-            }
+
+    /**
+     * 搜索相关段落
+     */
+    public List<Document> searchRelevantParagraphs(String query, int topK) {
+        try {
+            // 生成查询向量
+            Embedding queryEmbedding = embeddingModel.embed(query).content();
+
+            // TODO: 实现向量搜索
+            // 由于LangChain4j API的差异，这里需要根据具体的EmbeddingStore实现来调整
+            log.warn("向量搜索功能需要根据具体的EmbeddingStore实现来调整");
+            
+            return List.of();
+
+        } catch (Exception e) {
+            log.error("搜索相关段落失败", e);
+            return List.of();
         }
-        return result;
-    }
-    
-    @Override
-    public void load(Dataset dataset, List<Document> docs, boolean withKeywords, ProcessorContext ctx) {
-        if ("high_quality".equals(dataset.getIndexingTechnique())) {
-            vectorStore.add(docs);
-        }
-        if (withKeywords) {
-            List<String> keywordsList = ctx.getKeywordsList();
-            if (keywordsList != null && !keywordsList.isEmpty()) {
-                keywordStore.addTexts(docs, keywordsList);
-            } else {
-                keywordStore.addTexts(docs);
-            }
-        }
-    }
-    
-    @Override
-    public void clean(Dataset dataset, List<String> nodeIds, boolean withKeywords, ProcessorContext ctx) {
-        if ("high_quality".equals(dataset.getIndexingTechnique())) {
-            if (nodeIds != null && !nodeIds.isEmpty()) {
-                vectorStore.delete(nodeIds);
-            }
-        }
-        if (withKeywords) {
-            if (nodeIds != null && !nodeIds.isEmpty()) {
-                keywordStore.deleteByIds(nodeIds);
-            } else {
-                keywordStore.delete();
-            }
-        }
-    }
-    
-    @Override
-    public List<Document> retrieve(RetrieveParams params) {
-        SearchRequest request = SearchRequest.builder().query(params.getQuery())
-                .topK(params.getTopK())
-                .similarityThreshold(params.getScoreThreshold()).build();
-        
-        List<Document> results = vectorStore.similaritySearch(request);
-        List<Document> filtered = new ArrayList<>();
-        for (Document doc : results) {
-            float score = (float) doc.getMetadata().getOrDefault("score", 0.0f);
-            if (score > params.getScoreThreshold()) {
-                filtered.add(doc);
-            }
-        }
-        // TODO: 处理 rerankingModel
-        return filtered;
     }
 } 

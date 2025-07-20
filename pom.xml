@@ -17,7 +17,7 @@
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>${maven.compiler.source}</maven.compiler.target>
+        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
@@ -31,7 +31,7 @@
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <mybatis-plus.version>3.5.12</mybatis-plus.version>
-        <spring-ai.version>1.1.0-SNAPSHOT</spring-ai.version>
+        <langchain4j.version>1.1.0</langchain4j.version>
         <mysql-connector-j.version>8.3.0</mysql-connector-j.version>
         <pdfbox.version>2.0.24</pdfbox.version>
         <poi.version>5.3.0</poi.version>
@@ -98,30 +98,21 @@
                 <version>${spring-boot.version}</version>
             </dependency>
             
-            <!-- Spring AI 依赖 -->
+            <!-- LangChain4j 依赖 -->
             <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-bom</artifactId>
-                <version>${spring-ai.version}</version>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-bom</artifactId>
+                <version>${langchain4j.version}</version>          <!-- 只写一次版本 -->
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
             <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-starter-vector-store-redis</artifactId>
-                <version>${spring-ai.version}</version>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-redis</artifactId>
+                <version>1.0.0-alpha1</version>
             </dependency>
-            <dependency>
-                <groupId>org.springframework.ai</groupId>
-                <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-                <version>1.0.0-M6</version>
-            </dependency>
-<!--            <dependency>-->
-<!--                <groupId>org.springframework.ai</groupId>-->
-<!--                <artifactId>spring-ai-mcp</artifactId>-->
-<!--                <version>1.0.0</version>-->
-<!--            </dependency>-->
-            <!-- Spring AI 依赖结束 -->
+            <!-- 如需Milvus/PGVector等可按需添加 -->
             
             <!--Project modules-->
             <dependency>
@@ -295,7 +286,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>17</source> <!-- depending on your project -->
                     <target>17</target> <!-- depending on your project -->
@@ -353,22 +344,6 @@
     </build>
 
     <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <name>Spring Milestones</name>
-            <url>https://repo.spring.io/milestone</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>spring-snapshots</id>
-            <name>Spring Snapshots</name>
-            <url>https://repo.spring.io/snapshot</url>
-            <releases>
-                <enabled>false</enabled>
-            </releases>
-        </repository>
         <repository>
             <id>central-portal-snapshots</id>
             <name>Central Portal Snapshots</name>

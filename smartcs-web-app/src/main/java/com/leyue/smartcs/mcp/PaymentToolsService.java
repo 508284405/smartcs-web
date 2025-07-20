@@ -1,14 +1,13 @@
 package com.leyue.smartcs.mcp;
 
+import dev.langchain4j.agent.tool.Tool;
 import org.springframework.stereotype.Service;
-import org.springframework.ai.chat.model.ToolContext;
-import org.springframework.ai.tool.annotation.Tool;
 
 @Service
 public class PaymentToolsService {
 
-    @Tool(description = "支付")
-    public String pay(ToolContext toolContext) {
+    @Tool("支付")
+    public String pay() {
         return "支付成功";
     }
 }

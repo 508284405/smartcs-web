@@ -1,10 +1,11 @@
-package com.leyue.smartcs.domain.rag.model;
+package com.leyue.smartcs.rag;
 
+import com.leyue.smartcs.domain.rag.model.Rule;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.ai.embedding.EmbeddingModel;
 
 import java.util.List;
 import java.util.Map;

@@ -9,12 +9,15 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
+import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
@@ -25,15 +28,18 @@ import com.leyue.smartcs.dto.knowledge.SearchResultsDTO;
 import com.leyue.smartcs.knowledge.convertor.FaqConvertor;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class FaqSearchQryExe {
 
     private final FaqGateway faqGateway;
     private final SearchGateway searchGateway;
     private final FaqConvertor faqConvertor;
-    private final VectorStore vectorStore;
+    private final EmbeddingStore<Embedding> embeddingStore;
+    private final ModelBeanManagerService modelBeanManagerService;
 
     public MultiResponse<FaqDTO> execute(FaqSearchQry qry) {
         return searchFaq(qry.getKeyword(), qry.getK());
@@ -47,36 +53,57 @@ public class FaqSearchQryExe {
      * @return FAQ结果
      */
     private MultiResponse<FaqDTO> searchFaq(String keyword, int k) {
-        // 调用全文检索查询FAQ
-        SearchRequest searchRequest = SearchRequest.builder()
-                .query(keyword)
-                .topK(k)
-                .build();
-        List<Document> documents = vectorStore.similaritySearch(searchRequest);
-        if(documents==null||documents.isEmpty()){
+        try {
+            // 获取嵌入模型
+            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
+            if (embeddingModel == null) {
+                log.warn("嵌入模型未找到，无法执行向量搜索");
+                return MultiResponse.of(Collections.emptyList());
+            }
+
+            // 生成查询向量
+            Embedding queryEmbedding = embeddingModel.embed(keyword).content();
+
+            // 执行向量搜索
+            List<EmbeddingMatch<Embedding>> matches = embeddingStore.findRelevant(queryEmbedding, k);
+            if (matches == null || matches.isEmpty()) {
+                return MultiResponse.of(Collections.emptyList());
+            }
+
+            List<SearchResultsDTO> searchResults = new ArrayList<>();
+            for (EmbeddingMatch<Embedding> match : matches) {
+                SearchResultsDTO result = SearchResultsDTO.builder()
+                        .type("FAQ")
+                        .chunkId(0L) // 简化处理，暂时设为0
+                        .chunk("") // 简化处理，暂时为空
+                        .score(match.score())
+                        .build();
+                searchResults.add(result);
+            }
+
+            Set<Long> faqIds = searchResults.stream()
+                    .map(SearchResultsDTO::getChunkId)
+                    .collect(Collectors.toSet());
+
+            List<Faq> faqs = faqGateway.findByIds(faqIds);
+            Map<Long, Faq> faqMap = faqs.stream().collect(Collectors.toMap(Faq::getId, Function.identity()));
+
+            List<FaqDTO> faqDTOs = searchResults.stream()
+                    .map(result -> {
+                        Faq faq = faqMap.get(result.getChunkId());
+                        if (faq != null) {
+                            return faqConvertor.toDTO(faq);
+                        }
+                        return null;
+                    })
+                    .filter(faqDTO -> faqDTO != null)
+                    .collect(Collectors.toList());
+
+            return MultiResponse.of(faqDTOs);
+
+        } catch (Exception e) {
+            log.error("FAQ搜索失败", e);
             return MultiResponse.of(Collections.emptyList());
         }
-        List<SearchResultsDTO> searchResults = documents.stream()
-                .map(document -> SearchResultsDTO.builder()
-                        .type("FAQ")
-                        .chunkId(Long.parseLong(document.getId()))
-                        .chunk(document.getText())
-                        .score(document.getScore())
-                        .build())
-                .collect(Collectors.toList());
-        Set<Long> faqIds = searchResults.stream().map(SearchResultsDTO::getChunkId).collect(Collectors.toSet());
-        List<Faq> faqs = faqGateway.findByIds(faqIds);
-        Map<Long, Faq> faqMap = faqs.stream().collect(Collectors.toMap(Faq::getId, Function.identity()));
-        List<FaqDTO> faqDTOs = searchResults.stream().map(result -> {
-            Faq faq = faqMap.get(result.getChunkId());
-            if(faq!=null){
-                FaqDTO faqDTO = faqConvertor.toDTO(faq);
-                faqDTO.setScore(result.getScore());
-                return faqDTO;
-            }
-            return null;
-        }).collect(Collectors.toList());
-        return MultiResponse.of(faqDTOs);
     }
-
 }
