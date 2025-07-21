@@ -1,16 +1,14 @@
 package com.leyue.smartcs.knowledge.util;
 
-import lombok.extern.slf4j.Slf4j;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 /**
@@ -106,7 +104,7 @@ public class TextPreprocessor {
      * @param chatModel 聊天模型
      * @return Q&A分段结果列表
      */
-    public List<String> segmentWithQA(String text, String language, ChatLanguageModel chatModel) {
+    public List<String> segmentWithQA(String text, String language, ChatModel chatModel) {
         if (text == null || text.trim().isEmpty()) {
             return new ArrayList<>();
         }
@@ -125,10 +123,10 @@ public class TextPreprocessor {
             // 创建提示词并调用大模型
             String prompt = promptTemplate.replace("{text}", text);
             UserMessage userMessage = UserMessage.from(prompt);
-            Response<dev.langchain4j.data.message.AiMessage> response = chatModel.generate(userMessage);
+            ChatResponse response = chatModel.chat(userMessage);
 
             // 解析响应结果
-            List<String> segments = parseQAResponse(response.content().text());
+            List<String> segments = parseQAResponse(response.aiMessage().text());
 
             log.info("Q&A分段完成，共生成 {} 个分段", segments.size());
 
@@ -188,7 +186,7 @@ public class TextPreprocessor {
      * @return 处理后的文本或分段列表
      */
     public List<Document> preprocessText(List<Document> documents, Boolean removeUrls, Boolean useQASegmentation,
-            String qaLanguage, ChatLanguageModel chatModel) {
+            String qaLanguage, ChatModel chatModel) {
 
         List<Document> result = new ArrayList<>();
         

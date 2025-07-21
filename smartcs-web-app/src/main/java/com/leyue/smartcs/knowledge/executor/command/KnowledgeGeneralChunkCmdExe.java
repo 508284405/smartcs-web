@@ -5,13 +5,16 @@ import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
+import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
+import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.model.chat.ChatModel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
@@ -29,6 +32,7 @@ public class KnowledgeGeneralChunkCmdExe {
 
     private final TextPreprocessor textPreprocessor;
     private final ModelBeanManagerService modelBeanManagerService;
+    private final DocumentParserFactory documentParserFactory;
 
     /**
      * 执行通用文档分块
@@ -40,35 +44,59 @@ public class KnowledgeGeneralChunkCmdExe {
         try {
             // 将OSS URL转换为Resource对象
             Resource resource = new UrlResource(cmd.getFileUrl());
-
-            // 创建LangChain4j文档 - 简化处理，直接读取文本内容
-            String content = new String(resource.getInputStream().readAllBytes());
-            Document document = Document.from(content);
+            String fileName = extractFileName(cmd.getFileUrl());
             
-            // 获取聊天模型
-            ChatLanguageModel chatModel = (ChatLanguageModel) modelBeanManagerService.getFirstModelBean();
+            log.info("开始执行通用文档分块，文件: {}", fileName);
+            
+            // 根据文件类型选择合适的解析器
+            DocumentParser parser = documentParserFactory.getParser(fileName);
+            DocumentTypeEnum documentType = DocumentTypeEnum.fromFileName(fileName);
+            
+            log.info("选择的解析器: {}，文档类型: {}", 
+                    parser.getClass().getSimpleName(), documentType);
+            
+            // 解析文档
+            List<Document> parsedDocuments = parser.parse(resource, fileName);
+            log.info("文档解析完成，生成{}个预处理文档", parsedDocuments.size());
+            
+            // 获取聊天模型（如果需要）
+            ChatModel chatModel = null;
+            if (cmd.getUseQASegmentation() != null && cmd.getUseQASegmentation()) {
+                chatModel = (ChatModel) modelBeanManagerService.getFirstModelBean();
+            }
 
-            // 文本预处理
-            List<Document> preprocessedTexts = textPreprocessor.preprocessText(
-                    List.of(document),
-                    cmd.getRemoveAllUrls(),
-                    cmd.getUseQASegmentation(),
-                    cmd.getQaLanguage(),
-                    chatModel);
+            // 文本预处理（对每个解析后的文档进行预处理）
+            List<Document> allPreprocessedTexts = new ArrayList<>();
+            for (Document doc : parsedDocuments) {
+                List<Document> preprocessed = textPreprocessor.preprocessText(
+                        List.of(doc),
+                        cmd.getRemoveAllUrls(),
+                        cmd.getUseQASegmentation(),
+                        cmd.getQaLanguage(),
+                        chatModel);
+                allPreprocessedTexts.addAll(preprocessed);
+            }
 
             List<ChunkDTO> allChunks = new ArrayList<>();
-
-            // 使用LangChain4j的文档分割器进行分块
-            var splitter = DocumentSplitters.recursive(cmd.getChunkSize(), cmd.getOverlapSize());
-            List<TextSegment> segments = splitter.splitAll(preprocessedTexts);
+            
+            // 根据文档类型选择最佳分块策略
+            DocumentParserFactory.ChunkingStrategy strategy = 
+                    documentParserFactory.getChunkingStrategy(documentType);
+            
+            log.info("使用分块策略: {} - {}", strategy.getName(), strategy.getDescription());
+            
+            // 应用分块策略
+            List<TextSegment> segments = applyChunkingStrategy(
+                    allPreprocessedTexts, strategy, cmd);
             
             // 转换为ChunkDTO
-            for (int j = 0; j < segments.size(); j++) {
-                TextSegment segment = segments.get(j);
-                ChunkDTO chunkDTO = convertToChunkDTO(segment, j);
+            for (int i = 0; i < segments.size(); i++) {
+                TextSegment segment = segments.get(i);
+                ChunkDTO chunkDTO = convertToChunkDTO(segment, i, fileName, documentType);
                 allChunks.add(chunkDTO);
             }
 
+            log.info("通用文档分块完成，文件: {}，生成{}个分块", fileName, allChunks.size());
             return MultiResponse.of(allChunks);
 
         } catch (Exception e) {
