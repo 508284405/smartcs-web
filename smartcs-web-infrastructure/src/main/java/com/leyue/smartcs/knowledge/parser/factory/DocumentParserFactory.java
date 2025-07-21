@@ -84,6 +84,9 @@ public class DocumentParserFactory {
             case XLS:
                 return getParserByClass(ExcelDocumentParser.class);
                 
+            case DOCX:
+                return getParserByClass(DocxDocumentParser.class);
+                
             case MARKDOWN:
             case MDX:
                 return getParserByClass(MarkdownDocumentParser.class);
@@ -156,6 +159,9 @@ public class DocumentParserFactory {
             case XLS:
             case CSV:
                 return ChunkingStrategy.ROW_BASED;
+                
+            case DOCX:
+                return ChunkingStrategy.SECTION_BASED;
                 
             case MARKDOWN:
             case MDX:

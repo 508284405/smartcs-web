@@ -135,23 +135,35 @@ public class KnowledgeParentChildChunkCmdExe {
                 parentIndex, childIndex, contextText.replace("\"", "\\\"")
         );
         
-        return ChunkDTO.builder()
-                .chunkIndex(chunkIndex)
-                .content(document.text())
-                .tokenSize(estimateTokenSize(document.text()))
-                .metadata(metadata)
-                .createTime(System.currentTimeMillis())
-                .updateTime(System.currentTimeMillis())
-                .build();
+        ChunkDTO chunkDTO = new ChunkDTO();
+        chunkDTO.setChunkIndex(chunkIndex);
+        chunkDTO.setContent(document.text());
+        chunkDTO.setMetadata(metadata);
+        return chunkDTO;
+    }
+    
+    /**
+     * 从URL中提取文件名
+     */
+    private String extractFileName(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return "unknown_file";
+        }
+        
+        // 从URL中提取文件名
+        String fileName = fileUrl;
+        int lastSlashIndex = fileName.lastIndexOf('/');
+        if (lastSlashIndex >= 0 && lastSlashIndex < fileName.length() - 1) {
+            fileName = fileName.substring(lastSlashIndex + 1);
+        }
+        
+        // 移除URL参数
+        int queryIndex = fileName.indexOf('?');
+        if (queryIndex >= 0) {
+            fileName = fileName.substring(0, queryIndex);
+        }
+        
+        return fileName;
     }
 
-    /**
-     * 估算token数量（简单估算：中文字符 * 1.5）
-     */
-    private Integer estimateTokenSize(String content) {
-        if (content == null || content.isEmpty()) {
-            return 0;
-        }
-        return (int) (content.length() * 1.5);
-    }
 } 

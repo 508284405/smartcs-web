@@ -106,13 +106,94 @@ public class KnowledgeGeneralChunkCmdExe {
     }
 
     /**
+     * 应用分块策略
+     */
+    private List<TextSegment> applyChunkingStrategy(List<Document> documents, 
+                                                   DocumentParserFactory.ChunkingStrategy strategy,
+                                                   KnowledgeGeneralChunkCmd cmd) {
+        List<TextSegment> allSegments = new ArrayList<>();
+        
+        switch (strategy) {
+            case PAGE_BASED:
+            case SECTION_BASED:
+            case ROW_BASED:
+            case TAG_BASED:
+            case TIME_BASED:
+            case GROUP_BASED:
+                // 对于特殊策略，文档已经在解析阶段被优化分块了
+                // 直接转换为TextSegment
+                for (Document doc : documents) {
+                    allSegments.add(TextSegment.from(doc.text(), doc.metadata()));
+                }
+                break;
+                
+            case DEFAULT:
+            default:
+                // 使用LangChain4j的默认递归分块器
+                for (Document doc : documents) {
+                    List<TextSegment> segments = DocumentSplitters.recursive(
+                            cmd.getChunkSize() != null ? cmd.getChunkSize() : 1000,
+                            cmd.getChunkOverlap() != null ? cmd.getChunkOverlap() : 200
+                    ).split(doc);
+                    allSegments.addAll(segments);
+                }
+                break;
+        }
+        
+        return allSegments;
+    }
+    
+    /**
      * 转换为ChunkDTO
      */
-    private ChunkDTO convertToChunkDTO(TextSegment segment, int index) {
+    private ChunkDTO convertToChunkDTO(TextSegment segment, int index, String fileName, DocumentTypeEnum documentType) {
         ChunkDTO chunkDTO = new ChunkDTO();
         chunkDTO.setChunkIndex(String.valueOf(index));
         chunkDTO.setContent(segment.text());
-        chunkDTO.setMetadata(segment.metadata() != null ? segment.metadata().toString() : "{}");
+        
+        // 合并元数据
+        StringBuilder metadataBuilder = new StringBuilder();
+        metadataBuilder.append("{");
+        metadataBuilder.append("\"fileName\":\"").append(fileName).append("\",");
+        metadataBuilder.append("\"documentType\":\"").append(documentType.name()).append("\"");
+        
+        if (segment.metadata() != null && !segment.metadata().asMap().isEmpty()) {
+            metadataBuilder.append(",");
+            segment.metadata().asMap().forEach((key, value) -> 
+                metadataBuilder.append("\"").append(key).append("\":\"").append(value).append("\",")
+            );
+            // 移除最后一个逗号
+            if (metadataBuilder.charAt(metadataBuilder.length() - 1) == ',') {
+                metadataBuilder.setLength(metadataBuilder.length() - 1);
+            }
+        }
+        metadataBuilder.append("}");
+        
+        chunkDTO.setMetadata(metadataBuilder.toString());
         return chunkDTO;
+    }
+    
+    /**
+     * 从URL中提取文件名
+     */
+    private String extractFileName(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return "unknown_file";
+        }
+        
+        // 从URL中提取文件名
+        String fileName = fileUrl;
+        int lastSlashIndex = fileName.lastIndexOf('/');
+        if (lastSlashIndex >= 0 && lastSlashIndex < fileName.length() - 1) {
+            fileName = fileName.substring(lastSlashIndex + 1);
+        }
+        
+        // 移除URL参数
+        int queryIndex = fileName.indexOf('?');
+        if (queryIndex >= 0) {
+            fileName = fileName.substring(0, queryIndex);
+        }
+        
+        return fileName;
     }
 }
