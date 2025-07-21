@@ -1,54 +1,20 @@
 package com.leyue.smartcs.web.mcp;
 
-import org.springframework.ai.mcp.McpToolUtils;
-import org.springframework.ai.tool.ToolCallbackProvider;
-import org.springframework.ai.tool.method.MethodToolCallbackProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.function.RouterFunction;
-import org.springframework.web.servlet.function.ServerResponse;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leyue.smartcs.mcp.OrderToolsService;
-
-import io.modelcontextprotocol.server.McpServer;
-import io.modelcontextprotocol.server.McpSyncServer;
-import io.modelcontextprotocol.server.transport.WebMvcSseServerTransportProvider;
-import io.modelcontextprotocol.spec.McpSchema;
-
+/**
+ * 订单工具提供者 - 已迁移到LangChain4j
+ * 
+ * 原MCP功能已迁移到LangChain4j的@Tool注解系统
+ * 工具服务OrderToolsService直接集成到LLMGatewayImpl的AI Services中
+ * 
+ * 如需MCP协议支持，请考虑：
+ * 1. 使用Claude Desktop等支持LangChain4j工具的客户端
+ * 2. 实现自定义MCP适配器
+ * 3. 继续使用Spring AI的MCP实现（如果必要）
+ */
 @Configuration
 public class OrderMcpProvider {
-    /* 订单MCP传输 */
-    @Bean("orderTransport")
-    WebMvcSseServerTransportProvider orderTransport(ObjectMapper mapper) {
-        return new WebMvcSseServerTransportProvider(
-                mapper, "/mcp/order/message", "/mcp/order/sse");
-    }
-
-    /* 订单MCP路由 */
-    @Bean
-    RouterFunction<ServerResponse> orderRouter(
-            @Qualifier("orderTransport") WebMvcSseServerTransportProvider t) {
-        return t.getRouterFunction();
-    }
-
-    /* 订单MCP服务 */
-    @Bean("orderMcpServer")
-    public McpSyncServer orderMcpServer(
-            @Qualifier("orderTransport") WebMvcSseServerTransportProvider t,
-            @Qualifier("orderTools") ToolCallbackProvider tools) {
-
-        return McpServer.sync(t)
-                .serverInfo("Order-MCP", "1.0")
-                .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
-                .tools(McpToolUtils.toSyncToolSpecifications(tools.getToolCallbacks()))
-                .build();
-    }
-
-    /* 订单工具 */
-    @Bean("orderTools")
-    public ToolCallbackProvider orderTools(OrderToolsService orderToolsService) {
-        return MethodToolCallbackProvider.builder().toolObjects(orderToolsService).build();
-    }
+    // MCP功能已迁移到LangChain4j工具系统
+    // 工具通过LLMGatewayImpl.tools()集成
 }

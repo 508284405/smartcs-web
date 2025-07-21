@@ -1,8 +1,5 @@
 package com.leyue.smartcs.web.mcp;
 
-import org.springframework.ai.mcp.McpToolUtils;
-import org.springframework.ai.tool.ToolCallbackProvider;
-import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,39 +14,14 @@ import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.server.transport.WebMvcSseServerTransportProvider;
 import io.modelcontextprotocol.spec.McpSchema;
 
+/**
+ * 支付工具提供者 - 已迁移到LangChain4j
+ * 
+ * 原MCP功能已迁移到LangChain4j的@Tool注解系统
+ * 工具服务PaymentToolsService直接集成到LLMGatewayImpl的AI Services中
+ */
 @Configuration
 public class PaymentMcpProvider {
-
-    /* 支付MCP传输 */
-    @Bean("paymentTransport")
-    WebMvcSseServerTransportProvider paymentTransport(ObjectMapper mapper) {
-        return new WebMvcSseServerTransportProvider(
-                mapper, "/mcp/pay/message", "/mcp/pay/sse");
-    }
-
-    /* 支付MCP路由 */
-    @Bean
-    RouterFunction<ServerResponse> paymentRouter(
-            @Qualifier("paymentTransport") WebMvcSseServerTransportProvider t) {
-        return t.getRouterFunction();
-    }
-
-    /* 支付MCP服务 */
-    @Bean("paymentMcpServer")
-    McpSyncServer paymentMcpServer(
-            @Qualifier("paymentTransport") WebMvcSseServerTransportProvider t,
-            @Qualifier("paymentTools") ToolCallbackProvider tools) {
-
-        return McpServer.sync(t)
-                .serverInfo("Payment-MCP", "2.0")
-                .capabilities(McpSchema.ServerCapabilities.builder().tools(true).build())
-                .tools(McpToolUtils.toSyncToolSpecifications(tools.getToolCallbacks()))
-                .build();
-    }
-
-    /* 支付工具 */
-    @Bean("paymentTools")
-    ToolCallbackProvider paymentTools(PaymentToolsService paymentToolsService) {
-        return MethodToolCallbackProvider.builder().toolObjects(paymentToolsService).build();
-    }
+    // MCP功能已迁移到LangChain4j工具系统
+    // 工具通过LLMGatewayImpl.tools()集成
 }

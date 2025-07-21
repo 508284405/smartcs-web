@@ -4,22 +4,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.knowledge.convertor.ChunkConverter;
 import com.leyue.smartcs.knowledge.convertor.DocumentSearchConvertor;
 
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,10 +57,12 @@ public class DocumentVectorSearchQryExe {
             Embedding queryEmbedding = embeddingModel.embed(request.getQuery()).content();
 
             // 执行向量搜索
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.findRelevant(
-                queryEmbedding, 
-                request.getTopK()
-            );
+            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(
+                EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(request.getTopK())
+                    .build()
+            ).matches();
 
             if (matches == null || matches.isEmpty()) {
                 log.info("向量搜索未找到匹配结果");

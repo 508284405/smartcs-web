@@ -28,6 +28,11 @@ import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+// 工具服务现在在同一个infrastructure层
+import com.leyue.smartcs.mcp.OrderToolsService;
+import com.leyue.smartcs.mcp.WeatherToolsService;
+import com.leyue.smartcs.mcp.PaymentToolsService;
+import com.leyue.smartcs.mcp.SqlQueryToolsService;
 
 /**
  * LLM网关实现 - 使用LangChain4j AI Services
@@ -42,11 +47,17 @@ public class LLMGatewayImpl implements LLMGateway {
     private final PromptTemplateGateway promptTemplateGateway;
     private final EmbeddingStore<Embedding> embeddingStore;
     private final FusionQuestionAnswerAdvisor fusionQuestionAnswerAdvisor;
+    
+    // LangChain4j工具服务
+    private final OrderToolsService orderToolsService;
+    private final WeatherToolsService weatherToolsService;
+    private final PaymentToolsService paymentToolsService;
+    private final SqlQueryToolsService sqlQueryToolsService;
 
 
 
     /**
-     * AI Service接口定义 - 用于流式聊天
+     * AI Service接口定义 - 用于流式聊天，支持工具调用
      */
     interface StreamingChatAssistant {
         @SystemMessage("{{systemPrompt}}")
@@ -81,11 +92,12 @@ public class LLMGatewayImpl implements LLMGateway {
                 }
             }
             
-            // 使用AI Services创建流式聊天助手
+            // 使用AI Services创建流式聊天助手，集成LangChain4j工具
             StreamingChatAssistant assistant = AiServices.builder(StreamingChatAssistant.class)
                     .streamingChatModel(streamingChatModel)
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.withMaxMessages(10))
                     .systemMessageProvider(memoryId -> systemPrompt)
+                    .tools(orderToolsService, weatherToolsService, paymentToolsService, sqlQueryToolsService)
                     .build();
             
             // 创建CompletableFuture用于异步处理

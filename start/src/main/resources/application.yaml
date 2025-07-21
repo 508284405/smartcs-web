@@ -19,6 +19,14 @@ spring:
   reactor:
     context-propagation: auto # Boot 3.2+ 原生支持
 
+# MCP (Model Context Protocol) 配置
+mcp:
+  server:
+    sql:
+      enabled: true
+      endpoint: "/mcp/sql"
+      description: "SQL Query MCP Server"
+
 # 日志配置
 logging:
   level:

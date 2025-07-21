@@ -1,9 +1,9 @@
 package com.leyue.smartcs.mcp;
 
 import dev.langchain4j.agent.tool.Tool;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 public class PaymentToolsService {
 
     @Tool("支付")
