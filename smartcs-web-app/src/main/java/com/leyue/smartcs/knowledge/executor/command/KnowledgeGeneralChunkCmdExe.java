@@ -41,6 +41,10 @@ public class KnowledgeGeneralChunkCmdExe {
      * @return 分块结果
      */
     public MultiResponse<ChunkDTO> execute(KnowledgeGeneralChunkCmd cmd) {
+        if (cmd == null || cmd.getFileUrl() == null) {
+            throw new BizException("CHUNK_GENERAL_FAILED", "文件地址不能为空");
+        }
+
         try {
             // 将OSS URL转换为Resource对象
             Resource resource = new UrlResource(cmd.getFileUrl());
@@ -88,6 +92,8 @@ public class KnowledgeGeneralChunkCmdExe {
             // 应用分块策略
             List<TextSegment> segments = applyChunkingStrategy(
                     allPreprocessedTexts, strategy, cmd);
+
+            log.info("分块策略 {} 生成 {} 个段落", strategy.name(), segments.size());
             
             // 转换为ChunkDTO
             for (int i = 0; i < segments.size(); i++) {
@@ -112,6 +118,9 @@ public class KnowledgeGeneralChunkCmdExe {
                                                    DocumentParserFactory.ChunkingStrategy strategy,
                                                    KnowledgeGeneralChunkCmd cmd) {
         List<TextSegment> allSegments = new ArrayList<>();
+        if (documents == null || documents.isEmpty()) {
+            return allSegments;
+        }
         
         switch (strategy) {
             case PAGE_BASED:
@@ -133,7 +142,7 @@ public class KnowledgeGeneralChunkCmdExe {
                 for (Document doc : documents) {
                     List<TextSegment> segments = DocumentSplitters.recursive(
                             cmd.getChunkSize() != null ? cmd.getChunkSize() : 1000,
-                            cmd.getChunkOverlap() != null ? cmd.getChunkOverlap() : 200
+                            cmd.getOverlapSize() != null ? cmd.getOverlapSize() : 200
                     ).split(doc);
                     allSegments.addAll(segments);
                 }
