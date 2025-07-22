@@ -30,6 +30,8 @@ public class KnowledgeBaseCreateCmdExe {
      */
     public SingleResponse<KnowledgeBaseDTO> execute(KnowledgeBaseCreateCmd cmd) {
         try {
+            // 参数校验
+            validateParams(cmd);
             // 检查名称是否重复
             if (knowledgeBaseGateway.existsByName(cmd.getName())) {
                 return SingleResponse.buildFailure("KNOWLEDGE_BASE_NAME_EXISTS", "知识库名称已存在");
