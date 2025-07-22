@@ -9,6 +9,7 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageTree;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
@@ -18,116 +19,300 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * PDF文档解析器
- * 支持文本提取、图片提取和表格识别
+ * PDF文档解析器 - 多模态RAG增强版
+ * 支持高级文本提取、智能图片处理、表格检测和结构化内容分析
+ * 基于多模态RAG最佳实践实现
  */
 @Slf4j
 @Component
 public class PdfDocumentParser implements DocumentParser {
+    
+    // 表格检测正则模式
+    private static final Pattern TABLE_PATTERN = Pattern.compile(
+        "(?:\\s*\\|[^\\n]*\\|\\s*\\n){2,}|" +  // 管道分隔的表格
+        "(?:\\s*[^\\n]*\\t[^\\n]*\\n){2,}|" +  // Tab分隔的表格
+        "(?:\\s*\\d+[\\s.]+[^\\n]*\\n){3,}"    // 编号列表形式的表格
+    );
+    
+    // 标题检测模式
+    private static final Pattern TITLE_PATTERN = Pattern.compile(
+        "^\\s*(?:第?[一二三四五六七八九十\\d]+[章节部分条]|" +
+        "\\d+\\.\\d*|[A-Z]\\.|\\d+\\)|" +
+        "[\\u4e00-\\u9fa5]{1,20}：?)\\s*([\\u4e00-\\u9fa5A-Za-z\\d\\s]{2,50})\\s*$",
+        Pattern.MULTILINE
+    );
+    
+    // 配置参数
+    @Value("${pdf.multimodal.enable-ocr:false}")
+    private boolean enableOCR;
+    
+    @Value("${pdf.multimodal.enable-table-detection:true}")
+    private boolean enableTableDetection;
+    
+    @Value("${pdf.multimodal.enable-image-description:false}")
+    private boolean enableImageDescription;
+    
+    @Value("${pdf.multimodal.min-image-size:100}")
+    private int minImageSize;
     
     @Override
     public List<Document> parse(Resource resource, String fileName) throws IOException {
         List<Document> documents = new ArrayList<>();
         
         try (InputStream inputStream = resource.getInputStream();
-             PDDocument document = PDDocument.load(inputStream)) {
+             PDDocument pdDocument = PDDocument.load(inputStream)) {
             
-            // 1. 提取全文内容
-            PDFTextStripper textStripper = new PDFTextStripper();
-            String fullText = textStripper.getText(document);
+            log.info("开始多模态PDF解析，文件: {}，页数: {}", fileName, pdDocument.getNumberOfPages());
             
-            // 创建主文档
-            Metadata mainMetadata = Metadata.from("type", "pdf_main")
-                    .put("fileName", fileName)
-                    .put("pageCount", String.valueOf(document.getNumberOfPages()))
-                    .put("hasImages", String.valueOf(hasImages(document)));
-                    
-            documents.add(Document.from(fullText, mainMetadata));
+            // 1. 文档级别分析
+            DocumentAnalysis analysis = analyzeDocument(pdDocument);
             
-            // 2. 按页面分块提取
-            PDPageTree pages = document.getPages();
+            // 2. 提取文档元数据
+            documents.add(createDocumentMetadata(fileName, pdDocument, analysis));
+            
+            // 3. 处理每一页的多模态内容
+            PDPageTree pages = pdDocument.getPages();
             int pageIndex = 0;
             
             for (PDPage page : pages) {
                 pageIndex++;
+                log.debug("处理第{}页", pageIndex);
                 
-                // 提取页面文本
-                textStripper.setStartPage(pageIndex);
-                textStripper.setEndPage(pageIndex);
-                String pageText = textStripper.getText(document);
+                // 提取页面的多模态内容
+                PageContent pageContent = extractPageContent(page, pageIndex, fileName, pdDocument);
                 
-                if (pageText != null && !pageText.trim().isEmpty()) {
-                    Metadata pageMetadata = Metadata.from("type", "pdf_page")
-                            .put("fileName", fileName)
-                            .put("pageNumber", String.valueOf(pageIndex))
-                            .put("totalPages", String.valueOf(document.getNumberOfPages()));
-                    
-                    documents.add(Document.from(pageText, pageMetadata));
+                // 添加文本内容
+                if (pageContent.hasText()) {
+                    documents.addAll(processTextContent(pageContent, fileName, pageIndex));
                 }
                 
-                // 3. 提取页面中的图片（如果有）
-                extractPageImages(page, pageIndex, fileName, documents);
+                // 添加图像内容
+                if (pageContent.hasImages()) {
+                    documents.addAll(processImageContent(pageContent, fileName, pageIndex));
+                }
+                
+                // 添加表格内容
+                if (pageContent.hasTables()) {
+                    documents.addAll(processTableContent(pageContent, fileName, pageIndex));
+                }
             }
             
-            log.info("PDF解析完成，文件: {}，总页数: {}，生成文档数: {}", 
-                    fileName, document.getNumberOfPages(), documents.size());
-                    
+            // 4. 生成文档结构化索引
+            documents.addAll(generateDocumentStructure(pdDocument, fileName, analysis));
+            
+            log.info("多模态PDF解析完成，文件: {}，生成文档数: {}", fileName, documents.size());
+            
         } catch (Exception e) {
-            log.error("PDF文档解析失败: {}", fileName, e);
-            throw new IOException("PDF文档解析失败: " + e.getMessage(), e);
+            log.error("多模态PDF解析失败: {}", fileName, e);
+            throw new IOException("多模态PDF解析失败: " + e.getMessage(), e);
         }
         
         return documents;
     }
     
     /**
-     * 提取页面中的图片
+     * 文档级别分析
      */
-    private void extractPageImages(PDPage page, int pageIndex, String fileName, List<Document> documents) {
+    private DocumentAnalysis analyzeDocument(PDDocument document) {
+        DocumentAnalysis analysis = new DocumentAnalysis();
+        analysis.pageCount = document.getNumberOfPages();
+        
         try {
-            // 简化的图片提取实现
-            // 在实际应用中可以使用更复杂的图片提取算法
-            var resources = page.getResources();
-            if (resources != null && resources.getXObjectNames() != null) {
-                for (var name : resources.getXObjectNames()) {
-                    try {
-                        var xObject = resources.getXObject(name);
-                        if (xObject instanceof PDImageXObject) {
-                            PDImageXObject image = (PDImageXObject) xObject;
-                            
-                            // 转换图片为Base64（用于存储）
-                            BufferedImage bufferedImage = image.getImage();
-                            String imageBase64 = imageToBase64(bufferedImage);
-                            
-                            // 创建图片文档
-                            Metadata imageMetadata = Metadata.from("type", "pdf_image")
-                                    .put("fileName", fileName)
-                                    .put("pageNumber", String.valueOf(pageIndex))
-                                    .put("imageFormat", image.getSuffix())
-                                    .put("width", String.valueOf(image.getWidth()))
-                                    .put("height", String.valueOf(image.getHeight()));
-                            
-                            String imageContent = String.format("[图片：第%d页，格式：%s，尺寸：%dx%d]\n图片数据：%s", 
-                                    pageIndex, image.getSuffix(), 
-                                    image.getWidth(), image.getHeight(), 
-                                    imageBase64.substring(0, Math.min(100, imageBase64.length())) + "...");
-                            
-                            documents.add(Document.from(imageContent, imageMetadata));
-                        }
-                    } catch (Exception e) {
-                        log.warn("提取页面图片失败，页面: {}，图片: {}", pageIndex, name, e);
-                    }
-                }
-            }
+            // 分析文档结构
+            PDFTextStripper textStripper = new PDFTextStripper();
+            String fullText = textStripper.getText(document);
+            
+            analysis.totalCharacters = fullText.length();
+            analysis.hasImages = hasImages(document);
+            analysis.estimatedTables = countEstimatedTables(fullText);
+            analysis.titleCount = countTitles(fullText);
+            
         } catch (Exception e) {
-            log.warn("提取页面{}的图片时出错", pageIndex, e);
+            log.warn("文档分析时出错", e);
         }
+        
+        return analysis;
     }
+    
+    /**
+     * 创建文档元数据
+     */
+    private Document createDocumentMetadata(String fileName, PDDocument document, DocumentAnalysis analysis) {
+        Metadata metadata = Metadata.from("type", "pdf_metadata")
+                .put("fileName", fileName)
+                .put("pageCount", String.valueOf(analysis.pageCount))
+                .put("totalCharacters", String.valueOf(analysis.totalCharacters))
+                .put("hasImages", String.valueOf(analysis.hasImages))
+                .put("estimatedTables", String.valueOf(analysis.estimatedTables))
+                .put("titleCount", String.valueOf(analysis.titleCount));
+        
+        String content = String.format("PDF文档概览 - 文件名: %s, 页数: %d, 字符数: %d, 包含图像: %s, 估计表格数: %d, 标题数: %d",
+                fileName, analysis.pageCount, analysis.totalCharacters, 
+                analysis.hasImages, analysis.estimatedTables, analysis.titleCount);
+        
+        return Document.from(content, metadata);
+    }
+    
+    /**
+     * 提取页面内容
+     */
+    private PageContent extractPageContent(PDPage page, int pageIndex, String fileName, PDDocument document) {
+        PageContent content = new PageContent(pageIndex);
+        
+        try {
+            // 提取文本内容
+            PDFTextStripper textStripper = new PDFTextStripper();
+            textStripper.setStartPage(pageIndex);
+            textStripper.setEndPage(pageIndex);
+            String pageText = textStripper.getText(document);
+            content.textContent = pageText != null ? pageText.trim() : "";
+            
+            // 检测和提取表格
+            if (enableTableDetection && !content.textContent.isEmpty()) {
+                content.tables = detectTables(content.textContent);
+            }
+            
+            // 提取图像
+            content.images = extractPageImages(page, pageIndex);
+            
+        } catch (Exception e) {
+            log.warn("提取页面{}内容时出错", pageIndex, e);
+        }
+        
+        return content;
+    }
+    
+    /**
+     * 处理文本内容
+     */
+    private List<Document> processTextContent(PageContent pageContent, String fileName, int pageIndex) {
+        List<Document> documents = new ArrayList<>();
+        
+        if (pageContent.textContent.isEmpty()) {
+            return documents;
+        }
+        
+        // 检测标题和段落
+        List<TextSegment> segments = segmentText(pageContent.textContent);
+        
+        for (int i = 0; i < segments.size(); i++) {
+            TextSegment segment = segments.get(i);
+            
+            Metadata metadata = Metadata.from("type", segment.isTitle ? "pdf_title" : "pdf_text")
+                    .put("fileName", fileName)
+                    .put("pageNumber", String.valueOf(pageIndex))
+                    .put("segmentIndex", String.valueOf(i))
+                    .put("segmentType", segment.isTitle ? "title" : "paragraph")
+                    .put("confidence", String.valueOf(segment.confidence));
+            
+            documents.add(Document.from(segment.content, metadata));
+        }
+        
+        return documents;
+    }
+    
+    /**
+     * 处理图像内容
+     */
+    private List<Document> processImageContent(PageContent pageContent, String fileName, int pageIndex) {
+        List<Document> documents = new ArrayList<>();
+        
+        for (int i = 0; i < pageContent.images.size(); i++) {
+            ImageInfo image = pageContent.images.get(i);
+            
+            // 过滤小图像（可能是装饰性图标）
+            if (image.width < minImageSize || image.height < minImageSize) {
+                continue;
+            }
+            
+            StringBuilder content = new StringBuilder();
+            content.append(String.format("图像内容 - 页面: %d, 格式: %s, 尺寸: %dx%d",
+                    pageIndex, image.format, image.width, image.height));
+            
+            // OCR处理（如果启用）
+            if (enableOCR && image.ocrText != null && !image.ocrText.trim().isEmpty()) {
+                content.append("\nOCR识别文本: ").append(image.ocrText);
+            }
+            
+            // 图像描述（如果启用）
+            if (enableImageDescription && image.description != null && !image.description.trim().isEmpty()) {
+                content.append("\n图像描述: ").append(image.description);
+            }
+            
+            Metadata metadata = Metadata.from("type", "pdf_image")
+                    .put("fileName", fileName)
+                    .put("pageNumber", String.valueOf(pageIndex))
+                    .put("imageIndex", String.valueOf(i))
+                    .put("imageFormat", image.format)
+                    .put("width", String.valueOf(image.width))
+                    .put("height", String.valueOf(image.height))
+                    .put("hasOCR", String.valueOf(enableOCR && image.ocrText != null))
+                    .put("hasDescription", String.valueOf(enableImageDescription && image.description != null));
+            
+            documents.add(Document.from(content.toString(), metadata));
+        }
+        
+        return documents;
+    }
+    
+    /**
+     * 处理表格内容
+     */
+    private List<Document> processTableContent(PageContent pageContent, String fileName, int pageIndex) {
+        List<Document> documents = new ArrayList<>();
+        
+        for (int i = 0; i < pageContent.tables.size(); i++) {
+            TableInfo table = pageContent.tables.get(i);
+            
+            StringBuilder content = new StringBuilder();
+            content.append(String.format("表格内容 - 页面: %d, 行数: %d, 列数: %d\n",
+                    pageIndex, table.rowCount, table.columnCount));
+            content.append("表格数据:\n").append(table.content);
+            
+            Metadata metadata = Metadata.from("type", "pdf_table")
+                    .put("fileName", fileName)
+                    .put("pageNumber", String.valueOf(pageIndex))
+                    .put("tableIndex", String.valueOf(i))
+                    .put("rowCount", String.valueOf(table.rowCount))
+                    .put("columnCount", String.valueOf(table.columnCount))
+                    .put("confidence", String.valueOf(table.confidence));
+            
+            documents.add(Document.from(content.toString(), metadata));
+        }
+        
+        return documents;
+    }
+    
+    /**
+     * 生成文档结构化索引
+     */
+    private List<Document> generateDocumentStructure(PDDocument document, String fileName, DocumentAnalysis analysis) {
+        List<Document> documents = new ArrayList<>();
+        
+        // 创建文档大纲
+        StringBuilder outline = new StringBuilder();
+        outline.append("文档结构大纲:\n");
+        outline.append(String.format("- 总页数: %d\n", analysis.pageCount));
+        outline.append(String.format("- 包含图像: %s\n", analysis.hasImages ? "是" : "否"));
+        outline.append(String.format("- 估计表格数: %d\n", analysis.estimatedTables));
+        outline.append(String.format("- 标题数量: %d\n", analysis.titleCount));
+        
+        Metadata outlineMetadata = Metadata.from("type", "pdf_outline")
+                .put("fileName", fileName)
+                .put("structureType", "document_outline");
+        
+        documents.add(Document.from(outline.toString(), outlineMetadata));
+        
+        return documents;
+    }
+    
+    // =================== 辅助方法 ===================
     
     /**
      * 检查PDF是否包含图片
@@ -152,6 +337,204 @@ public class PdfDocumentParser implements DocumentParser {
     }
     
     /**
+     * 估算表格数量
+     */
+    private int countEstimatedTables(String text) {
+        Matcher matcher = TABLE_PATTERN.matcher(text);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
+    }
+    
+    /**
+     * 计算标题数量
+     */
+    private int countTitles(String text) {
+        Matcher matcher = TITLE_PATTERN.matcher(text);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
+    }
+    
+    /**
+     * 提取页面图像
+     */
+    private List<ImageInfo> extractPageImages(PDPage page, int pageIndex) {
+        List<ImageInfo> images = new ArrayList<>();
+        
+        try {
+            var resources = page.getResources();
+            if (resources != null && resources.getXObjectNames() != null) {
+                for (var name : resources.getXObjectNames()) {
+                    try {
+                        var xObject = resources.getXObject(name);
+                        if (xObject instanceof PDImageXObject) {
+                            PDImageXObject pdImage = (PDImageXObject) xObject;
+                            
+                            ImageInfo imageInfo = new ImageInfo();
+                            imageInfo.width = pdImage.getWidth();
+                            imageInfo.height = pdImage.getHeight();
+                            imageInfo.format = pdImage.getSuffix();
+                            imageInfo.pageNumber = pageIndex;
+                            
+                            // 转换为BufferedImage用于进一步处理
+                            BufferedImage bufferedImage = pdImage.getImage();
+                            imageInfo.imageData = imageToBase64(bufferedImage);
+                            
+                            // OCR处理（如果启用）
+                            if (enableOCR) {
+                                imageInfo.ocrText = performOCR(bufferedImage);
+                            }
+                            
+                            // 图像描述生成（如果启用）
+                            if (enableImageDescription) {
+                                imageInfo.description = generateImageDescription(bufferedImage);
+                            }
+                            
+                            images.add(imageInfo);
+                        }
+                    } catch (Exception e) {
+                        log.warn("提取页面图片失败，页面: {}，图片: {}", pageIndex, name, e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("提取页面{}的图片时出错", pageIndex, e);
+        }
+        
+        return images;
+    }
+    
+    /**
+     * 检测表格
+     */
+    private List<TableInfo> detectTables(String text) {
+        List<TableInfo> tables = new ArrayList<>();
+        
+        Matcher matcher = TABLE_PATTERN.matcher(text);
+        int tableIndex = 0;
+        
+        while (matcher.find()) {
+            String tableContent = matcher.group();
+            
+            TableInfo tableInfo = new TableInfo();
+            tableInfo.content = tableContent;
+            tableInfo.startIndex = matcher.start();
+            tableInfo.endIndex = matcher.end();
+            tableInfo.tableIndex = tableIndex++;
+            
+            // 分析表格结构
+            analyzeTableStructure(tableInfo, tableContent);
+            
+            tables.add(tableInfo);
+        }
+        
+        return tables;
+    }
+    
+    /**
+     * 分析表格结构
+     */
+    private void analyzeTableStructure(TableInfo tableInfo, String tableContent) {
+        String[] lines = tableContent.split("\\n");
+        tableInfo.rowCount = lines.length;
+        
+        // 估算列数（取第一行的分隔符数量）
+        if (lines.length > 0) {
+            String firstLine = lines[0];
+            if (firstLine.contains("|")) {
+                tableInfo.columnCount = firstLine.split("\\|").length - 1;
+            } else if (firstLine.contains("\t")) {
+                tableInfo.columnCount = firstLine.split("\t").length;
+            } else {
+                tableInfo.columnCount = 1;
+            }
+        }
+        
+        // 设置置信度（基于结构规律性）
+        tableInfo.confidence = calculateTableConfidence(tableContent);
+    }
+    
+    /**
+     * 计算表格置信度
+     */
+    private double calculateTableConfidence(String tableContent) {
+        String[] lines = tableContent.split("\\n");
+        if (lines.length < 2) return 0.3;
+        
+        // 检查行结构一致性
+        int consistentRows = 0;
+        String pattern = null;
+        
+        for (String line : lines) {
+            String currentPattern = line.replaceAll("[^|\\t]", "X");
+            if (pattern == null) {
+                pattern = currentPattern;
+                consistentRows = 1;
+            } else if (pattern.equals(currentPattern)) {
+                consistentRows++;
+            }
+        }
+        
+        double consistencyRatio = (double) consistentRows / lines.length;
+        return Math.min(consistencyRatio, 1.0);
+    }
+    
+    /**
+     * 文本分段
+     */
+    private List<TextSegment> segmentText(String text) {
+        List<TextSegment> segments = new ArrayList<>();
+        
+        String[] paragraphs = text.split("\\n\\s*\\n");
+        
+        for (String paragraph : paragraphs) {
+            if (paragraph.trim().isEmpty()) continue;
+            
+            TextSegment segment = new TextSegment();
+            segment.content = paragraph.trim();
+            
+            // 检测是否为标题
+            Matcher titleMatcher = TITLE_PATTERN.matcher(paragraph);
+            if (titleMatcher.find()) {
+                segment.isTitle = true;
+                segment.confidence = 0.8;
+            } else {
+                segment.isTitle = false;
+                segment.confidence = 0.9;
+            }
+            
+            segments.add(segment);
+        }
+        
+        return segments;
+    }
+    
+    /**
+     * 执行OCR（占位实现）
+     */
+    private String performOCR(BufferedImage image) {
+        // 这里应该集成实际的OCR库，如Tesseract
+        // 当前返回占位符
+        log.debug("OCR处理占位实现，图像尺寸: {}x{}", image.getWidth(), image.getHeight());
+        return null;
+    }
+    
+    /**
+     * 生成图像描述（占位实现）
+     */
+    private String generateImageDescription(BufferedImage image) {
+        // 这里应该集成视觉AI模型，如Gemini Vision
+        // 当前返回占位符
+        log.debug("图像描述生成占位实现，图像尺寸: {}x{}", image.getWidth(), image.getHeight());
+        return null;
+    }
+    
+    /**
      * 图片转Base64
      */
     private String imageToBase64(BufferedImage image) {
@@ -164,6 +547,72 @@ public class PdfDocumentParser implements DocumentParser {
         }
     }
     
+    // =================== 数据类 ===================
+    
+    /**
+     * 文档分析结果
+     */
+    private static class DocumentAnalysis {
+        int pageCount;
+        int totalCharacters;
+        boolean hasImages;
+        int estimatedTables;
+        int titleCount;
+    }
+    
+    /**
+     * 页面内容
+     */
+    private static class PageContent {
+        int pageNumber;
+        String textContent = "";
+        List<ImageInfo> images = new ArrayList<>();
+        List<TableInfo> tables = new ArrayList<>();
+        
+        PageContent(int pageNumber) {
+            this.pageNumber = pageNumber;
+        }
+        
+        boolean hasText() { return !textContent.isEmpty(); }
+        boolean hasImages() { return !images.isEmpty(); }
+        boolean hasTables() { return !tables.isEmpty(); }
+    }
+    
+    /**
+     * 图像信息
+     */
+    private static class ImageInfo {
+        int pageNumber;
+        int width;
+        int height;
+        String format;
+        String imageData;  // Base64编码
+        String ocrText;
+        String description;
+    }
+    
+    /**
+     * 表格信息
+     */
+    private static class TableInfo {
+        int tableIndex;
+        String content;
+        int startIndex;
+        int endIndex;
+        int rowCount;
+        int columnCount;
+        double confidence;
+    }
+    
+    /**
+     * 文本段落
+     */
+    private static class TextSegment {
+        String content;
+        boolean isTitle;
+        double confidence;
+    }
+    
     @Override
     public String[] getSupportedTypes() {
         return new String[]{"pdf"};
@@ -171,6 +620,6 @@ public class PdfDocumentParser implements DocumentParser {
     
     @Override
     public boolean supports(String extension) {
-        return Arrays.asList(getSupportedTypes()).contains(extension.toLowerCase());
+        return extension != null && "pdf".equalsIgnoreCase(extension);
     }
 }
