@@ -7,7 +7,7 @@ import com.leyue.smartcs.dto.data.AgentServiceDTO;
 /**
  * 客服管理API接口
  */
-public interface AgentServic {
+public interface AgentService {
     
     /**
      * 获取客服列表

@@ -1,7 +1,7 @@
 package com.leyue.smartcs.customer.serviceimpl;
 
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.api.AgentServic;
+import com.leyue.smartcs.api.AgentService;
 import com.leyue.smartcs.domain.customer.CustomerService;
 import com.leyue.smartcs.domain.customer.gateway.AgentGateway;
 import com.leyue.smartcs.domain.customer.gateway.AgentGateway.CustomerServiceStatistics;
@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
  * 客服管理服务实现
  */
 @Service
-public class CustomerServiceServiceImpl implements AgentServic {
+public class CustomerServiceServiceImpl implements AgentService {
     
     @Autowired
     private AgentGateway agentGateway;
