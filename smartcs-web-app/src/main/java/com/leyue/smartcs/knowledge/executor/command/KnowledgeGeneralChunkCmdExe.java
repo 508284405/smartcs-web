@@ -166,9 +166,9 @@ public class KnowledgeGeneralChunkCmdExe {
         metadataBuilder.append("\"fileName\":\"").append(fileName).append("\",");
         metadataBuilder.append("\"documentType\":\"").append(documentType.name()).append("\"");
         
-        if (segment.metadata() != null && !segment.metadata().asMap().isEmpty()) {
+        if (segment.metadata() != null && !segment.metadata().toMap().isEmpty()) {
             metadataBuilder.append(",");
-            segment.metadata().asMap().forEach((key, value) -> 
+            segment.metadata().toMap().forEach((key, value) ->
                 metadataBuilder.append("\"").append(key).append("\":\"").append(value).append("\",")
             );
             // 移除最后一个逗号
