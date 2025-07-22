@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.util.List;
 
 /**
  * 通用文档分块命令
@@ -77,4 +78,11 @@ public class KnowledgeGeneralChunkCmd extends Command {
      * Q&A分段语言
      */
     private String qaLanguage = "Chinese";
+    
+    /**
+     * 自定义分块策略列表
+     * 可以指定多个策略组合使用，如: ["IMAGE_PROCESSING", "TABLE_PROCESSING", "TEXT_CONTENT"]
+     * 如果为空，将使用文档类型的默认策略组合
+     */
+    private List<String> chunkingStrategies;
 } 

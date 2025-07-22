@@ -3,11 +3,11 @@ package com.leyue.smartcs.knowledge.parser.factory;
 import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.impl.*;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

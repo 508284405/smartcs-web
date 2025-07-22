@@ -151,11 +151,11 @@ public class DocxDocumentParser implements DocumentParser {
             
             // 创建表格文档
             Metadata tableMetadata = Metadata.from("type", "docx_table")
-                    .add("fileName", fileName)
-                    .add("tableIndex", String.valueOf(tableIndex))
-                    .add("rowCount", String.valueOf(rows.size()))
-                    .add("columnCount", String.valueOf(headers.size()))
-                    .add("headers", String.join(",", headers));
+                    .put("fileName", fileName)
+                    .put("tableIndex", String.valueOf(tableIndex))
+                    .put("rowCount", String.valueOf(rows.size()))
+                    .put("columnCount", String.valueOf(headers.size()))
+                    .put("headers", String.join(",", headers));
             
             documents.add(Document.from(tableContent.toString(), tableMetadata));
         }
@@ -171,10 +171,10 @@ public class DocxDocumentParser implements DocumentParser {
         }
         
         Metadata sectionMetadata = Metadata.from("type", "docx_section")
-                .add("fileName", fileName)
-                .add("heading", heading)
-                .add("sectionIndex", String.valueOf(sectionIndex))
-                .add("contentType", getContentType(content));
+                .put("fileName", fileName)
+                .put("heading", heading)
+                .put("sectionIndex", String.valueOf(sectionIndex))
+                .put("contentType", getContentType(content));
         
         documents.add(Document.from(content, sectionMetadata));
     }
@@ -199,9 +199,9 @@ public class DocxDocumentParser implements DocumentParser {
         }
         
         Metadata fullMetadata = Metadata.from("type", "docx_full")
-                .add("fileName", fileName)
-                .add("paragraphCount", String.valueOf(document.getParagraphs().size()))
-                .add("tableCount", String.valueOf(document.getTables().size()));
+                .put("fileName", fileName)
+                .put("paragraphCount", String.valueOf(document.getParagraphs().size()))
+                .put("tableCount", String.valueOf(document.getTables().size()));
         
         documents.add(Document.from(fullContent.toString(), fullMetadata));
     }

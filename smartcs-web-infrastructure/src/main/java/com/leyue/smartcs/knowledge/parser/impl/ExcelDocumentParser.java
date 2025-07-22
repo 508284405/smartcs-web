@@ -82,9 +82,9 @@ public class ExcelDocumentParser implements DocumentParser {
         if (!headers.isEmpty()) {
             String headerContent = "表头：" + String.join(" | ", headers);
             Metadata headerMetadata = Metadata.from("type", "excel_header")
-                    .add("fileName", fileName)
-                    .add("sheetName", sheetName)
-                    .add("columnCount", String.valueOf(headers.size()));
+                    .put("fileName", fileName)
+                    .put("sheetName", sheetName)
+                    .put("columnCount", String.valueOf(headers.size()));
             
             documents.add(Document.from(headerContent, headerMetadata));
         }
@@ -139,10 +139,10 @@ public class ExcelDocumentParser implements DocumentParser {
                 headers.isEmpty() ? "无" : String.join(", ", headers));
         
         Metadata summaryMetadata = Metadata.from("type", "excel_summary")
-                .add("fileName", fileName)
-                .add("sheetName", sheetName)
-                .add("totalRows", String.valueOf(dataRowCount))
-                .add("columnCount", String.valueOf(headers.size()));
+                .put("fileName", fileName)
+                .put("sheetName", sheetName)
+                .put("totalRows", String.valueOf(dataRowCount))
+                .put("columnCount", String.valueOf(headers.size()));
         
         documents.add(Document.from(summaryContent, summaryMetadata));
     }
@@ -227,11 +227,11 @@ public class ExcelDocumentParser implements DocumentParser {
                                 List<Document> documents) {
         
         Metadata dataMetadata = Metadata.from("type", "excel_data")
-                .add("fileName", fileName)
-                .add("sheetName", sheetName)
-                .add("startRow", String.valueOf(startRow))
-                .add("endRow", String.valueOf(endRow))
-                .add("headers", String.join(",", headers));
+                .put("fileName", fileName)
+                .put("sheetName", sheetName)
+                .put("startRow", String.valueOf(startRow))
+                .put("endRow", String.valueOf(endRow))
+                .put("headers", String.join(",", headers));
         
         documents.add(Document.from(content, dataMetadata));
     }

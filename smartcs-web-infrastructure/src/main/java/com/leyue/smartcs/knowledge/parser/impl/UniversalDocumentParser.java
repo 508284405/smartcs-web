@@ -70,9 +70,9 @@ public class UniversalDocumentParser implements DocumentParser {
                 String paragraph = paragraphs[i].trim();
                 if (!paragraph.isEmpty()) {
                     Metadata metadata = Metadata.from("type", "text_paragraph")
-                            .add("fileName", fileName)
-                            .add("paragraphIndex", String.valueOf(i))
-                            .add("totalParagraphs", String.valueOf(paragraphs.length));
+                            .put("fileName", fileName)
+                            .put("paragraphIndex", String.valueOf(i))
+                            .put("totalParagraphs", String.valueOf(paragraphs.length));
                     
                     documents.add(Document.from(paragraph, metadata));
                 }
@@ -80,9 +80,9 @@ public class UniversalDocumentParser implements DocumentParser {
             
             // 创建完整文档
             Metadata fullMetadata = Metadata.from("type", "text_full")
-                    .add("fileName", fileName)
-                    .add("totalLines", String.valueOf(lineNumber))
-                    .add("totalParagraphs", String.valueOf(paragraphs.length));
+                    .put("fileName", fileName)
+                    .put("totalLines", String.valueOf(lineNumber))
+                    .put("totalParagraphs", String.valueOf(paragraphs.length));
             
             documents.add(Document.from(fullText, fullMetadata));
             
@@ -123,9 +123,9 @@ public class UniversalDocumentParser implements DocumentParser {
                     .replaceAll("&\\w+;", " ");
             
             Metadata htmlMetadata = Metadata.from("type", "html_content")
-                    .add("fileName", fileName)
-                    .add("hasScripts", String.valueOf(htmlContent.contains("<script")))
-                    .add("hasStyles", String.valueOf(htmlContent.contains("<style")));
+                    .put("fileName", fileName)
+                    .put("hasScripts", String.valueOf(htmlContent.contains("<script")))
+                    .put("hasStyles", String.valueOf(htmlContent.contains("<style")));
             
             documents.add(Document.from(textContent, htmlMetadata));
             
@@ -163,10 +163,10 @@ public class UniversalDocumentParser implements DocumentParser {
                     // 每50行创建一个分块
                     if (rowIndex % 50 == 0) {
                         Metadata chunkMetadata = Metadata.from("type", "csv_chunk")
-                                .add("fileName", fileName)
-                                .add("startRow", String.valueOf(rowIndex - 49))
-                                .add("endRow", String.valueOf(rowIndex))
-                                .add("headers", headers != null ? headers : "");
+                                .put("fileName", fileName)
+                                .put("startRow", String.valueOf(rowIndex - 49))
+                                .put("endRow", String.valueOf(rowIndex))
+                                .put("headers", headers != null ? headers : "");
                         
                         documents.add(Document.from(allContent.toString(), chunkMetadata));
                         allContent = new StringBuilder();
@@ -177,12 +177,12 @@ public class UniversalDocumentParser implements DocumentParser {
             }
             
             // 处理剩余内容
-            if (allContent.length() > 0) {
+            if (!allContent.isEmpty()) {
                 Metadata chunkMetadata = Metadata.from("type", "csv_chunk")
-                        .add("fileName", fileName)
-                        .add("startRow", String.valueOf((rowIndex / 50) * 50 + 1))
-                        .add("endRow", String.valueOf(rowIndex - 1))
-                        .add("headers", headers != null ? headers : "");
+                        .put("fileName", fileName)
+                        .put("startRow", String.valueOf((rowIndex / 50) * 50 + 1))
+                        .put("endRow", String.valueOf(rowIndex - 1))
+                        .put("headers", headers != null ? headers : "");
                 
                 documents.add(Document.from(allContent.toString(), chunkMetadata));
             }
@@ -218,7 +218,7 @@ public class UniversalDocumentParser implements DocumentParser {
                     if (inCue && currentCue.length() > 0) {
                         // 创建字幕段落文档
                         Metadata cueMetadata = Metadata.from("type", "vtt_cue")
-                                .add("fileName", fileName);
+                                .put("fileName", fileName);
                         
                         documents.add(Document.from(currentCue.toString(), cueMetadata));
                         currentCue = new StringBuilder();
@@ -237,14 +237,14 @@ public class UniversalDocumentParser implements DocumentParser {
             // 处理最后一个字幕
             if (currentCue.length() > 0) {
                 Metadata cueMetadata = Metadata.from("type", "vtt_cue")
-                        .add("fileName", fileName);
+                        .put("fileName", fileName);
                 
                 documents.add(Document.from(currentCue.toString(), cueMetadata));
             }
             
             // 创建完整字幕文档
             Metadata fullMetadata = Metadata.from("type", "vtt_full")
-                    .add("fileName", fileName);
+                    .put("fileName", fileName);
             
             documents.add(Document.from(content.toString(), fullMetadata));
             
@@ -279,11 +279,11 @@ public class UniversalDocumentParser implements DocumentParser {
                 if (line.trim().isEmpty() || line.trim().startsWith("#")) {
                     if (line.trim().startsWith("#") && !line.trim().startsWith("##")) {
                         // 检查是否为分组注释
-                        if (currentGroup.length() > 0) {
+                        if (!currentGroup.isEmpty()) {
                             // 保存之前的分组
                             Metadata groupMetadata = Metadata.from("type", "properties_group")
-                                    .add("fileName", fileName)
-                                    .add("groupName", groupName);
+                                    .put("fileName", fileName)
+                                    .put("groupName", groupName);
                             
                             documents.add(Document.from(currentGroup.toString(), groupMetadata));
                             currentGroup = new StringBuilder();
@@ -297,17 +297,17 @@ public class UniversalDocumentParser implements DocumentParser {
             }
             
             // 处理最后一个分组
-            if (currentGroup.length() > 0) {
+            if (!currentGroup.isEmpty()) {
                 Metadata groupMetadata = Metadata.from("type", "properties_group")
-                        .add("fileName", fileName)
-                        .add("groupName", groupName);
+                        .put("fileName", fileName)
+                        .put("groupName", groupName);
                 
                 documents.add(Document.from(currentGroup.toString(), groupMetadata));
             }
             
             // 创建完整配置文档
             Metadata fullMetadata = Metadata.from("type", "properties_full")
-                    .add("fileName", fileName);
+                    .put("fileName", fileName);
             
             documents.add(Document.from(content.toString(), fullMetadata));
             

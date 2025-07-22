@@ -43,9 +43,9 @@ public class PdfDocumentParser implements DocumentParser {
             
             // 创建主文档
             Metadata mainMetadata = Metadata.from("type", "pdf_main")
-                    .add("fileName", fileName)
-                    .add("pageCount", String.valueOf(document.getNumberOfPages()))
-                    .add("hasImages", String.valueOf(hasImages(document)));
+                    .put("fileName", fileName)
+                    .put("pageCount", String.valueOf(document.getNumberOfPages()))
+                    .put("hasImages", String.valueOf(hasImages(document)));
                     
             documents.add(Document.from(fullText, mainMetadata));
             
@@ -63,9 +63,9 @@ public class PdfDocumentParser implements DocumentParser {
                 
                 if (pageText != null && !pageText.trim().isEmpty()) {
                     Metadata pageMetadata = Metadata.from("type", "pdf_page")
-                            .add("fileName", fileName)
-                            .add("pageNumber", String.valueOf(pageIndex))
-                            .add("totalPages", String.valueOf(document.getNumberOfPages()));
+                            .put("fileName", fileName)
+                            .put("pageNumber", String.valueOf(pageIndex))
+                            .put("totalPages", String.valueOf(document.getNumberOfPages()));
                     
                     documents.add(Document.from(pageText, pageMetadata));
                 }
@@ -106,11 +106,11 @@ public class PdfDocumentParser implements DocumentParser {
                             
                             // 创建图片文档
                             Metadata imageMetadata = Metadata.from("type", "pdf_image")
-                                    .add("fileName", fileName)
-                                    .add("pageNumber", String.valueOf(pageIndex))
-                                    .add("imageFormat", image.getSuffix())
-                                    .add("width", String.valueOf(image.getWidth()))
-                                    .add("height", String.valueOf(image.getHeight()));
+                                    .put("fileName", fileName)
+                                    .put("pageNumber", String.valueOf(pageIndex))
+                                    .put("imageFormat", image.getSuffix())
+                                    .put("width", String.valueOf(image.getWidth()))
+                                    .put("height", String.valueOf(image.getHeight()));
                             
                             String imageContent = String.format("[图片：第%d页，格式：%s，尺寸：%dx%d]\n图片数据：%s", 
                                     pageIndex, image.getSuffix(), 

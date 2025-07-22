@@ -1,14 +1,15 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
-import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
+import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 按段落分段策略

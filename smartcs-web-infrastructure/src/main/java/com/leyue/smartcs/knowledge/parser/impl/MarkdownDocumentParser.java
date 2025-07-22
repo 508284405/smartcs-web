@@ -117,8 +117,8 @@ public class MarkdownDocumentParser implements DocumentParser {
             
             // 创建完整文档
             Metadata fullMetadata = Metadata.from("type", "markdown_full")
-                    .add("fileName", fileName)
-                    .add("totalLines", String.valueOf(lineNumber));
+                    .put("fileName", fileName)
+                    .put("totalLines", String.valueOf(lineNumber));
             
             documents.add(Document.from(fullContent.toString(), fullMetadata));
             
@@ -141,10 +141,10 @@ public class MarkdownDocumentParser implements DocumentParser {
         if (content.trim().isEmpty()) return;
         
         Metadata sectionMetadata = Metadata.from("type", "markdown_section")
-                .add("fileName", fileName)
-                .add("header", header)
-                .add("headerLevel", String.valueOf(level))
-                .add("sectionType", getSectionType(content));
+                .put("fileName", fileName)
+                .put("header", header)
+                .put("headerLevel", String.valueOf(level))
+                .put("sectionType", getSectionType(content));
         
         documents.add(Document.from(content, sectionMetadata));
     }
@@ -160,10 +160,10 @@ public class MarkdownDocumentParser implements DocumentParser {
         String content = String.format("```%s\n%s\n```", language, code);
         
         Metadata codeMetadata = Metadata.from("type", "markdown_code")
-                .add("fileName", fileName)
-                .add("language", language)
-                .add("section", section)
-                .add("lineCount", String.valueOf(code.split("\n").length));
+                .put("fileName", fileName)
+                .put("language", language)
+                .put("section", section)
+                .put("lineCount", String.valueOf(code.split("\n").length));
         
         documents.add(Document.from(content, codeMetadata));
     }
@@ -184,10 +184,10 @@ public class MarkdownDocumentParser implements DocumentParser {
         }
         
         Metadata tableMetadata = Metadata.from("type", "markdown_table")
-                .add("fileName", fileName)
-                .add("section", section)
-                .add("rowCount", String.valueOf(tableRows.size()))
-                .add("headers", headers);
+                .put("fileName", fileName)
+                .put("section", section)
+                .put("rowCount", String.valueOf(tableRows.size()))
+                .put("headers", headers);
         
         documents.add(Document.from(content, tableMetadata));
     }

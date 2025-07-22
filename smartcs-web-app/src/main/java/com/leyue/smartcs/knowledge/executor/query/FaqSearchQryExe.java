@@ -14,6 +14,7 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
@@ -65,7 +66,12 @@ public class FaqSearchQryExe {
             Embedding queryEmbedding = embeddingModel.embed(keyword).content();
 
             // 执行向量搜索
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.findRelevant(queryEmbedding, k);
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(k)
+                    // .minScore(0.5)
+                    .build();
+            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(searchRequest).matches();
             if (matches == null || matches.isEmpty()) {
                 return MultiResponse.of(Collections.emptyList());
             }

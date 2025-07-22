@@ -4,22 +4,20 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.store.embedding.EmbeddingMatch;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
 import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.EmbeddingWithScore;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 
+import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.store.embedding.EmbeddingMatch;
+import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,7 +53,12 @@ public class TextSearchQryExe {
             Embedding queryEmbedding = embeddingModel.embed(qry.getKeyword()).content();
 
             // 执行向量搜索
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.findRelevant(queryEmbedding, 10);
+            EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
+                    .queryEmbedding(queryEmbedding)
+                    .maxResults(10)
+                    // .minScore(0.5)
+                    .build();
+            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(searchRequest).matches();
             if (matches == null || matches.isEmpty()) {
                 return MultiResponse.of(Collections.emptyList());
             }

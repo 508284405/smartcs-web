@@ -5,6 +5,9 @@ import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
+import com.leyue.smartcs.knowledge.chunking.ChunkingPipeline;
+import com.leyue.smartcs.knowledge.chunking.ChunkingStrategyRegistry;
+import com.leyue.smartcs.knowledge.chunking.DocumentTypeChunkingConfig;
 import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
@@ -20,7 +23,9 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 通用文档分块命令执行器
@@ -33,6 +38,7 @@ public class KnowledgeGeneralChunkCmdExe {
     private final TextPreprocessor textPreprocessor;
     private final ModelBeanManagerService modelBeanManagerService;
     private final DocumentParserFactory documentParserFactory;
+    private final ChunkingStrategyRegistry chunkingStrategyRegistry;
 
     /**
      * 执行通用文档分块
@@ -81,26 +87,8 @@ public class KnowledgeGeneralChunkCmdExe {
                 allPreprocessedTexts.addAll(preprocessed);
             }
 
-            List<ChunkDTO> allChunks = new ArrayList<>();
-            
-            // 根据文档类型选择最佳分块策略
-            DocumentParserFactory.ChunkingStrategy strategy = 
-                    documentParserFactory.getChunkingStrategy(documentType);
-            
-            log.info("使用分块策略: {} - {}", strategy.getName(), strategy.getDescription());
-            
-            // 应用分块策略
-            List<TextSegment> segments = applyChunkingStrategy(
-                    allPreprocessedTexts, strategy, cmd);
-
-            log.info("分块策略 {} 生成 {} 个段落", strategy.name(), segments.size());
-            
-            // 转换为ChunkDTO
-            for (int i = 0; i < segments.size(); i++) {
-                TextSegment segment = segments.get(i);
-                ChunkDTO chunkDTO = convertToChunkDTO(segment, i, fileName, documentType);
-                allChunks.add(chunkDTO);
-            }
+            // 使用新的分块策略架构
+            List<ChunkDTO> allChunks = executeWithNewStrategy(allPreprocessedTexts, documentType, cmd);
 
             log.info("通用文档分块完成，文件: {}，生成{}个分块", fileName, allChunks.size());
             return MultiResponse.of(allChunks);
@@ -109,6 +97,102 @@ public class KnowledgeGeneralChunkCmdExe {
             log.error("通用文档分块失败: {}", e.getMessage(), e);
             throw new BizException("通用文档分块失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 使用新的分块策略架构执行分块
+     */
+    private List<ChunkDTO> executeWithNewStrategy(List<Document> documents, 
+                                                DocumentTypeEnum documentType, 
+                                                KnowledgeGeneralChunkCmd cmd) {
+        try {
+            // 创建或获取文档类型的分块配置
+            DocumentTypeChunkingConfig config = createChunkingConfig(documentType, cmd);
+            
+            // 创建分块管道
+            ChunkingPipeline pipeline = chunkingStrategyRegistry.createPipeline(config);
+            
+            log.info("使用分块管道执行，包含 {} 个策略", config.getStrategyConfigs().size());
+            
+            // 执行分块管道
+            List<ChunkDTO> chunks = pipeline.execute(documents);
+            
+            log.info("新分块策略架构完成，生成 {} 个分块", chunks.size());
+            return chunks;
+            
+        } catch (Exception e) {
+            log.warn("新分块策略执行失败，回退到传统方式: {}", e.getMessage());
+            // 回退到传统分块方式
+            return executeWithLegacyStrategy(documents, documentType, cmd);
+        }
+    }
+
+    /**
+     * 创建分块配置
+     */
+    private DocumentTypeChunkingConfig createChunkingConfig(DocumentTypeEnum documentType, 
+                                                          KnowledgeGeneralChunkCmd cmd) {
+        // 构建全局配置参数
+        Map<String, Object> globalConfig = new HashMap<>();
+        globalConfig.put("chunkSize", cmd.getChunkSize() != null ? cmd.getChunkSize() : 1000);
+        globalConfig.put("overlapSize", cmd.getOverlapSize() != null ? cmd.getOverlapSize() : 200);
+        globalConfig.put("preserveSentences", true);
+        globalConfig.put("removeEmptyChunks", true);
+        globalConfig.put("minChunkLength", 10);
+
+        // 检查用户是否指定了特定的策略组合
+        if (cmd.getChunkingStrategies() != null && !cmd.getChunkingStrategies().isEmpty()) {
+            // 使用用户指定的策略组合
+            List<DocumentTypeChunkingConfig.StrategyConfig> strategyConfigs = cmd.getChunkingStrategies().stream()
+                    .map(strategyName -> DocumentTypeChunkingConfig.StrategyConfig.builder()
+                            .strategyName(strategyName)
+                            .enabled(true)
+                            .weight(1.0)
+                            .config(Map.of())
+                            .build())
+                    .toList();
+
+            return DocumentTypeChunkingConfig.builder()
+                    .documentType(documentType)
+                    .strategyConfigs(strategyConfigs)
+                    .globalConfig(globalConfig)
+                    .enableParallel(false)
+                    .description("用户自定义分块配置")
+                    .build();
+        } else {
+            // 使用推荐的默认配置
+            return ((com.leyue.smartcs.knowledge.chunking.ChunkingStrategyRegistryImpl) chunkingStrategyRegistry)
+                    .createRecommendedConfig(documentType);
+        }
+    }
+
+    /**
+     * 传统分块方式（向后兼容）
+     */
+    private List<ChunkDTO> executeWithLegacyStrategy(List<Document> documents, 
+                                                   DocumentTypeEnum documentType, 
+                                                   KnowledgeGeneralChunkCmd cmd) {
+        List<ChunkDTO> allChunks = new ArrayList<>();
+        
+        // 根据文档类型选择最佳分块策略
+        DocumentParserFactory.ChunkingStrategy strategy = 
+                documentParserFactory.getChunkingStrategy(documentType);
+        
+        log.info("回退使用传统分块策略: {} - {}", strategy.getName(), strategy.getDescription());
+        
+        // 应用分块策略
+        List<TextSegment> segments = applyChunkingStrategy(documents, strategy, cmd);
+
+        log.info("传统分块策略 {} 生成 {} 个段落", strategy.name(), segments.size());
+        
+        // 转换为ChunkDTO
+        for (int i = 0; i < segments.size(); i++) {
+            TextSegment segment = segments.get(i);
+            ChunkDTO chunkDTO = convertToChunkDTO(segment, i, "legacy", documentType);
+            allChunks.add(chunkDTO);
+        }
+        
+        return allChunks;
     }
 
     /**
