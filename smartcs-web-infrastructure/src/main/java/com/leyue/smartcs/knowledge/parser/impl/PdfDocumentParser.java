@@ -3,6 +3,11 @@ package com.leyue.smartcs.knowledge.parser.impl;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.TextContent;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -63,6 +68,16 @@ public class PdfDocumentParser implements DocumentParser {
     
     @Override
     public List<Document> parse(Resource resource, String fileName) throws IOException {
+        return parse(resource, fileName, null);
+    }
+    
+    /**
+     * 带视觉LLM模型的PDF解析方法
+     * @param resource PDF资源
+     * @param fileName 文件名
+     * @param visionModel 视觉LLM模型，用于图像描述生成
+     */
+    public List<Document> parse(Resource resource, String fileName, ChatModel visionModel) throws IOException {
         List<Document> documents = new ArrayList<>();
         
         try (InputStream inputStream = resource.getInputStream();
@@ -85,7 +100,7 @@ public class PdfDocumentParser implements DocumentParser {
                 log.debug("处理第{}页", pageIndex);
                 
                 // 提取页面的多模态内容
-                PageContent pageContent = extractPageContent(page, pageIndex, fileName, pdDocument);
+                PageContent pageContent = extractPageContent(page, pageIndex, fileName, pdDocument, visionModel);
                 
                 // 添加文本内容
                 if (pageContent.hasText()) {
@@ -162,7 +177,7 @@ public class PdfDocumentParser implements DocumentParser {
     /**
      * 提取页面内容
      */
-    private PageContent extractPageContent(PDPage page, int pageIndex, String fileName, PDDocument document) {
+    private PageContent extractPageContent(PDPage page, int pageIndex, String fileName, PDDocument document, ChatModel visionModel) {
         PageContent content = new PageContent(pageIndex);
         
         try {
@@ -179,7 +194,7 @@ public class PdfDocumentParser implements DocumentParser {
             }
             
             // 提取图像
-            content.images = extractPageImages(page, pageIndex);
+            content.images = extractPageImages(page, pageIndex, visionModel);
             
         } catch (Exception e) {
             log.warn("提取页面{}内容时出错", pageIndex, e);
@@ -363,7 +378,7 @@ public class PdfDocumentParser implements DocumentParser {
     /**
      * 提取页面图像
      */
-    private List<ImageInfo> extractPageImages(PDPage page, int pageIndex) {
+    private List<ImageInfo> extractPageImages(PDPage page, int pageIndex, ChatModel visionModel) {
         List<ImageInfo> images = new ArrayList<>();
         
         try {
@@ -391,8 +406,8 @@ public class PdfDocumentParser implements DocumentParser {
                             }
                             
                             // 图像描述生成（如果启用）
-                            if (enableImageDescription) {
-                                imageInfo.description = generateImageDescription(bufferedImage);
+                            if (enableImageDescription && visionModel != null) {
+                                imageInfo.description = generateImageDescription(bufferedImage, visionModel);
                             }
                             
                             images.add(imageInfo);
@@ -525,13 +540,55 @@ public class PdfDocumentParser implements DocumentParser {
     }
     
     /**
-     * 生成图像描述（占位实现）
+     * 生成图像描述
+     * 使用视觉LLM模型分析图像内容，生成详细的描述
      */
-    private String generateImageDescription(BufferedImage image) {
-        // 这里应该集成视觉AI模型，如Gemini Vision
-        // 当前返回占位符
-        log.debug("图像描述生成占位实现，图像尺寸: {}x{}", image.getWidth(), image.getHeight());
-        return null;
+    private String generateImageDescription(BufferedImage image, ChatModel visionModel) {
+        try {
+            // 将图像转换为Base64格式
+            String base64Image = imageToBase64(image);
+            if (base64Image.isEmpty()) {
+                log.warn("图像转换Base64失败，无法生成描述");
+                return null;
+            }
+            
+            // 创建图像内容，使用适当的MIME类型
+            String mimeType = "image/png"; // 默认使用PNG格式，确保最佳兼容性
+            ImageContent imageContent = ImageContent.from(base64Image, mimeType);
+            
+            // 创建提示词，要求AI详细描述图像内容
+            TextContent promptText = TextContent.from(
+                "请详细描述这张图片的内容，包括：\n" +
+                "1. 图片的主要内容和对象\n" +
+                "2. 文字信息（如果有的话）\n" +
+                "3. 图表、表格或数据（如果有的话）\n" +
+                "4. 布局和结构信息\n" +
+                "5. 任何其他重要的视觉元素\n" +
+                "请用中文回答，描述要准确、详细但简洁。"
+            );
+            
+            // 创建用户消息
+            UserMessage userMessage = UserMessage.from(promptText, imageContent);
+            
+            log.debug("开始使用视觉模型分析图像，尺寸: {}x{}", image.getWidth(), image.getHeight());
+            
+            // 调用视觉模型
+            ChatResponse response = visionModel.chat(userMessage);
+            
+            if (response != null && response.aiMessage() != null) {
+                String description = response.aiMessage().text();
+                log.debug("图像描述生成成功，长度: {} 字符", description != null ? description.length() : 0);
+                return description;
+            } else {
+                log.warn("视觉模型返回空结果");
+                return null;
+            }
+            
+        } catch (Exception e) {
+            log.error("使用视觉模型生成图像描述时发生错误，图像尺寸: {}x{}", 
+                     image.getWidth(), image.getHeight(), e);
+            return null;
+        }
     }
     
     /**

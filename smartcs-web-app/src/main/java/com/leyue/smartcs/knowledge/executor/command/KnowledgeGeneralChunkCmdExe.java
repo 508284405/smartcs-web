@@ -5,12 +5,16 @@ import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
+import com.leyue.smartcs.domain.bot.BotProfile;
+import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
+import com.leyue.smartcs.domain.bot.gateway.BotProfileGateway;
 import com.leyue.smartcs.knowledge.chunking.ChunkingPipeline;
 import com.leyue.smartcs.knowledge.chunking.ChunkingStrategyRegistry;
 import com.leyue.smartcs.knowledge.chunking.DocumentTypeChunkingConfig;
 import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
+import com.leyue.smartcs.knowledge.parser.impl.PdfDocumentParser;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
@@ -39,6 +43,7 @@ public class KnowledgeGeneralChunkCmdExe {
     private final ModelBeanManagerService modelBeanManagerService;
     private final DocumentParserFactory documentParserFactory;
     private final ChunkingStrategyRegistry chunkingStrategyRegistry;
+    private final BotProfileGateway botProfileGateway;
 
     /**
      * 执行通用文档分块
@@ -66,7 +71,21 @@ public class KnowledgeGeneralChunkCmdExe {
                     parser.getClass().getSimpleName(), documentType);
             
             // 解析文档
-            List<Document> parsedDocuments = parser.parse(resource, fileName);
+            List<Document> parsedDocuments;
+            
+            // 如果是PDF文档且指定了视觉模型，则使用多模态解析
+            if (parser instanceof PdfDocumentParser && cmd.getVisionModelBotId() != null) {
+                ChatModel visionModel = getVisionModel(cmd.getVisionModelBotId());
+                if (visionModel != null) {
+                    log.info("使用视觉模型进行PDF多模态解析，botId: {}", cmd.getVisionModelBotId());
+                    parsedDocuments = ((PdfDocumentParser) parser).parse(resource, fileName, visionModel);
+                } else {
+                    log.warn("无法获取视觉模型，botId: {}，回退到标准解析", cmd.getVisionModelBotId());
+                    parsedDocuments = parser.parse(resource, fileName);
+                }
+            } else {
+                parsedDocuments = parser.parse(resource, fileName);
+            }
             log.info("文档解析完成，生成{}个预处理文档", parsedDocuments.size());
             
             // 获取聊天模型（如果需要）
@@ -288,5 +307,45 @@ public class KnowledgeGeneralChunkCmdExe {
         }
         
         return fileName;
+    }
+    
+    /**
+     * 获取视觉模型
+     * @param botId 机器人ID
+     * @return ChatModel 视觉模型，如果获取失败返回null
+     */
+    private ChatModel getVisionModel(Long botId) {
+        try {
+            // 根据botId获取机器人配置
+            BotProfile botProfile = botProfileGateway.findById(botId).orElse(null);
+            if (botProfile == null) {
+                log.warn("未找到机器人配置，botId: {}", botId);
+                return null;
+            }
+            
+            // 验证是否为图像模型
+            if (botProfile.getModelType() != ModelTypeEnum.IMAGE && 
+                botProfile.getModelType() != ModelTypeEnum.CHAT) {
+                log.warn("指定的机器人不是视觉模型，botId: {}，modelType: {}", 
+                        botId, botProfile.getModelType());
+                return null;
+            }
+            
+            // 从模型管理服务获取模型实例
+            Object modelBean = modelBeanManagerService.getModelBean(botProfile);
+            if (modelBean instanceof ChatModel) {
+                log.info("成功获取视觉模型，botId: {}，modelType: {}", 
+                        botId, botProfile.getModelType());
+                return (ChatModel) modelBean;
+            } else {
+                log.warn("模型实例类型不匹配，期望ChatModel，实际: {}", 
+                        modelBean != null ? modelBean.getClass().getSimpleName() : "null");
+                return null;
+            }
+            
+        } catch (Exception e) {
+            log.error("获取视觉模型失败，botId: {}", botId, e);
+            return null;
+        }
     }
 }
