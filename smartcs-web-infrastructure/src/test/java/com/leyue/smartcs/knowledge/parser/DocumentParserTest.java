@@ -49,7 +49,7 @@ class DocumentParserTest {
         Resource resource = new ByteArrayResource(testContent.getBytes(StandardCharsets.UTF_8));
         
         // 解析文档
-        List<Document> documents = txtParser.parse(resource, "test.txt");
+        List<Document> documents = txtParser.parse(resource, "test.txt", null);
         
         // 验证结果
         assertThat(documents).isNotEmpty();
@@ -97,7 +97,7 @@ class DocumentParserTest {
         Resource resource = new ByteArrayResource(testHtml.getBytes(StandardCharsets.UTF_8));
         
         // 解析文档
-        List<Document> documents = htmlParser.parse(resource, "test.html");
+        List<Document> documents = htmlParser.parse(resource, "test.html", null);
         
         // 验证结果
         assertThat(documents).isNotEmpty();
@@ -140,7 +140,7 @@ class DocumentParserTest {
         String emptyContent = "";
         Resource resource = new ByteArrayResource(emptyContent.getBytes(StandardCharsets.UTF_8));
         
-        List<Document> documents = txtParser.parse(resource, "empty.txt");
+        List<Document> documents = txtParser.parse(resource, "empty.txt", null);
         
         // 应该至少有一个文档（空文档情况下是占位文档）
         assertThat(documents).hasSize(1);
@@ -153,7 +153,7 @@ class DocumentParserTest {
         String minimalHtml = "<html><body><p>简单段落</p></body></html>";
         Resource resource = new ByteArrayResource(minimalHtml.getBytes(StandardCharsets.UTF_8));
         
-        List<Document> documents = htmlParser.parse(resource, "minimal.html");
+        List<Document> documents = htmlParser.parse(resource, "minimal.html", null);
         
         // 应该至少有段落和完整文档
         assertThat(documents).hasSizeGreaterThan(1);
@@ -173,7 +173,7 @@ class DocumentParserTest {
         String testContent = "测试内容\n\n第二段";
         Resource resource = new ByteArrayResource(testContent.getBytes(StandardCharsets.UTF_8));
         
-        List<Document> documents = txtParser.parse(resource, "metadata-test.txt");
+        List<Document> documents = txtParser.parse(resource, "metadata-test.txt", null);
         
         // 验证所有文档都有fileName元数据
         documents.forEach(doc -> {

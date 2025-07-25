@@ -1,38 +1,36 @@
 package com.leyue.smartcs.knowledge.executor.command;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.dto.knowledge.ChunkDTO;
-import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
-import com.leyue.smartcs.dto.knowledge.ModelRequest;
-import com.leyue.smartcs.domain.model.Provider;
-import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
+import com.leyue.smartcs.dto.knowledge.ChunkDTO;
+import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
 import com.leyue.smartcs.knowledge.chunking.ChunkingPipeline;
 import com.leyue.smartcs.knowledge.chunking.ChunkingStrategyRegistry;
 import com.leyue.smartcs.knowledge.chunking.DocumentTypeChunkingConfig;
 import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
-import com.leyue.smartcs.knowledge.parser.impl.PdfDocumentParser;
 import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
+
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * 通用文档分块命令执行器
@@ -315,7 +313,7 @@ public class KnowledgeGeneralChunkCmdExe {
         List<String> strategies = new ArrayList<>();
         
         // 检查是否指定了视觉模型 - 如果指定则启用图像处理
-        if (cmd.getVisionModelId() != null) {
+        if (cmd.getModelRequest() != null && cmd.getModelRequest().getModelId() != null) {
             strategies.add("IMAGE_PROCESSING");
             log.info("检测到视觉模型配置，启用图像处理策略");
         }
@@ -421,64 +419,11 @@ public class KnowledgeGeneralChunkCmdExe {
             );
             case "IMAGE_PROCESSING" -> Map.of(
                     "enableOCR", false,
-                    "enableImageDescription", cmd.getVisionModelId() != null, // 只有指定视觉模型才启用AI描述
+                    "enableImageDescription", cmd.getModelRequest() != null && cmd.getModelRequest().getModelId() != null, // 只有指定视觉模型才启用AI描述
                     "extractImageMetadata", true,
                     "maxImageSize", 10 * 1024 * 1024 // 10MB
             );
             default -> Map.of();
         };
-    }
-    
-    /**
-     * 获取视觉模型
-     * @param providerId 提供商ID
-     * @return ChatModel 视觉模型，如果获取失败返回null
-     */
-    private ChatModel getVisionModel(ModelRequest modelRequest) {
-        Long modelId = modelRequest.getModelId();
-        try {
-            Model model = modelGateway.findById(modelId).orElse(null);
-            if (model == null) {
-                log.warn("未找到模型配置，modelId: {}", modelId);
-                return null;
-            }
-            
-            // 根据providerId获取提供商配置
-            Long providerId = model.getProviderId();
-            Provider provider = providerGateway.findById(providerId).orElse(null);
-            if (provider == null) {
-                log.warn("未找到提供商配置，providerId: {}", providerId);
-                return null;
-            }
-            // 验证提供商配置是否有效
-            if (!provider.isValid()) {
-                log.warn("提供商配置无效，providerId: {}", providerId);
-                return null;
-            }
-            
-            // 检查是否支持chat模型类型（视觉模型通常是chat类型）
-            List<String> supportedTypes = provider.getSupportedModelTypesList();
-            if (!supportedTypes.contains("chat")) {
-                log.warn("指定的提供商不支持chat模型类型，providerId: {}，支持的类型: {}", 
-                        providerId, supportedTypes);
-                return null;
-            }
-            
-            // 从模型管理服务获取chat模型实例
-            Object modelBean = modelBeanManagerService.getModelBean(provider, "chat");
-            if (modelBean instanceof ChatModel) {
-                log.info("成功获取视觉模型，modelId: {}，providerType: {}",
-                        modelId, provider.getProviderType());
-                return (ChatModel) modelBean;
-            } else {
-                log.warn("模型实例类型不匹配，期望ChatModel，实际: {}", 
-                        modelBean != null ? modelBean.getClass().getSimpleName() : "null");
-                return null;
-            }
-            
-        } catch (Exception e) {
-            log.error("获取视觉模型失败，modelId: {}", modelId, e);
-            return null;
-        }
     }
 }

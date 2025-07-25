@@ -85,7 +85,7 @@ public class PdfDocumentParser extends AbstractDocumentParser {
      * @param fileName    文件名
      * @param visionModel 视觉LLM模型，用于图像描述生成
      */
-    public List<Document> parse(Resource resource, String fileName, ModelRequest modelRequest) throws IOException {
+    private List<Document> parse(Resource resource, String fileName, ModelRequest modelRequest) throws IOException {
         List<Document> documents = new ArrayList<>();
 
         try (InputStream inputStream = resource.getInputStream();

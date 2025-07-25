@@ -51,7 +51,7 @@ class MultimodalPdfParserTest {
         
         // 注意：这个测试会因为PDF格式问题而抛出异常，这是预期的
         assertThrows(Exception.class, () -> {
-            pdfParser.parse(resource, "empty.pdf");
+            pdfParser.parse(resource, null, null);
         });
     }
 
