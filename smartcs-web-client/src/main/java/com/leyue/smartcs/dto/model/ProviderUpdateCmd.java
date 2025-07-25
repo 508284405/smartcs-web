@@ -20,10 +20,10 @@ public class ProviderUpdateCmd extends Command {
     private Long id;
     
     /**
-     * 唯一标识（如 deepseek）
+     * 提供商类型
      */
-    @NotEmpty(message = "提供商标识不能为空")
-    private String providerKey;
+    @NotNull(message = "提供商类型不能为空")
+    private String providerType;
     
     /**
      * 名称

@@ -2,6 +2,7 @@ package com.leyue.smartcs.model.dataobject;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
+import com.leyue.smartcs.domain.model.enums.ProviderType;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -14,9 +15,9 @@ import lombok.EqualsAndHashCode;
 public class ProviderDO extends BaseDO {
 
     /**
-     * 唯一标识（如 deepseek）
+     * 提供商类型
      */
-    private String providerKey;
+    private ProviderType providerType;
 
     /**
      * 名称

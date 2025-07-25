@@ -8,11 +8,13 @@ import com.leyue.smartcs.dto.model.ProviderDTO;
 import com.leyue.smartcs.dto.model.ProviderDeleteCmd;
 import com.leyue.smartcs.dto.model.ProviderPageQry;
 import com.leyue.smartcs.dto.model.ProviderUpdateCmd;
+import com.leyue.smartcs.dto.model.VisualModelProviderQry;
 import com.leyue.smartcs.model.executor.ProviderCreateCmdExe;
 import com.leyue.smartcs.model.executor.ProviderDeleteCmdExe;
 import com.leyue.smartcs.model.executor.ProviderGetQryExe;
 import com.leyue.smartcs.model.executor.ProviderPageQryExe;
 import com.leyue.smartcs.model.executor.ProviderUpdateCmdExe;
+import com.leyue.smartcs.model.executor.VisualProviderPageQryExe;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,7 @@ public class ProviderServiceImpl implements ProviderService {
     private final ProviderDeleteCmdExe providerDeleteCmdExe;
     private final ProviderGetQryExe providerGetQryExe;
     private final ProviderPageQryExe providerPageQryExe;
+    private final VisualProviderPageQryExe visualProviderPageQryExe;
     
     @Override
     public SingleResponse<ProviderDTO> createProvider(ProviderCreateCmd cmd) {
@@ -52,5 +55,10 @@ public class ProviderServiceImpl implements ProviderService {
     @Override
     public PageResponse<ProviderDTO> pageProviders(ProviderPageQry qry) {
         return providerPageQryExe.execute(qry);
+    }
+    
+    @Override
+    public PageResponse<ProviderDTO> pageVisualProviders(VisualModelProviderQry qry) {
+        return visualProviderPageQryExe.execute(qry);
     }
 }

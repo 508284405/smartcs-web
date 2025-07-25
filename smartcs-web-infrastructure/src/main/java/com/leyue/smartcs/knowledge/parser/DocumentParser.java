@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.parser;
 
 import dev.langchain4j.data.document.Document;
+import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import org.springframework.core.io.Resource;
 
 import java.io.IOException;
@@ -20,7 +21,7 @@ public interface DocumentParser {
      * @return 解析后的文档列表（某些类型可能生成多个文档，如Excel多个工作表）
      * @throws IOException 解析异常
      */
-    List<Document> parse(Resource resource, String fileName) throws IOException;
+    List<Document> parse(Resource resource, String fileName, ParserExtendParam parserExtendParam) throws IOException;
     
     /**
      * 获取支持的文档类型

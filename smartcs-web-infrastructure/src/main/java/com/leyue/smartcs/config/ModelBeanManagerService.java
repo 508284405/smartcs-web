@@ -1,27 +1,25 @@
 package com.leyue.smartcs.config;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONObject;
-import com.leyue.smartcs.domain.bot.BotProfile;
-import com.leyue.smartcs.domain.bot.enums.ModelTypeEnum;
-import com.leyue.smartcs.domain.bot.enums.VendorTypeEnum;
-import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.leyue.smartcs.domain.model.Provider;
+import com.leyue.smartcs.domain.model.enums.ProviderType;
+
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 模型Bean管理服务
- * 负责根据机器人配置动态创建和销毁LangChain4j模型Bean
+ * 负责根据模型提供商配置动态创建和销毁LangChain4j模型Bean
  */
 @Service
 @RequiredArgsConstructor
@@ -34,50 +32,51 @@ public class ModelBeanManagerService {
     private final Map<String, String> beanRegistry = new ConcurrentHashMap<>();
 
     // 重启ModelBean
-    public void restartModelBean(BotProfile botProfile) {
-        destroyModelBean(botProfile);
-        createModelBean(botProfile);
+    public void restartModelBean(Provider provider, String modelType) {
+        destroyModelBean(provider, modelType);
+        createModelBean(provider, modelType);
     }
 
     /**
-     * 根据机器人配置创建对应的模型Bean
+     * 根据模型提供商配置创建对应的模型Bean
      *
-     * @param botProfile 机器人配置
+     * @param provider 模型提供商配置
+     * @param modelType 模型类型 ("chat", "embedding")
      * @return Bean名称
      */
-    public String createModelBean(BotProfile botProfile) {
+    public String createModelBean(Provider provider, String modelType) {
         try {
-            String beanName = generateBeanName(botProfile);
+            String beanName = generateBeanName(provider, modelType);
 
             // 检查Bean是否已存在
-            if (beanRegistry.containsKey(getBeanKey(botProfile))) {
-                log.info("模型Bean已存在，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
+            if (beanRegistry.containsKey(getBeanKey(provider, modelType))) {
+                log.info("模型Bean已存在，providerId: {}, modelType: {}, beanName: {}", provider.getId(), modelType, beanName);
                 return beanName;
             }
 
             DefaultListableBeanFactory beanFactory = (DefaultListableBeanFactory) ((ConfigurableApplicationContext) applicationContext)
                     .getBeanFactory();
 
-            // 根据厂商和模型类型创建不同的Bean
-            if (botProfile.getVendor() == VendorTypeEnum.OPENAI) {
-                if (botProfile.getModelType() == ModelTypeEnum.CHAT) {
+            // 根据提供商和模型类型创建不同的Bean
+            if (provider.getProviderType().isOpenAiCompatible()) {
+                if ("chat".equals(modelType)) {
                     // 只创建流式模型
-                    createOpenAiStreamingChatModelBean(beanFactory, beanName, botProfile);
-                } else if (botProfile.getModelType() == ModelTypeEnum.EMBEDDING) {
-                    createOpenAiEmbeddingModelBean(beanFactory, beanName, botProfile);
+                    createOpenAiStreamingChatModelBean(beanFactory, beanName, provider);
+                } else if ("embedding".equals(modelType)) {
+                    createOpenAiEmbeddingModelBean(beanFactory, beanName, provider);
                 }
             }
             // TODO: 添加其他厂商的Bean创建逻辑
 
             // 注册Bean
-            beanRegistry.put(getBeanKey(botProfile), beanName);
-            log.info("成功创建模型Bean，botId: {}, beanName: {}", 
-                    botProfile.getBotId(), beanName);
+            beanRegistry.put(getBeanKey(provider, modelType), beanName);
+            log.info("成功创建模型Bean，providerId: {}, modelType: {}, beanName: {}", 
+                    provider.getId(), modelType, beanName);
 
             return beanName;
 
         } catch (Exception e) {
-            log.error("创建模型Bean失败，botId: {}, error: {}", botProfile.getBotId(), e.getMessage(), e);
+            log.error("创建模型Bean失败，providerId: {}, modelType: {}, error: {}", provider.getId(), modelType, e.getMessage(), e);
             throw new RuntimeException("创建模型Bean失败: " + e.getMessage(), e);
         }
     }
@@ -85,16 +84,17 @@ public class ModelBeanManagerService {
     /**
      * 销毁模型Bean
      *
-     * @param botProfile 机器人配置
+     * @param provider 模型提供商配置
+     * @param modelType 模型类型
      * @return 是否成功
      */
-    public boolean destroyModelBean(BotProfile botProfile) {
+    public boolean destroyModelBean(Provider provider, String modelType) {
         try {
-            String beanKey = getBeanKey(botProfile);
+            String beanKey = getBeanKey(provider, modelType);
             String beanName = beanRegistry.get(beanKey);
 
             if (beanName == null) {
-                log.warn("未找到对应的Bean，botId: {}", botProfile.getBotId());
+                log.warn("未找到对应的Bean，providerId: {}, modelType: {}", provider.getId(), modelType);
                 return true;
             }
 
@@ -104,13 +104,13 @@ public class ModelBeanManagerService {
             if (beanFactory.containsBeanDefinition(beanName)) {
                 beanFactory.removeBeanDefinition(beanName);
                 beanRegistry.remove(beanKey);
-                log.info("成功销毁模型Bean，botId: {}, beanName: {}", botProfile.getBotId(), beanName);
+                log.info("成功销毁模型Bean，providerId: {}, modelType: {}, beanName: {}", provider.getId(), modelType, beanName);
             }
 
             return true;
 
         } catch (Exception e) {
-            log.error("销毁模型Bean失败，botId: {}, error: {}", botProfile.getBotId(), e.getMessage(), e);
+            log.error("销毁模型Bean失败，providerId: {}, modelType: {}, error: {}", provider.getId(), modelType, e.getMessage(), e);
             return false;
         }
     }
@@ -121,35 +121,16 @@ public class ModelBeanManagerService {
      * 创建OpenAI流式Chat模型Bean
      */
     private void createOpenAiStreamingChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
-                                                   BotProfile botProfile) {
-        JSONObject options = JSON.parseObject(botProfile.getOptions());
-
+                                                   Provider provider) {
         // 使用LangChain4j创建OpenAiStreamingChatModel实例
         OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder =
                 OpenAiStreamingChatModel.builder()
-                        .baseUrl(botProfile.getBaseUrl())
-                        .apiKey(botProfile.getApiKey());
+                        .baseUrl(provider.getEndpoint())
+                        .apiKey(provider.getApiKey());
 
-        // 设置模型参数
-        if (options.containsKey("model")) {
-            builder.modelName(options.getString("model"));
-        }
-        if (options.containsKey("temperature")) {
-            builder.temperature(options.getDouble("temperature"));
-        }
-        if (options.containsKey("maxTokens")) {
-            builder.maxTokens(options.getIntValue("maxTokens"));
-        }
-        if (options.containsKey("topP")) {
-            builder.topP(options.getDouble("topP"));
-        }
-        if (options.containsKey("frequencyPenalty")) {
-            builder.frequencyPenalty(options.getDouble("frequencyPenalty"));
-        }
-        if (options.containsKey("presencePenalty")) {
-            builder.presencePenalty(options.getDouble("presencePenalty"));
-        }
-
+        // 使用默认配置或从环境变量读取具体参数
+        // TODO: 后续可以考虑从配置文件或数据库读取模型参数
+        
         OpenAiStreamingChatModel streamingChatModel = builder.build();
 
         // 注册已构建的实例
@@ -160,11 +141,11 @@ public class ModelBeanManagerService {
      * 创建OpenAI Embedding模型Bean
      */
     private void createOpenAiEmbeddingModelBean(DefaultListableBeanFactory beanFactory, String beanName,
-                                                BotProfile botProfile) {
+                                                Provider provider) {
         // 使用LangChain4j创建OpenAiEmbeddingModel实例
         EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
-                .baseUrl(botProfile.getBaseUrl())
-                .apiKey(botProfile.getApiKey())
+                .baseUrl(provider.getEndpoint())
+                .apiKey(provider.getApiKey())
                 .build();
 
         // 注册已构建的实例
@@ -176,30 +157,30 @@ public class ModelBeanManagerService {
     /**
      * 生成Bean名称
      */
-    private String generateBeanName(BotProfile botProfile) {
-        String modelType = botProfile.getModelType() == ModelTypeEnum.CHAT ? "streaming_chat" : botProfile.getModelType().getCode();
+    private String generateBeanName(Provider provider, String modelType) {
+        String actualModelType = "chat".equals(modelType) ? "streaming_chat" : modelType;
         return String.format("%s_%s_model_%d",
-                botProfile.getVendor().getCode(),
-                modelType,
-                botProfile.getBotId());
+                provider.getProviderType().getKey(),
+                actualModelType,
+                provider.getId());
     }
 
     /**
      * 生成Bean注册key
      */
-    public String getBeanKey(BotProfile botProfile) {
-        String modelType = botProfile.getModelType() == ModelTypeEnum.CHAT ? "streaming_chat" : botProfile.getModelType().getCode();
+    public String getBeanKey(Provider provider, String modelType) {
+        String actualModelType = "chat".equals(modelType) ? "streaming_chat" : modelType;
         return String.format("%s:%s:%d",
-                botProfile.getVendor().getCode(),
-                modelType,
-                botProfile.getBotId());
+                provider.getProviderType().getKey(),
+                actualModelType,
+                provider.getId());
     }
 
     /**
-     * 根据BotProfile获取其要使用的模型对象
+     * 根据Provider和模型类型获取其要使用的模型对象
      */
-    public Object getModelBean(BotProfile botProfile) {
-        String beanKey = getBeanKey(botProfile);
+    public Object getModelBean(Provider provider, String modelType) {
+        String beanKey = getBeanKey(provider, modelType);
         String beanName = beanRegistry.get(beanKey);
         if (beanName == null) {
             return null;

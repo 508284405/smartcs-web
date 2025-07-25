@@ -17,9 +17,9 @@ public class ProviderDTO extends DTO {
     private Long id;
     
     /**
-     * 唯一标识（如 deepseek）
+     * 提供商类型
      */
-    private String providerKey;
+    private String providerType;
     
     /**
      * 名称

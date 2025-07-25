@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ import java.util.List;
 public class WordDocumentParser implements DocumentParser {
 
     @Override
-    public List<Document> parse(Resource resource, String fileName) throws IOException {
+    public List<Document> parse(Resource resource, String fileName, ParserExtendParam parserExtendParam) throws IOException {
         log.info("开始解析Word文件: {}", fileName);
         
         List<Document> documents = new ArrayList<>();

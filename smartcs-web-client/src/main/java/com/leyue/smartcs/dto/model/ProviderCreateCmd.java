@@ -2,6 +2,7 @@ package com.leyue.smartcs.dto.model;
 
 import com.alibaba.cola.dto.Command;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -13,10 +14,10 @@ import lombok.EqualsAndHashCode;
 public class ProviderCreateCmd extends Command {
     
     /**
-     * 唯一标识（如 deepseek）
+     * 提供商类型
      */
-    @NotEmpty(message = "提供商标识不能为空")
-    private String providerKey;
+    @NotNull(message = "提供商类型不能为空")
+    private String providerType;
     
     /**
      * 名称

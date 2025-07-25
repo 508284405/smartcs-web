@@ -27,8 +27,8 @@ public class ProviderDomainService {
         validateProvider(provider);
         
         // 检查提供商标识是否已存在
-        if (providerGateway.existsByProviderKey(provider.getProviderKey(), null)) {
-            throw new BizException("提供商标识已存在: " + provider.getProviderKey());
+        if (providerGateway.existsByProviderType(provider.getProviderType(), null)) {
+            throw new BizException("提供商标识已存在: " + provider.getProviderType());
         }
         
         // 生成ID和设置默认值
@@ -65,8 +65,8 @@ public class ProviderDomainService {
         validateProvider(provider);
         
         // 检查提供商标识是否已存在（排除自己）
-        if (providerGateway.existsByProviderKey(provider.getProviderKey(), provider.getId())) {
-            throw new BizException("提供商标识已存在: " + provider.getProviderKey());
+        if (providerGateway.existsByProviderType(provider.getProviderType(), provider.getId())) {
+            throw new BizException("提供商标识已存在: " + provider.getProviderType());
         }
         
         // 更新时间
@@ -119,7 +119,7 @@ public class ProviderDomainService {
         }
         
         // 验证提供商标识长度
-        if (provider.getProviderKey().length() > 128) {
+        if (provider.getProviderType().getKey().length() > 128) {
             throw new BizException("提供商标识长度不能超过128字符");
         }
         

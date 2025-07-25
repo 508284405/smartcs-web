@@ -80,16 +80,7 @@ public class KnowledgeGeneralChunkCmd extends Command {
     private String qaLanguage = "Chinese";
     
     /**
-     * 自定义分块策略列表
-     * 可以指定多个策略组合使用，如: ["IMAGE_PROCESSING", "TABLE_PROCESSING", "TEXT_CONTENT"]
-     * 如果为空，将使用文档类型的默认策略组合
+     * 模型请求
      */
-    private List<String> chunkingStrategies;
-    
-    /**
-     * 视觉模型机器人ID
-     * 用于PDF文档中的图像内容分析，从模型管理模块中选择一个视觉模型
-     * 如果不指定，则跳过图像描述生成
-     */
-    private Long visionModelBotId;
+    private ModelRequest modelRequest;
 } 

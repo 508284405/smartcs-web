@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,7 @@ public class MarkdownDocumentParser implements DocumentParser {
     private static final Pattern TABLE_PATTERN = Pattern.compile("^\\|(.+\\|)+$");
     
     @Override
-    public List<Document> parse(Resource resource, String fileName) throws IOException {
+    public List<Document> parse(Resource resource, String fileName, ParserExtendParam parserExtendParam) throws IOException {
         List<Document> documents = new ArrayList<>();
         
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {

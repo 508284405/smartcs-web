@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.model;
 
+import com.leyue.smartcs.domain.model.enums.ProviderType;
 import lombok.Data;
 import java.util.Arrays;
 import java.util.List;
@@ -16,9 +17,9 @@ public class Provider {
     private Long id;
     
     /**
-     * 唯一标识（如 deepseek）
+     * 提供商类型
      */
-    private String providerKey;
+    private ProviderType providerType;
     
     /**
      * 名称
@@ -79,7 +80,7 @@ public class Provider {
      * 验证提供商配置是否有效
      */
     public boolean isValid() {
-        return providerKey != null && !providerKey.trim().isEmpty()
+        return providerType != null
                 && label != null && !label.trim().isEmpty()
                 && apiKey != null && !apiKey.trim().isEmpty();
     }

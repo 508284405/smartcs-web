@@ -7,6 +7,7 @@ import com.leyue.smartcs.dto.model.ProviderUpdateCmd;
 import com.leyue.smartcs.dto.model.ProviderDeleteCmd;
 import com.leyue.smartcs.dto.model.ProviderPageQry;
 import com.leyue.smartcs.dto.model.ProviderDTO;
+import com.leyue.smartcs.dto.model.VisualModelProviderQry;
 
 /**
  * 模型提供商管理服务接口
@@ -47,4 +48,11 @@ public interface ProviderService {
      * @return 分页结果
      */
     PageResponse<ProviderDTO> pageProviders(ProviderPageQry qry);
+    
+    /**
+     * 分页查询支持视觉识别的模型提供商列表
+     * @param qry 查询参数
+     * @return 分页结果
+     */
+    PageResponse<ProviderDTO> pageVisualProviders(VisualModelProviderQry qry);
 }

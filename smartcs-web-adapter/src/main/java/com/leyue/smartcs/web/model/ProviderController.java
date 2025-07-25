@@ -5,6 +5,7 @@ import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.ProviderService;
 import com.leyue.smartcs.dto.model.ProviderDTO;
 import com.leyue.smartcs.dto.model.ProviderPageQry;
+import com.leyue.smartcs.dto.model.VisualModelProviderQry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -34,5 +35,13 @@ public class ProviderController {
     @GetMapping("/{id}")
     public SingleResponse<ProviderDTO> getProvider(@PathVariable("id") Long id) {
         return providerService.getProvider(id);
+    }
+    
+    /**
+     * 分页查询支持视觉识别的模型提供商列表
+     */
+    @GetMapping("/visual")
+    public PageResponse<ProviderDTO> pageVisualProviders(VisualModelProviderQry qry) {
+        return providerService.pageVisualProviders(qry);
     }
 }

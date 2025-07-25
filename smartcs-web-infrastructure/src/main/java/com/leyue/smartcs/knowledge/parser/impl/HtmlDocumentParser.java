@@ -1,6 +1,7 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
+import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class HtmlDocumentParser implements DocumentParser {
     private static final Pattern IMAGE_PATTERN = Pattern.compile("<img[^>]+src=[\"']([^\"']+)[\"'][^>]*>", Pattern.CASE_INSENSITIVE);
 
     @Override
-    public List<Document> parse(Resource resource, String fileName) throws IOException {
+    public List<Document> parse(Resource resource, String fileName, ParserExtendParam parserExtendParam) throws IOException {
         log.info("开始解析HTML文件: {}", fileName);
         
         List<Document> documents = new ArrayList<>();
