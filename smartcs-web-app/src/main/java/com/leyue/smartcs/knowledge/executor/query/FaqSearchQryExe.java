@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
@@ -39,7 +39,7 @@ public class FaqSearchQryExe {
     private final FaqGateway faqGateway;
     private final SearchGateway searchGateway;
     private final FaqConvertor faqConvertor;
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final ModelBeanManagerService modelBeanManagerService;
 
     public MultiResponse<FaqDTO> execute(FaqSearchQry qry) {
@@ -63,7 +63,7 @@ public class FaqSearchQryExe {
             }
 
             // 生成查询向量
-            Embedding queryEmbedding = embeddingModel.embed(keyword).content();
+            dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(keyword).content();
 
             // 执行向量搜索
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
@@ -71,13 +71,13 @@ public class FaqSearchQryExe {
                     .maxResults(k)
                     // .minScore(0.5)
                     .build();
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(searchRequest).matches();
+            List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
             if (matches == null || matches.isEmpty()) {
                 return MultiResponse.of(Collections.emptyList());
             }
 
             List<SearchResultsDTO> searchResults = new ArrayList<>();
-            for (EmbeddingMatch<Embedding> match : matches) {
+            for (EmbeddingMatch<TextSegment> match : matches) {
                 SearchResultsDTO result = SearchResultsDTO.builder()
                         .type("FAQ")
                         .chunkId(0L) // 简化处理，暂时设为0

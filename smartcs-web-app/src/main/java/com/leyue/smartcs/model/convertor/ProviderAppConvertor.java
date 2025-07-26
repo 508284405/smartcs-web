@@ -1,6 +1,7 @@
 package com.leyue.smartcs.model.convertor;
 
 import com.leyue.smartcs.domain.model.Provider;
+import com.leyue.smartcs.domain.model.enums.ProviderType;
 import com.leyue.smartcs.dto.model.ProviderCreateCmd;
 import com.leyue.smartcs.dto.model.ProviderDTO;
 import com.leyue.smartcs.dto.model.ProviderUpdateCmd;
@@ -26,4 +27,8 @@ public interface ProviderAppConvertor {
      * 领域对象转DTO
      */
     ProviderDTO toDTO(Provider provider);
+
+    default ProviderType toProviderType(String providerType){
+        return ProviderType.fromKey(providerType);
+    }
 }

@@ -6,7 +6,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ import java.util.ArrayList;
 @Slf4j
 public class ParagraphIndexProcessor {
 
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final ChunkGateway chunkGateway;
     private final EmbeddingModel embeddingModel;
 
@@ -49,8 +49,9 @@ public class ParagraphIndexProcessor {
 
             // 生成嵌入向量并存储
             for (Document doc : docs) {
-                Embedding embedding = embeddingModel.embed(doc.text()).content();
-                embeddingStore.add(embedding);
+                dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(doc.text()).content();
+                TextSegment textSegment = TextSegment.from(doc.text(), doc.metadata());
+                embeddingStore.add(embedding, textSegment);
             }
 
             log.info("段落索引处理完成");
@@ -67,7 +68,7 @@ public class ParagraphIndexProcessor {
     public List<Document> searchRelevantParagraphs(String query, int topK) {
         try {
             // 生成查询向量
-            Embedding queryEmbedding = embeddingModel.embed(query).content();
+            dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(query).content();
 
             // TODO: 实现向量搜索
             // 由于LangChain4j API的差异，这里需要根据具体的EmbeddingStore实现来调整

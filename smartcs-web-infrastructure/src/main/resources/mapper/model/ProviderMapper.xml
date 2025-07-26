@@ -3,18 +3,18 @@
 <mapper namespace="com.leyue.smartcs.model.mapper.ProviderMapper">
 
     <!-- 根据提供商标识查询 -->
-    <select id="selectByProviderKey" resultType="com.leyue.smartcs.model.dataobject.ProviderDO">
+    <select id="selectByProviderType" resultType="com.leyue.smartcs.model.dataobject.ProviderDO">
         SELECT *
         FROM t_model_provider
-        WHERE provider_key = #{providerKey}
+        WHERE provider_type = #{providerType}
         AND is_deleted = 0
     </select>
 
     <!-- 检查提供商标识是否已存在 -->
-    <select id="countByProviderKey" resultType="int">
+    <select id="countByProviderType" resultType="int">
         SELECT COUNT(*)
         FROM t_model_provider
-        WHERE provider_key = #{providerKey}
+        WHERE provider_type = #{providerType}
         AND is_deleted = 0
         <if test="excludeId != null">
             AND id != #{excludeId}

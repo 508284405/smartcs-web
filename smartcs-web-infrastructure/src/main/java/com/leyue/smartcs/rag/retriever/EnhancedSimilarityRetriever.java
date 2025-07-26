@@ -2,7 +2,7 @@ package com.leyue.smartcs.rag.retriever;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ import java.util.List;
 @Slf4j
 public class EnhancedSimilarityRetriever {
 
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
 
     /**
@@ -27,7 +27,7 @@ public class EnhancedSimilarityRetriever {
     public List<Document> retrieve(String query, int topK, double similarityThreshold) {
         try {
             // 生成查询向量
-            Embedding queryEmbedding = embeddingModel.embed(query).content();
+            dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(query).content();
 
             // TODO: 实现向量搜索
             // 由于LangChain4j API的差异，这里需要根据具体的EmbeddingStore实现来调整

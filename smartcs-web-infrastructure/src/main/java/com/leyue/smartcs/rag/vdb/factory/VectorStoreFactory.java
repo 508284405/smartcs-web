@@ -1,7 +1,7 @@
 package com.leyue.smartcs.rag.vdb.factory;
 
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -12,15 +12,15 @@ import org.springframework.stereotype.Component;
 public class VectorStoreFactory {
 
     @Qualifier("simpleEmbeddingStore")
-    private EmbeddingStore<Embedding> simpleEmbeddingStore;
+    private EmbeddingStore<TextSegment> simpleEmbeddingStore;
 
     @Qualifier("milvusEmbeddingStore")
-    private EmbeddingStore<Embedding> milvusEmbeddingStore;
+    private EmbeddingStore<TextSegment> milvusEmbeddingStore;
 
     @Qualifier("pgVectorEmbeddingStore")
-    private EmbeddingStore<Embedding> pgVectorEmbeddingStore;
+    private EmbeddingStore<TextSegment> pgVectorEmbeddingStore;
 
-    public EmbeddingStore<Embedding> get(String datasetType) {
+    public EmbeddingStore<TextSegment> get(String datasetType) {
         switch (datasetType) {
             case "milvus":
                 return milvusEmbeddingStore;

@@ -14,7 +14,7 @@ import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.knowledge.convertor.ChunkConverter;
 import com.leyue.smartcs.knowledge.convertor.DocumentSearchConvertor;
 
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
@@ -30,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DocumentVectorSearchQryExe {
 
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final ChunkGateway chunkGateway;
     private final DocumentSearchConvertor documentSearchConvertor;
     private final ChunkConverter chunkConverter;
@@ -54,10 +54,10 @@ public class DocumentVectorSearchQryExe {
             }
 
             // 生成查询向量
-            Embedding queryEmbedding = embeddingModel.embed(request.getQuery()).content();
+            dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(request.getQuery()).content();
 
             // 执行向量搜索
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(
+            List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(
                 EmbeddingSearchRequest.builder()
                     .queryEmbedding(queryEmbedding)
                     .maxResults(request.getTopK())
@@ -71,7 +71,7 @@ public class DocumentVectorSearchQryExe {
 
             // 转换搜索结果
             List<DocumentSearchResultDTO> results = new ArrayList<>();
-            for (EmbeddingMatch<Embedding> match : matches) {
+            for (EmbeddingMatch<TextSegment> match : matches) {
                 try {
                     // 过滤相似度阈值
                     if (match.score() < request.getSimilarityThreshold()) {

@@ -17,7 +17,8 @@ public enum ProviderType {
     QWEN("qwen", "通义千问"),
     BAIDU("baidu", "百度文心"),
     TENCENT("tencent", "腾讯混元"),
-    ZHIPU("zhipu", "智谱AI");
+    ZHIPU("zhipu", "智谱AI"),
+    MODELSCOPE("modelscope", "摩登社区");
     
     /**
      * 提供商键值

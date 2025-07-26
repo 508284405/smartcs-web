@@ -8,7 +8,7 @@ import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import java.util.Map;
 public class ChunkVectorizeCmdExe {
 
     private final ChunkGateway chunkGateway;
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final ModelBeanManagerService modelBeanManagerService;
 
     /**
@@ -62,11 +62,12 @@ public class ChunkVectorizeCmdExe {
                 throw new BizException("EMBEDDING_MODEL_NOT_FOUND", "嵌入模型未找到");
             }
 
-            // 生成嵌入向量
-            Embedding embedding = embeddingModel.embed(document.text()).content();
+            // 生成嵌入向量并创建TextSegment
+            dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(document.text()).content();
+            TextSegment textSegment = TextSegment.from(document.text(), document.metadata());
 
             // 存储到向量数据库
-            embeddingStore.add(embedding);
+            embeddingStore.add(embedding, textSegment);
 
             log.info("切片向量化处理成功，切片ID: {}", id);
             return Response.buildSuccess();

@@ -4,10 +4,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +32,7 @@ public class SqlQueryToolsService {
         "EXEC", "EXECUTE", "DECLARE", "UNION", "INFORMATION_SCHEMA"
     };
 
-    @Tool("执行SQL查询语句")
+    @Tool(description = "执行SQL查询语句")
     public String executeSelectQuery(String sqlQuery) {
         try {
             log.info("执行SQL查询: {}", sqlQuery);
@@ -88,7 +88,7 @@ public class SqlQueryToolsService {
         }
     }
 
-    @Tool("获取数据库表结构信息")
+    @Tool(description = "获取数据库表结构信息")
     public String getTableSchema(String tableName) {
         try {
             log.info("查询表结构: {}", tableName);
@@ -129,7 +129,7 @@ public class SqlQueryToolsService {
         }
     }
 
-    @Tool("获取数据库中的表列表")
+    @Tool(description = "获取数据库中的表列表")
     public String getTableList() {
         try {
             log.info("查询数据库表列表");

@@ -9,7 +9,7 @@ import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.utils.OssFileDownloader;
 import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import jakarta.transaction.Transactional;
@@ -40,7 +40,7 @@ public class ContentParsingCmdExe {
     private OssFileDownloader ossFileDownloader;
 
     @Autowired
-    private EmbeddingStore<Embedding> embeddingStore;
+    private EmbeddingStore<TextSegment> embeddingStore;
 
     @Autowired
     private ModelBeanManagerService modelBeanManagerService;
@@ -78,11 +78,12 @@ public class ContentParsingCmdExe {
                 throw new BizException("嵌入模型未找到");
             }
 
-            // 生成嵌入向量
-            Embedding embedding = embeddingModel.embed(document.text()).content();
+            // 生成嵌入向量并创建TextSegment
+            dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(document.text()).content();
+            TextSegment textSegment = TextSegment.from(document.text(), document.metadata());
 
             // 存储到向量数据库
-            embeddingStore.add(embedding);
+            embeddingStore.add(embedding, textSegment);
 
             // 更新内容状态为已解析
             content.setStatus(ContentStatusEnum.PARSED);

@@ -81,7 +81,7 @@ public class Provider {
      */
     public boolean isValid() {
         return providerType != null
-                && label != null && !label.trim().isEmpty()
+                && endpoint != null && !endpoint.trim().isEmpty()
                 && apiKey != null && !apiKey.trim().isEmpty();
     }
     

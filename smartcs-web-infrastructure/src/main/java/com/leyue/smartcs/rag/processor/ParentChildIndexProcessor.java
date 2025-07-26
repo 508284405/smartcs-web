@@ -2,7 +2,7 @@ package com.leyue.smartcs.rag.processor;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ import java.util.List;
 @Slf4j
 public class ParentChildIndexProcessor {
 
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final EmbeddingModel embeddingModel;
 
     /**
@@ -30,8 +30,9 @@ public class ParentChildIndexProcessor {
         try {
             // 生成嵌入向量并存储
             for (Document doc : docs) {
-                Embedding embedding = embeddingModel.embed(doc.text()).content();
-                embeddingStore.add(embedding);
+                dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(doc.text()).content();
+                TextSegment textSegment = TextSegment.from(doc.text(), doc.metadata());
+                embeddingStore.add(embedding, textSegment);
             }
 
             log.info("父子索引处理完成");

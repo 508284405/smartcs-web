@@ -13,7 +13,7 @@ import com.leyue.smartcs.dto.knowledge.EmbeddingWithScore;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
 import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 
-import dev.langchain4j.data.embedding.Embedding;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
@@ -31,7 +31,7 @@ public class TextSearchQryExe {
 
     private final ChunkGateway chunkGateway;
     private final ChunkConvertor chunkConvertor;
-    private final EmbeddingStore<Embedding> embeddingStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
     private final ModelBeanManagerService modelBeanManagerService;
 
     /**
@@ -50,7 +50,7 @@ public class TextSearchQryExe {
             }
 
             // 生成查询向量
-            Embedding queryEmbedding = embeddingModel.embed(qry.getKeyword()).content();
+            dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(qry.getKeyword()).content();
 
             // 执行向量搜索
             EmbeddingSearchRequest searchRequest = EmbeddingSearchRequest.builder()
@@ -58,14 +58,14 @@ public class TextSearchQryExe {
                     .maxResults(10)
                     // .minScore(0.5)
                     .build();
-            List<EmbeddingMatch<Embedding>> matches = embeddingStore.search(searchRequest).matches();
+            List<EmbeddingMatch<TextSegment>> matches = embeddingStore.search(searchRequest).matches();
             if (matches == null || matches.isEmpty()) {
                 return MultiResponse.of(Collections.emptyList());
             }
 
             // 查询详情
             List<EmbeddingWithScore> embeddingResults = new ArrayList<>();
-            for (EmbeddingMatch<Embedding> match : matches) {
+            for (EmbeddingMatch<TextSegment> match : matches) {
                 try {
                     // 简化处理：直接使用匹配的分数，暂时不关联具体的chunk
                     // 在实际实现中，需要根据存储结构来获取chunk信息
