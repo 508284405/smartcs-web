@@ -10,9 +10,6 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum ContentStatusEnum {
     
-    UPLOADED("uploaded", "已上传"),
-    PARSED("parsed", "已解析"),
-    VECTORIZED("vectorized", "已向量化"),
     ENABLED("enabled", "启用"),
     DISABLED("disabled", "禁用");
     
@@ -54,12 +51,6 @@ public enum ContentStatusEnum {
      */
     public boolean canTransitionTo(ContentStatusEnum target) {
         switch (this) {
-            case UPLOADED:
-                return target == PARSED;
-            case PARSED:
-                return target == VECTORIZED;
-            case VECTORIZED:
-                return target == ENABLED || target == DISABLED;
             case ENABLED:
                 return target == DISABLED;
             case DISABLED:

@@ -3,7 +3,10 @@ package com.leyue.smartcs.knowledge.parser.impl;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
 import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.DocumentSplitter;
 import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.segment.TextSegment;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
@@ -23,6 +26,9 @@ import java.util.List;
 @Slf4j
 @Component
 public class UniversalDocumentParser implements DocumentParser {
+    
+    private static final int DEFAULT_CHUNK_SIZE = 1000;
+    private static final int DEFAULT_OVERLAP_SIZE = 200;
     
     @Override
     public List<Document> parse(Resource resource, String fileName, ParserExtendParam parserExtendParam) throws IOException {
@@ -49,8 +55,6 @@ public class UniversalDocumentParser implements DocumentParser {
      * 解析纯文本文件
      */
     private List<Document> parsePlainText(Resource resource, String fileName) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             
@@ -63,47 +67,33 @@ public class UniversalDocumentParser implements DocumentParser {
                 content.append(line).append("\n");
             }
             
-            // 按段落分块
             String fullText = content.toString();
-            String[] paragraphs = fullText.split("\n\n+");
             
-            for (int i = 0; i < paragraphs.length; i++) {
-                String paragraph = paragraphs[i].trim();
-                if (!paragraph.isEmpty()) {
-                    Metadata metadata = Metadata.from("type", "text_paragraph")
-                            .put("fileName", fileName)
-                            .put("paragraphIndex", String.valueOf(i))
-                            .put("totalParagraphs", String.valueOf(paragraphs.length));
-                    
-                    documents.add(Document.from(paragraph, metadata));
-                }
-            }
-            
-            // 创建完整文档
-            Metadata fullMetadata = Metadata.from("type", "text_full")
+            // 创建主文档
+            Metadata metadata = Metadata.from("type", "text_full")
                     .put("fileName", fileName)
-                    .put("totalLines", String.valueOf(lineNumber))
-                    .put("totalParagraphs", String.valueOf(paragraphs.length));
+                    .put("totalLines", String.valueOf(lineNumber));
             
-            documents.add(Document.from(fullText, fullMetadata));
+            Document mainDocument = Document.from(fullText, metadata);
             
-            log.info("文本文档解析完成，文件: {}，行数: {}，段落数: {}", 
-                    fileName, lineNumber, paragraphs.length);
+            // 使用LangChain4j的DocumentSplitter进行分块
+            List<Document> documents = splitDocument(mainDocument, fileName);
+            
+            log.info("文本文档解析完成，文件: {}，行数: {}，分块数: {}", 
+                    fileName, lineNumber, documents.size());
+            
+            return documents;
                     
         } catch (Exception e) {
             log.error("文本文档解析失败: {}", fileName, e);
             throw new IOException("文本文档解析失败: " + e.getMessage(), e);
         }
-        
-        return documents;
     }
     
     /**
      * 解析HTML文件
      */
     private List<Document> parseHtml(Resource resource, String fileName) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             
@@ -128,31 +118,32 @@ public class UniversalDocumentParser implements DocumentParser {
                     .put("hasScripts", String.valueOf(htmlContent.contains("<script")))
                     .put("hasStyles", String.valueOf(htmlContent.contains("<style")));
             
-            documents.add(Document.from(textContent, htmlMetadata));
+            Document mainDocument = Document.from(textContent, htmlMetadata);
             
-            log.info("HTML文档解析完成，文件: {}", fileName);
+            // 使用LangChain4j的DocumentSplitter进行分块
+            List<Document> documents = splitDocument(mainDocument, fileName);
+            
+            log.info("HTML文档解析完成，文件: {}，分块数: {}", fileName, documents.size());
+            
+            return documents;
             
         } catch (Exception e) {
             log.error("HTML文档解析失败: {}", fileName, e);
             throw new IOException("HTML文档解析失败: " + e.getMessage(), e);
         }
-        
-        return documents;
     }
     
     /**
      * 解析CSV文件
      */
     private List<Document> parseCsv(Resource resource, String fileName) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             
+            StringBuilder allContent = new StringBuilder();
             String line;
             int rowIndex = 0;
             String headers = null;
-            StringBuilder allContent = new StringBuilder();
             
             while ((line = reader.readLine()) != null) {
                 if (rowIndex == 0) {
@@ -160,69 +151,52 @@ public class UniversalDocumentParser implements DocumentParser {
                     allContent.append("表头: ").append(line).append("\n");
                 } else {
                     allContent.append("第").append(rowIndex).append("行: ").append(line).append("\n");
-                    
-                    // 每50行创建一个分块
-                    if (rowIndex % 50 == 0) {
-                        Metadata chunkMetadata = Metadata.from("type", "csv_chunk")
-                                .put("fileName", fileName)
-                                .put("startRow", String.valueOf(rowIndex - 49))
-                                .put("endRow", String.valueOf(rowIndex))
-                                .put("headers", headers != null ? headers : "");
-                        
-                        documents.add(Document.from(allContent.toString(), chunkMetadata));
-                        allContent = new StringBuilder();
-                        allContent.append("表头: ").append(headers).append("\n");
-                    }
                 }
                 rowIndex++;
             }
             
-            // 处理剩余内容
-            if (!allContent.isEmpty()) {
-                Metadata chunkMetadata = Metadata.from("type", "csv_chunk")
-                        .put("fileName", fileName)
-                        .put("startRow", String.valueOf((rowIndex / 50) * 50 + 1))
-                        .put("endRow", String.valueOf(rowIndex - 1))
-                        .put("headers", headers != null ? headers : "");
-                
-                documents.add(Document.from(allContent.toString(), chunkMetadata));
-            }
+            Metadata csvMetadata = Metadata.from("type", "csv_content")
+                    .put("fileName", fileName)
+                    .put("totalRows", String.valueOf(rowIndex))
+                    .put("headers", headers != null ? headers : "");
             
-            log.info("CSV文档解析完成，文件: {}，总行数: {}", fileName, rowIndex);
+            Document mainDocument = Document.from(allContent.toString(), csvMetadata);
+            
+            // 使用LangChain4j的DocumentSplitter进行分块
+            List<Document> documents = splitDocument(mainDocument, fileName);
+            
+            log.info("CSV文档解析完成，文件: {}，总行数: {}，分块数: {}", fileName, rowIndex, documents.size());
+            
+            return documents;
             
         } catch (Exception e) {
             log.error("CSV文档解析失败: {}", fileName, e);
             throw new IOException("CSV文档解析失败: " + e.getMessage(), e);
         }
-        
-        return documents;
     }
     
     /**
      * 解析VTT字幕文件
      */
     private List<Document> parseVtt(Resource resource, String fileName) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             
             StringBuilder content = new StringBuilder();
+            StringBuilder cuesText = new StringBuilder();
             StringBuilder currentCue = new StringBuilder();
             String line;
             boolean inCue = false;
+            int cueCount = 0;
             
             while ((line = reader.readLine()) != null) {
                 content.append(line).append("\n");
                 
                 if (line.trim().isEmpty()) {
                     if (inCue && currentCue.length() > 0) {
-                        // 创建字幕段落文档
-                        Metadata cueMetadata = Metadata.from("type", "vtt_cue")
-                                .put("fileName", fileName);
-                        
-                        documents.add(Document.from(currentCue.toString(), cueMetadata));
+                        cuesText.append(currentCue.toString()).append("\n\n");
                         currentCue = new StringBuilder();
+                        cueCount++;
                     }
                     inCue = false;
                 } else if (line.contains("-->")) {
@@ -237,89 +211,102 @@ public class UniversalDocumentParser implements DocumentParser {
             
             // 处理最后一个字幕
             if (currentCue.length() > 0) {
-                Metadata cueMetadata = Metadata.from("type", "vtt_cue")
-                        .put("fileName", fileName);
-                
-                documents.add(Document.from(currentCue.toString(), cueMetadata));
+                cuesText.append(currentCue.toString()).append("\n\n");
+                cueCount++;
             }
             
-            // 创建完整字幕文档
-            Metadata fullMetadata = Metadata.from("type", "vtt_full")
-                    .put("fileName", fileName);
+            Metadata vttMetadata = Metadata.from("type", "vtt_content")
+                    .put("fileName", fileName)
+                    .put("totalCues", String.valueOf(cueCount));
             
-            documents.add(Document.from(content.toString(), fullMetadata));
+            Document mainDocument = Document.from(cuesText.toString(), vttMetadata);
             
-            log.info("VTT字幕文档解析完成，文件: {}，字幕段数: {}", fileName, documents.size() - 1);
+            // 使用LangChain4j的DocumentSplitter进行分块
+            List<Document> documents = splitDocument(mainDocument, fileName);
+            
+            log.info("VTT字幕文档解析完成，文件: {}，字幕段数: {}，分块数: {}", fileName, cueCount, documents.size());
+            
+            return documents;
             
         } catch (Exception e) {
             log.error("VTT文档解析失败: {}", fileName, e);
             throw new IOException("VTT文档解析失败: " + e.getMessage(), e);
         }
-        
-        return documents;
     }
     
     /**
      * 解析Properties文件
      */
     private List<Document> parseProperties(Resource resource, String fileName) throws IOException {
-        List<Document> documents = new ArrayList<>();
-        
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
             
             StringBuilder content = new StringBuilder();
-            StringBuilder currentGroup = new StringBuilder();
-            String groupName = "default";
             String line;
             
             while ((line = reader.readLine()) != null) {
                 content.append(line).append("\n");
-                
-                // 跳过注释和空行
-                if (line.trim().isEmpty() || line.trim().startsWith("#")) {
-                    if (line.trim().startsWith("#") && !line.trim().startsWith("##")) {
-                        // 检查是否为分组注释
-                        if (!currentGroup.isEmpty()) {
-                            // 保存之前的分组
-                            Metadata groupMetadata = Metadata.from("type", "properties_group")
-                                    .put("fileName", fileName)
-                                    .put("groupName", groupName);
-                            
-                            documents.add(Document.from(currentGroup.toString(), groupMetadata));
-                            currentGroup = new StringBuilder();
-                        }
-                        groupName = line.trim().substring(1).trim();
-                    }
-                    continue;
-                }
-                
-                currentGroup.append(line).append("\n");
             }
             
-            // 处理最后一个分组
-            if (!currentGroup.isEmpty()) {
-                Metadata groupMetadata = Metadata.from("type", "properties_group")
-                        .put("fileName", fileName)
-                        .put("groupName", groupName);
-                
-                documents.add(Document.from(currentGroup.toString(), groupMetadata));
-            }
-            
-            // 创建完整配置文档
-            Metadata fullMetadata = Metadata.from("type", "properties_full")
+            Metadata propertiesMetadata = Metadata.from("type", "properties_content")
                     .put("fileName", fileName);
             
-            documents.add(Document.from(content.toString(), fullMetadata));
+            Document mainDocument = Document.from(content.toString(), propertiesMetadata);
             
-            log.info("Properties文档解析完成，文件: {}，分组数: {}", fileName, documents.size() - 1);
+            // 使用LangChain4j的DocumentSplitter进行分块
+            List<Document> documents = splitDocument(mainDocument, fileName);
+            
+            log.info("Properties文档解析完成，文件: {}，分块数: {}", fileName, documents.size());
+            
+            return documents;
             
         } catch (Exception e) {
             log.error("Properties文档解析失败: {}", fileName, e);
             throw new IOException("Properties文档解析失败: " + e.getMessage(), e);
         }
-        
-        return documents;
+    }
+    
+    /**
+     * 使用LangChain4j的DocumentSplitter进行文档分块
+     */
+    private List<Document> splitDocument(Document document, String fileName) {
+        try {
+            // 创建递归文档分割器
+            DocumentSplitter splitter = DocumentSplitters.recursive(
+                    DEFAULT_CHUNK_SIZE, 
+                    DEFAULT_OVERLAP_SIZE
+            );
+            
+            // 分割文档
+            List<TextSegment> segments = splitter.split(document);
+            
+            // 转换为Document列表
+            List<Document> documents = new ArrayList<>();
+            for (int i = 0; i < segments.size(); i++) {
+                TextSegment segment = segments.get(i);
+                
+                // 创建新的元数据，保留原始元数据并添加分块信息
+                Metadata metadata = Metadata.from(segment.metadata().toMap())
+                        .put("chunkIndex", String.valueOf(i))
+                        .put("totalChunks", String.valueOf(segments.size()))
+                        .put("chunkSize", String.valueOf(segment.text().length()));
+                
+                // 如果原始元数据中没有fileName，则添加
+                if (!segment.metadata().containsKey("fileName")) {
+                    metadata = metadata.put("fileName", fileName);
+                }
+                
+                Document chunkDocument = Document.from(segment.text(), metadata);
+                documents.add(chunkDocument);
+            }
+            
+            return documents;
+            
+        } catch (Exception e) {
+            log.error("文档分块失败: {}", fileName, e);
+            // 如果分块失败，返回原始文档
+            return List.of(document);
+        }
     }
     
     /**

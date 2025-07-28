@@ -158,8 +158,8 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
             Provider provider = getProvider(model.getProviderId());
             
             // 检查模型类型是否支持推理
-            return "LLM".equals(model.getModelType().getCode()) || 
-                   "CHAT".equals(model.getModelType().getCode());
+            return model.getModelType() != null && 
+                   model.getModelType().stream().anyMatch(type -> "llm".equals(type.getCode()));
         } catch (Exception e) {
             log.warn("检查推理支持失败: modelId={}, error={}", modelId, e.getMessage());
             return false;
@@ -173,8 +173,8 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
             Provider provider = getProvider(model.getProviderId());
             
             // 检查模型是否支持流式推理（基于模型类型）
-            return "LLM".equals(model.getModelType().getCode()) || 
-                   "CHAT".equals(model.getModelType().getCode());
+            return model.getModelType() != null && 
+                   model.getModelType().stream().anyMatch(type -> "llm".equals(type.getCode()));
         } catch (Exception e) {
             log.warn("检查流式推理支持失败: modelId={}, error={}", modelId, e.getMessage());
             return false;
@@ -189,7 +189,7 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
             // 构建推理配置
             Map<String, Object> config = new HashMap<>();
             config.put("modelId", modelId);
-            config.put("modelKey", model.getModelKey());
+            config.put("modelLabel", model.getLabel());
             config.put("modelType", model.getModelType());
             config.put("supportsStreaming", supportsStreaming(modelId));
             config.put("supportsInference", supportsInference(modelId));

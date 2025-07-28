@@ -46,7 +46,7 @@ public class ContentCreateCmdExe {
                 .contentType(cmd.getContentType())
                 .fileType(cmd.getFileType())
                 .fileUrl(cmd.getOssUrl())
-                .status(ContentStatusEnum.UPLOADED)
+                .status(ContentStatusEnum.ENABLED)
                 .createdBy(currentUserId)
                 .createdAt(currentTime)
                 .updatedAt(currentTime)

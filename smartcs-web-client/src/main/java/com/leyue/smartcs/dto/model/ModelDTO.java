@@ -3,6 +3,7 @@ package com.leyue.smartcs.dto.model;
 import com.alibaba.cola.dto.DTO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.util.List;
 
 /**
  * 模型实例数据传输对象
@@ -22,9 +23,10 @@ public class ModelDTO extends DTO {
     private Long providerId;
     
     /**
-     * 模型唯一标识
+     * 提供商名称
      */
-    private String modelKey;
+    private String providerName;
+    
     
     /**
      * 名称
@@ -32,9 +34,9 @@ public class ModelDTO extends DTO {
     private String label;
     
     /**
-     * 模型类型
+     * 模型类型（支持多种类型）
      */
-    private String modelType;
+    private List<String> modelType;
     
     /**
      * 能力标签（逗号分隔）

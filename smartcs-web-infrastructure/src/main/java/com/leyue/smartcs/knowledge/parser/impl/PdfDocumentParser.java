@@ -1,5 +1,28 @@
 package com.leyue.smartcs.knowledge.parser.impl;
 
+import com.leyue.smartcs.dto.knowledge.ModelRequest;
+import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.Metadata;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.TextContent;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageTree;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
+
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -7,34 +30,9 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import javax.imageio.ImageIO;
-
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageTree;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.poi.ss.formula.functions.Mode;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.stereotype.Component;
-
-import com.leyue.smartcs.dto.knowledge.ModelRequest;
-import com.leyue.smartcs.knowledge.parser.DocumentParser;
-import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
-
-import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.Metadata;
-import dev.langchain4j.data.message.ImageContent;
-import dev.langchain4j.data.message.TextContent;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.model.chat.response.ChatResponse;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * PDF文档解析器 - 多模态RAG增强版
@@ -66,7 +64,7 @@ public class PdfDocumentParser extends AbstractDocumentParser {
     @Value("${pdf.multimodal.enable-table-detection:true}")
     private boolean enableTableDetection;
 
-    @Value("${pdf.multimodal.enable-image-description:false}")
+    @Value("${pdf.multimodal.enable-image-description:true}")
     private boolean enableImageDescription;
 
     @Value("${pdf.multimodal.min-image-size:100}")
@@ -83,7 +81,6 @@ public class PdfDocumentParser extends AbstractDocumentParser {
      * 
      * @param resource    PDF资源
      * @param fileName    文件名
-     * @param visionModel 视觉LLM模型，用于图像描述生成
      */
     private List<Document> parse(Resource resource, String fileName, ModelRequest modelRequest) throws IOException {
         List<Document> documents = new ArrayList<>();
@@ -555,7 +552,7 @@ public class PdfDocumentParser extends AbstractDocumentParser {
      * 使用视觉LLM模型分析图像内容，生成详细的描述
      */
     private String generateImageDescription(BufferedImage image, ModelRequest modelRequest) {
-        ChatModel chatModel = getChatModel(modelRequest.getModelId());
+        StreamingChatModel chatModel = getChatModel(modelRequest.getModelId());
         try {
             // 将图像转换为Base64格式
             String base64Image = imageToBase64(image);
@@ -583,15 +580,39 @@ public class PdfDocumentParser extends AbstractDocumentParser {
 
             log.debug("开始使用视觉模型分析图像，尺寸: {}x{}", image.getWidth(), image.getHeight());
 
-            // 调用视觉模型
+            // 调用视觉模型 - 使用同步方式处理流式响应
             ChatRequest chatRequest = getChatRequest(modelRequest)
                     .messages(List.of(userMessage))
                     .build();
-            ChatResponse response = chatModel.chat(chatRequest);
-
-            if (response != null && response.aiMessage() != null) {
-                String description = response.aiMessage().text();
-                log.debug("图像描述生成成功，长度: {} 字符", description != null ? description.length() : 0);
+            
+            // 使用StringBuilder收集流式响应
+            StringBuilder responseBuilder = new StringBuilder();
+            
+            // 创建StreamingChatResponseHandler来收集响应
+            StreamingChatResponseHandler responseHandler = new StreamingChatResponseHandler() {
+                @Override
+                public void onPartialResponse(String partialResponse) {
+                    responseBuilder.append(partialResponse);
+                }
+                
+                @Override
+                public void onCompleteResponse(ChatResponse response) {
+                    // 流式响应完成
+                }
+                
+                @Override
+                public void onError(Throwable error) {
+                    log.error("流式响应处理错误", error);
+                }
+            };
+            
+            // 调用流式模型
+            chatModel.chat(chatRequest, responseHandler);
+            
+            // 获取完整的响应文本
+            String description = responseBuilder.toString().trim();
+            if (!description.isEmpty()) {
+                log.debug("图像描述生成成功，长度: {} 字符", description.length());
                 return description;
             } else {
                 log.warn("视觉模型返回空结果");

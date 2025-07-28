@@ -34,13 +34,6 @@ public interface ModelGateway {
      */
     Optional<Model> findById(Long id);
     
-    /**
-     * 根据提供商ID和模型标识查询
-     * @param providerId 提供商ID
-     * @param modelKey 模型标识
-     * @return 模型信息
-     */
-    Optional<Model> findByProviderIdAndModelKey(Long providerId, String modelKey);
     
     /**
      * 根据ID删除模型实例（逻辑删除）
@@ -67,11 +60,11 @@ public interface ModelGateway {
      * @param pageIndex 页码
      * @param pageSize 页大小
      * @param providerId 提供商ID（可选）
-     * @param modelType 模型类型（可选）
+     * @param modelTypes 模型类型列表（可选）
      * @param status 状态（可选）
      * @return 分页结果
      */
-    PageResponse<Model> pageQuery(int pageIndex, int pageSize, Long providerId, ModelType modelType, ModelStatus status);
+    PageResponse<Model> pageQuery(int pageIndex, int pageSize, Long providerId, List<ModelType> modelTypes, ModelStatus status);
     
     /**
      * 启用/禁用模型实例
@@ -81,21 +74,13 @@ public interface ModelGateway {
      */
     boolean updateStatus(Long id, ModelStatus status);
     
-    /**
-     * 检查模型标识在指定提供商下是否已存在
-     * @param providerId 提供商ID
-     * @param modelKey 模型标识
-     * @param excludeId 排除的模型ID（用于更新时检查）
-     * @return 是否存在
-     */
-    boolean existsByProviderIdAndModelKey(Long providerId, String modelKey, Long excludeId);
     
     /**
      * 根据模型类型查询活跃的模型实例
-     * @param modelType 模型类型
+     * @param modelTypes 模型类型列表
      * @return 模型列表
      */
-    List<Model> findActiveByModelType(ModelType modelType);
+    List<Model> findActiveByModelTypes(List<ModelType> modelTypes);
     
     /**
      * 根据特性查询模型实例

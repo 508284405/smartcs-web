@@ -18,10 +18,6 @@ public class ModelDO extends BaseDO {
      */
     private Long providerId;
 
-    /**
-     * 模型唯一标识
-     */
-    private String modelKey;
 
     /**
      * 名称
@@ -29,7 +25,7 @@ public class ModelDO extends BaseDO {
     private String label;
 
     /**
-     * 模型类型（llm/tts等）
+     * 模型类型（多个类型用逗号分隔）
      */
     private String modelType;
 

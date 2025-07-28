@@ -1,8 +1,11 @@
 package com.leyue.smartcs.knowledge.convertor;
 
 import com.leyue.smartcs.domain.knowledge.Content;
+import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
+import com.leyue.smartcs.domain.knowledge.enums.SegmentMode;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.knowledge.dataobject.ContentDO;
+import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 
@@ -45,4 +48,16 @@ public interface ContentConvertor {
      * 批量将领域模型转换为DTO
      */
     List<ContentDTO> toDTOList(List<Content> contents);
+
+    default ContentStatusEnum map(String status){
+        if (status == null)
+            return null;
+        return ContentStatusEnum.valueOf(status);
+    }
+
+    default SegmentMode mapSegmentMode(String segmentMode) {
+        if (segmentMode == null)
+            return null;
+        return SegmentMode.fromCode(segmentMode);
+    }
 } 

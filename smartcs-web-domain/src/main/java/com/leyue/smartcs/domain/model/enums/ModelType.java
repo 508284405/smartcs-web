@@ -61,4 +61,18 @@ public enum ModelType {
         
         throw new IllegalArgumentException("Unknown model type code: " + code);
     }
+
+    public static ModelType fromName(String name) {
+        if (name == null) {
+            return null;
+        }
+
+        for (ModelType type : values()) {
+            if (type.name().equals(name)) {
+                return type;
+            }
+        }
+
+        throw new IllegalArgumentException("Unknown model type name: " + name);
+    }
 }

@@ -9,7 +9,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum ProviderType {
-    
+
     OPENAI("openai", "OpenAI"),
     DEEPSEEK("deepseek", "DeepSeek"),
     CLAUDE("claude", "Claude"),
@@ -19,17 +19,17 @@ public enum ProviderType {
     TENCENT("tencent", "腾讯混元"),
     ZHIPU("zhipu", "智谱AI"),
     MODELSCOPE("modelscope", "摩登社区");
-    
+
     /**
      * 提供商键值
      */
     private final String key;
-    
+
     /**
      * 提供商显示名称
      */
     private final String label;
-    
+
     /**
      * 根据key获取枚举
      */
@@ -44,11 +44,11 @@ public enum ProviderType {
         }
         return null;
     }
-    
+
     /**
      * 检查是否为OpenAI兼容的提供商
      */
     public boolean isOpenAiCompatible() {
-        return this == OPENAI || this == DEEPSEEK;
+        return this == OPENAI || this == DEEPSEEK || this == MODELSCOPE;
     }
 }

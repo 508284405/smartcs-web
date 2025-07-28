@@ -43,7 +43,7 @@ public class ProviderDomainService {
     public Provider updateProvider(Provider provider) {
         // 检查提供商是否存在
         Optional<Provider> existingOpt = providerGateway.findById(provider.getId());
-        if (!existingOpt.isPresent()) {
+        if (existingOpt.isEmpty()) {
             throw new BizException("模型提供商不存在: " + provider.getId());
         }
         

@@ -7,6 +7,9 @@ import com.leyue.smartcs.domain.model.enums.ModelType;
 import com.leyue.smartcs.model.dataobject.ModelDO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 模型实例转换器
@@ -17,7 +20,7 @@ public interface ModelConvertor {
     /**
      * DO转领域对象
      */
-    @Mapping(target = "modelType", expression = "java(modelTypeFromCode(modelDO.getModelType()))")
+    @Mapping(target = "modelType", expression = "java(modelTypeListFromString(modelDO.getModelType()))")
     @Mapping(target = "fetchFrom", expression = "java(fetchFromFromCode(modelDO.getFetchFrom()))")
     @Mapping(target = "status", expression = "java(statusFromCode(modelDO.getStatus()))")
     Model toDomain(ModelDO modelDO);
@@ -25,23 +28,42 @@ public interface ModelConvertor {
     /**
      * 领域对象转DO
      */
-    @Mapping(target = "modelType", expression = "java(modelTypeToCode(model.getModelType()))")
+    @Mapping(target = "modelType", expression = "java(modelTypeListToString(model.getModelType()))")
     @Mapping(target = "fetchFrom", expression = "java(fetchFromToCode(model.getFetchFrom()))")
     @Mapping(target = "status", expression = "java(statusToCode(model.getStatus()))")
     ModelDO toDO(Model model);
     
     /**
-     * 模型类型代码转枚举
+     * 模型类型字符串转枚举列表
      */
-    default ModelType modelTypeFromCode(String code) {
-        return code != null ? ModelType.fromCode(code) : null;
+    default List<ModelType> modelTypeListFromString(String typeString) {
+        if (typeString == null || typeString.trim().isEmpty()) {
+            return List.of();
+        }
+        return Arrays.stream(typeString.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .map(code -> {
+                try {
+                    return ModelType.fromCode(code);
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            })
+            .filter(type -> type != null)
+            .collect(Collectors.toList());
     }
     
     /**
-     * 模型类型枚举转代码
+     * 模型类型枚举列表转字符串
      */
-    default String modelTypeToCode(ModelType modelType) {
-        return modelType != null ? modelType.getCode() : null;
+    default String modelTypeListToString(List<ModelType> modelTypes) {
+        if (modelTypes == null || modelTypes.isEmpty()) {
+            return "";
+        }
+        return modelTypes.stream()
+            .map(ModelType::getCode)
+            .collect(Collectors.joining(","));
     }
     
     /**

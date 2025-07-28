@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.util.List;
 
 /**
  * 更新模型实例命令
@@ -25,11 +26,6 @@ public class ModelUpdateCmd extends Command {
     @NotNull(message = "提供商ID不能为空")
     private Long providerId;
     
-    /**
-     * 模型唯一标识
-     */
-    @NotEmpty(message = "模型标识不能为空")
-    private String modelKey;
     
     /**
      * 名称
@@ -38,10 +34,10 @@ public class ModelUpdateCmd extends Command {
     private String label;
     
     /**
-     * 模型类型
+     * 模型类型（支持多种类型）
      */
     @NotEmpty(message = "模型类型不能为空")
-    private String modelType;
+    private List<String> modelType;
     
     /**
      * 能力标签（逗号分隔）

@@ -26,18 +26,11 @@ public class ModelDomainService {
      * 创建模型实例
      */
     public Model createModel(Model model) {
-        // 业务验证
-        validateModel(model);
-        
         // 验证提供商是否存在
-        if (!providerGateway.findById(model.getProviderId()).isPresent()) {
+        if (providerGateway.findById(model.getProviderId()).isEmpty()) {
             throw new BizException("模型提供商不存在: " + model.getProviderId());
         }
         
-        // 检查模型标识在指定提供商下是否已存在
-        if (modelGateway.existsByProviderIdAndModelKey(model.getProviderId(), model.getModelKey(), null)) {
-            throw new BizException("模型标识在该提供商下已存在: " + model.getModelKey());
-        }
         
         // 生成ID和设置默认值
         model.setId(idGeneratorGateway.generateId());
@@ -80,18 +73,11 @@ public class ModelDomainService {
             throw new BizException("模型实例已删除，无法更新: " + model.getId());
         }
         
-        // 业务验证
-        validateModel(model);
-        
         // 验证提供商是否存在
-        if (!providerGateway.findById(model.getProviderId()).isPresent()) {
+        if (providerGateway.findById(model.getProviderId()).isEmpty()) {
             throw new BizException("模型提供商不存在: " + model.getProviderId());
         }
         
-        // 检查模型标识在指定提供商下是否已存在（排除自己）
-        if (modelGateway.existsByProviderIdAndModelKey(model.getProviderId(), model.getModelKey(), model.getId())) {
-            throw new BizException("模型标识在该提供商下已存在: " + model.getModelKey());
-        }
         
         // 更新时间
         model.setUpdatedAt(System.currentTimeMillis());
@@ -140,7 +126,7 @@ public class ModelDomainService {
     public boolean enableModel(Long modelId, ModelStatus status) {
         // 检查模型是否存在
         Optional<Model> existingOpt = modelGateway.findById(modelId);
-        if (!existingOpt.isPresent()) {
+        if (existingOpt.isEmpty()) {
             throw new BizException("模型实例不存在: " + modelId);
         }
         
@@ -156,34 +142,5 @@ public class ModelDomainService {
         }
         
         return true;
-    }
-    
-    /**
-     * 验证模型配置
-     */
-    private void validateModel(Model model) {
-        if (!model.isValid()) {
-            throw new BizException("模型实例配置参数无效");
-        }
-        
-        // 验证模型标识长度
-        if (model.getModelKey().length() > 128) {
-            throw new BizException("模型标识长度不能超过128字符");
-        }
-        
-        // 验证模型名称长度
-        if (model.getLabel().length() > 128) {
-            throw new BizException("模型名称长度不能超过128字符");
-        }
-        
-        // 验证特性长度
-        if (model.getFeatures() != null && model.getFeatures().length() > 256) {
-            throw new BizException("特性标签长度不能超过256字符");
-        }
-        
-        // 验证来源长度
-        if (model.getFetchFrom() != null && model.getFetchFrom().getCode().length() > 64) {
-            throw new BizException("来源标识长度不能超过64字符");
-        }
     }
 }

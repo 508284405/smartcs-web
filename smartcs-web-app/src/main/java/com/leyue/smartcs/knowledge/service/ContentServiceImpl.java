@@ -12,6 +12,10 @@ import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
+import com.leyue.smartcs.dto.knowledge.ContentProcessCmd;
+import com.leyue.smartcs.dto.knowledge.ContentProcessResponse;
+import com.leyue.smartcs.dto.knowledge.DocumentProcessCmd;
+import com.leyue.smartcs.dto.knowledge.DocumentProcessResultDTO;
 import com.leyue.smartcs.knowledge.executor.command.ContentCreateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentUpdateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentStatusUpdateCmdExe;
@@ -20,6 +24,7 @@ import com.leyue.smartcs.knowledge.executor.query.ContentGetQryExe;
 import com.leyue.smartcs.knowledge.executor.query.ContentListQryExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentParsingCmdExe;
 import com.leyue.smartcs.knowledge.executor.query.DocumentVectorSearchQryExe;
+import com.leyue.smartcs.knowledge.executor.command.DocumentProcessCmdExe;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -53,6 +58,9 @@ public class ContentServiceImpl implements ContentService {
 
     @Autowired
     private DocumentVectorSearchQryExe documentVectorSearchQryExe;
+    
+    @Autowired
+    private DocumentProcessCmdExe documentProcessCmdExe;
     
 
     @Override
@@ -93,5 +101,10 @@ public class ContentServiceImpl implements ContentService {
     @Override
     public MultiResponse<DocumentSearchResultDTO> vectorSearch(DocumentSearchRequest request) {
         return documentVectorSearchQryExe.execute(request);
+    }
+    
+    @Override
+    public SingleResponse<DocumentProcessResultDTO> processDocument(DocumentProcessCmd cmd) {
+        return documentProcessCmdExe.execute(cmd);
     }
 }

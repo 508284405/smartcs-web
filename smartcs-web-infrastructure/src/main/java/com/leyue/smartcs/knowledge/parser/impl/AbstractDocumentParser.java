@@ -10,11 +10,17 @@ import com.leyue.smartcs.dto.knowledge.ModelRequest;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public abstract class AbstractDocumentParser implements DocumentParser {
+    @Autowired
     protected ModelGateway modelGateway;
+    @Autowired
     protected ProviderGateway providerGateway;
+    @Autowired
     protected ModelBeanManagerService modelBeanManagerService;
 
     /**
@@ -23,7 +29,7 @@ public abstract class AbstractDocumentParser implements DocumentParser {
      * @param modelId 模型ID
      * @return ChatModel
      */
-    public ChatModel getChatModel(Long modelId) {
+    public StreamingChatModel getChatModel(Long modelId) {
         Model model = modelGateway.findById(modelId).orElse(null);
         if (model == null) {
             throw new BizException("Model not found");
@@ -36,8 +42,8 @@ public abstract class AbstractDocumentParser implements DocumentParser {
             throw new BizException("Provider is not valid");
         }
         Object modelBean = modelBeanManagerService.getModelBean(provider, "chat");
-        if (modelBean instanceof ChatModel) {
-            return (ChatModel) modelBean;
+        if (modelBean instanceof StreamingChatModel) {
+            return (StreamingChatModel) modelBean;
         }
         throw new BizException("Model bean is not a ChatModel");
     }

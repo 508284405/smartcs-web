@@ -57,16 +57,6 @@ public class ModelGatewayImpl implements ModelGateway {
         return Optional.of(model);
     }
     
-    @Override
-    public Optional<Model> findByProviderIdAndModelKey(Long providerId, String modelKey) {
-        ModelDO modelDO = modelMapper.selectByProviderIdAndModelKey(providerId, modelKey);
-        if (modelDO == null) {
-            return Optional.empty();
-        }
-        
-        Model model = modelConvertor.toDomain(modelDO);
-        return Optional.of(model);
-    }
     
     @Override
     public boolean deleteById(Long id) {
@@ -100,7 +90,7 @@ public class ModelGatewayImpl implements ModelGateway {
     }
     
     @Override
-    public PageResponse<Model> pageQuery(int pageIndex, int pageSize, Long providerId, ModelType modelType, ModelStatus status) {
+    public PageResponse<Model> pageQuery(int pageIndex, int pageSize, Long providerId, List<ModelType> modelTypes, ModelStatus status) {
         LambdaQueryWrapper<ModelDO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ModelDO::getIsDeleted, 0);
         
@@ -108,8 +98,15 @@ public class ModelGatewayImpl implements ModelGateway {
             wrapper.eq(ModelDO::getProviderId, providerId);
         }
         
-        if (modelType != null) {
-            wrapper.eq(ModelDO::getModelType, modelType.getCode());
+        if (modelTypes != null && !modelTypes.isEmpty()) {
+            List<String> typeCodes = modelTypes.stream()
+                .map(ModelType::getCode)
+                .collect(Collectors.toList());
+            wrapper.and(w -> {
+                for (String typeCode : typeCodes) {
+                    w.or().like(ModelDO::getModelType, typeCode);
+                }
+            });
         }
         
         if (status != null) {
@@ -134,15 +131,31 @@ public class ModelGatewayImpl implements ModelGateway {
         return result > 0;
     }
     
-    @Override
-    public boolean existsByProviderIdAndModelKey(Long providerId, String modelKey, Long excludeId) {
-        int count = modelMapper.countByProviderIdAndModelKey(providerId, modelKey, excludeId);
-        return count > 0;
-    }
     
     @Override
-    public List<Model> findActiveByModelType(ModelType modelType) {
-        List<ModelDO> modelDOs = modelMapper.selectActiveByModelType(modelType.getCode());
+    public List<Model> findActiveByModelTypes(List<ModelType> modelTypes) {
+        if (modelTypes == null || modelTypes.isEmpty()) {
+            return List.of();
+        }
+        
+        LambdaQueryWrapper<ModelDO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(ModelDO::getIsDeleted, 0)
+               .eq(ModelDO::getStatus, ModelStatus.ACTIVE.getCode())
+               .eq(ModelDO::getDeprecated, false);
+        
+        // 模型类型查询（支持多选）
+        List<String> typeCodes = modelTypes.stream()
+            .map(ModelType::getCode)
+            .collect(Collectors.toList());
+        wrapper.and(w -> {
+            for (String typeCode : typeCodes) {
+                w.or().like(ModelDO::getModelType, typeCode);
+            }
+        });
+        
+        wrapper.orderByDesc(ModelDO::getCreatedAt);
+        
+        List<ModelDO> modelDOs = modelMapper.selectList(wrapper);
         return modelDOs.stream()
                 .map(modelConvertor::toDomain)
                 .collect(Collectors.toList());

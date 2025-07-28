@@ -117,9 +117,8 @@ CREATE TABLE IF NOT EXISTS `t_model_provider` (
 CREATE TABLE IF NOT EXISTS `t_model` (
     `id` BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键',
     `provider_id` BIGINT NOT NULL COMMENT '关联provider.id',
-    `model_key` VARCHAR(128) NOT NULL COMMENT '模型唯一标识',
     `label` VARCHAR(128) NOT NULL COMMENT '名称',
-    `model_type` VARCHAR(64) NOT NULL COMMENT '模型类型（llm/tts等）',
+    `model_type` VARCHAR(256) NOT NULL COMMENT '模型类型（多个类型用逗号分隔）',
     `features` VARCHAR(256) COMMENT '能力标签（逗号分隔）',
     `fetch_from` VARCHAR(64) COMMENT '来源（如predefined-model）',
     `model_properties` TEXT COMMENT '其他属性（如context_size, mode等，JSON格式）',
@@ -132,12 +131,10 @@ CREATE TABLE IF NOT EXISTS `t_model` (
     `created_at` BIGINT COMMENT '创建时间（毫秒时间戳）',
     `updated_at` BIGINT COMMENT '更新时间（毫秒时间戳）',
     INDEX `idx_provider_id` (`provider_id`),
-    INDEX `idx_model_key` (`model_key`),
     INDEX `idx_model_type` (`model_type`),
     INDEX `idx_status` (`status`),
     INDEX `idx_deprecated` (`deprecated`),
     INDEX `idx_created_at` (`created_at`),
-    UNIQUE INDEX `idx_provider_model` (`provider_id`, `model_key`),
     CONSTRAINT `fk_model_provider_id` FOREIGN KEY (`provider_id`) REFERENCES `t_model_provider`(`id`)
 ) COMMENT '模型实例表';
 
@@ -245,7 +242,7 @@ CREATE TABLE IF NOT EXISTS `t_kb_content` (
   `content_type` VARCHAR(32) NOT NULL COMMENT 'document/audio/video',
   `file_url` VARCHAR(512) COMMENT '原始文件地址',
   `file_type` VARCHAR(256) COMMENT '文件扩展名',
-  `status` VARCHAR(32) DEFAULT 'uploaded' COMMENT 'uploaded/parsed/vectorized/enabled/disabled',
+  `status` VARCHAR(32) DEFAULT 'enabled' COMMENT 'enabled/disabled',
   `segment_mode` VARCHAR(32) DEFAULT 'general' COMMENT '分段模式 general/parent_child',
   `char_count` BIGINT DEFAULT 0 COMMENT '字符数',
   `recall_count` BIGINT DEFAULT 0 COMMENT '召回次数',

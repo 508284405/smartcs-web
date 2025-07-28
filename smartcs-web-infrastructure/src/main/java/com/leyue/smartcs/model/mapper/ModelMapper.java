@@ -13,22 +13,7 @@ import java.util.List;
 @Mapper
 public interface ModelMapper extends BaseMapper<ModelDO> {
     
-    /**
-     * 根据提供商ID和模型标识查询（不包含已删除的）
-     * @param providerId 提供商ID
-     * @param modelKey 模型标识
-     * @return 模型信息
-     */
-    ModelDO selectByProviderIdAndModelKey(@Param("providerId") Long providerId, @Param("modelKey") String modelKey);
     
-    /**
-     * 检查模型标识在指定提供商下是否已存在（不包含已删除的）
-     * @param providerId 提供商ID
-     * @param modelKey 模型标识
-     * @param excludeId 排除的ID
-     * @return 是否存在
-     */
-    int countByProviderIdAndModelKey(@Param("providerId") Long providerId, @Param("modelKey") String modelKey, @Param("excludeId") Long excludeId);
     
     /**
      * 根据提供商ID查询所有模型（不包含已删除的）
@@ -37,12 +22,6 @@ public interface ModelMapper extends BaseMapper<ModelDO> {
      */
     List<ModelDO> selectByProviderId(@Param("providerId") Long providerId);
     
-    /**
-     * 根据模型类型查询活跃的模型实例
-     * @param modelType 模型类型
-     * @return 模型列表
-     */
-    List<ModelDO> selectActiveByModelType(@Param("modelType") String modelType);
     
     /**
      * 根据特性查询模型实例

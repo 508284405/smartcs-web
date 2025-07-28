@@ -3,6 +3,7 @@ package com.leyue.smartcs.dto.model;
 import com.alibaba.cola.dto.PageQuery;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.util.List;
 
 /**
  * 模型实例分页查询
@@ -17,9 +18,9 @@ public class ModelPageQry extends PageQuery {
     private Long providerId;
     
     /**
-     * 模型类型（可选）
+     * 模型类型（可选，支持多选）
      */
-    private String modelType;
+    private List<String> modelType;
     
     /**
      * 状态（可选）

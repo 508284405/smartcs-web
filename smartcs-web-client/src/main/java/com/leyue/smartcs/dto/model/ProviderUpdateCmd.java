@@ -28,7 +28,6 @@ public class ProviderUpdateCmd extends Command {
     /**
      * 名称
      */
-    @NotEmpty(message = "提供商名称不能为空")
     private String label;
     
     /**

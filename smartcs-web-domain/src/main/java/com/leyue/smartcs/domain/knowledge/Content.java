@@ -53,7 +53,7 @@ public class Content {
     private String textExtracted;
 
     /**
-     * 状态 uploaded/parsed/vectorized/enabled/disabled
+     * 状态 enabled/disabled
      */
     private ContentStatusEnum status;
 
@@ -93,25 +93,16 @@ public class Content {
      * @return 是否可处理
      */
     public boolean canProcess() {
-        return this.fileUrl != null && !this.fileUrl.isEmpty() && "uploaded".equals(this.status);
+        return this.fileUrl != null && !this.fileUrl.isEmpty();
     }
 
     /**
-     * 检查内容是否已解析
+     * 检查内容是否已处理完成（启用或禁用状态）
      *
-     * @return 是否已解析
+     * @return 是否已处理完成
      */
-    public boolean isParsed() {
-        return this.status == ContentStatusEnum.PARSED || this.status == ContentStatusEnum.VECTORIZED;
-    }
-
-    /**
-     * 检查内容是否已向量化
-     *
-     * @return 是否已向量化
-     */
-    public boolean isVectorized() {
-        return this.status == ContentStatusEnum.VECTORIZED;
+    public boolean isProcessed() {
+        return this.status == ContentStatusEnum.ENABLED || this.status == ContentStatusEnum.DISABLED;
     }
 
     /**
@@ -132,19 +123,6 @@ public class Content {
         return this.status == ContentStatusEnum.DISABLED;
     }
 
-    /**
-     * 标记为已解析状态
-     */
-    public void markAsParsed() {
-        this.status = ContentStatusEnum.PARSED;
-    }
-
-    /**
-     * 标记为已向量化状态
-     */
-    public void markAsVectorized() {
-        this.status = ContentStatusEnum.VECTORIZED;
-    }
 
     /**
      * 启用内容

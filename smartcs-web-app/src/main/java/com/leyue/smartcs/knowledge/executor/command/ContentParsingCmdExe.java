@@ -85,8 +85,8 @@ public class ContentParsingCmdExe {
             // 存储到向量数据库
             embeddingStore.add(embedding, textSegment);
 
-            // 更新内容状态为已解析
-            content.setStatus(ContentStatusEnum.PARSED);
+            // 更新内容状态为启用
+            content.setStatus(ContentStatusEnum.ENABLED);
             contentGateway.update(content);
 
             log.info("内容解析完成, 内容ID: {}", contentId);

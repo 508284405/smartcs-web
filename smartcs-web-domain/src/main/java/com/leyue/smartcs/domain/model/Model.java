@@ -6,6 +6,7 @@ import com.leyue.smartcs.domain.model.enums.ModelType;
 import lombok.Data;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 模型实例领域模型
@@ -23,10 +24,6 @@ public class Model {
      */
     private Long providerId;
     
-    /**
-     * 模型唯一标识
-     */
-    private String modelKey;
     
     /**
      * 名称
@@ -34,9 +31,9 @@ public class Model {
     private String label;
     
     /**
-     * 模型类型
+     * 模型类型（支持多种类型）
      */
-    private ModelType modelType;
+    private List<ModelType> modelType;
     
     /**
      * 能力标签（逗号分隔）
@@ -97,10 +94,9 @@ public class Model {
      * 验证模型配置是否有效
      */
     public boolean isValid() {
-        return modelKey != null && !modelKey.trim().isEmpty()
-                && label != null && !label.trim().isEmpty()
+        return label != null && !label.trim().isEmpty()
                 && providerId != null
-                && modelType != null
+                && modelType != null && !modelType.isEmpty()
                 && status != null;
     }
     
@@ -168,6 +164,36 @@ public class Model {
             this.features = "";
         } else {
             this.features = String.join(",", featuresList);
+        }
+    }
+    
+    /**
+     * 获取模型类型字符串列表
+     */
+    public List<String> getModelTypeStrings() {
+        if (modelType == null || modelType.isEmpty()) {
+            return List.of();
+        }
+        return modelType.stream().map(ModelType::name).toList();
+    }
+    
+    /**
+     * 设置模型类型字符串列表
+     */
+    public void setModelTypeStrings(List<String> typeStrings) {
+        if (typeStrings == null || typeStrings.isEmpty()) {
+            this.modelType = List.of();
+        } else {
+            this.modelType = typeStrings.stream()
+                .map(str -> {
+                    try {
+                        return ModelType.valueOf(str);
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
+                })
+                .filter(type -> type != null)
+                .toList();
         }
     }
 }

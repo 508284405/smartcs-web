@@ -41,8 +41,20 @@ public class DocumentParserFactory {
      * 根据文件名获取解析器
      */
     public DocumentParser getParser(String fileName) {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            log.warn("文件名为空，使用默认解析器");
+            return getDefaultParser();
+        }
+        
         DocumentTypeEnum documentType = DocumentTypeEnum.fromFileName(fileName);
-        return getParserByType(documentType);
+        DocumentParser parser = getParserByType(documentType);
+        
+        if (parser == null) {
+            log.warn("无法为文件 {} 找到合适的解析器，使用默认解析器", fileName);
+            return getDefaultParser();
+        }
+        
+        return parser;
     }
     
     /**
@@ -75,32 +87,43 @@ public class DocumentParserFactory {
             return getDefaultParser();
         }
         
+        DocumentParser parser = null;
+        
         // 根据文档类型选择最佳解析器
         switch (documentType) {
             case PDF:
-                return getParserByClass(PdfDocumentParser.class);
+                parser = getParserByClass(PdfDocumentParser.class);
+                break;
                 
             case XLSX:
             case XLS:
-                return getParserByClass(ExcelDocumentParser.class);
+                parser = getParserByClass(ExcelDocumentParser.class);
+                break;
                 
             case DOCX:
-                return getParserByClass(DocxDocumentParser.class);
+                parser = getParserByClass(DocxDocumentParser.class);
+                break;
                 
             case MARKDOWN:
             case MDX:
-                return getParserByClass(MarkdownDocumentParser.class);
+                parser = getParserByClass(MarkdownDocumentParser.class);
+                break;
                 
             case TXT:
             case HTML:
             case CSV:
             case VTT:
             case PROPERTIES:
-                return getParserByClass(UniversalDocumentParser.class);
+                parser = getParserByClass(UniversalDocumentParser.class);
+                break;
                 
             default:
-                return getDefaultParser();
+                parser = null;
+                break;
         }
+        
+        // 如果找不到特定解析器，使用默认解析器
+        return parser != null ? parser : getDefaultParser();
     }
     
     /**
@@ -108,16 +131,34 @@ public class DocumentParserFactory {
      */
     private DocumentParser getParserByClass(Class<? extends DocumentParser> parserClass) {
         return documentParsers.stream()
-                .filter(parser -> parserClass.isInstance(parser))
+                .filter(parserClass::isInstance)
                 .findFirst()
-                .orElse(getDefaultParser());
+                .orElse(null);
     }
     
     /**
      * 获取默认解析器（通用解析器）
      */
     private DocumentParser getDefaultParser() {
-        return getParserByClass(UniversalDocumentParser.class);
+        if (documentParsers == null || documentParsers.isEmpty()) {
+            log.error("没有可用的文档解析器，请检查Spring容器配置");
+            throw new IllegalStateException("没有可用的文档解析器");
+        }
+        
+        // 直接查找通用解析器，避免递归调用
+        DocumentParser universalParser = documentParsers.stream()
+                .filter(UniversalDocumentParser.class::isInstance)
+                .findFirst()
+                .orElse(null);
+        
+        if (universalParser == null) {
+            // 如果找不到通用解析器，返回第一个可用的解析器
+            log.warn("未找到通用解析器(UniversalDocumentParser)，使用第一个可用的解析器: {}",
+                    documentParsers.get(0).getClass().getSimpleName());
+            return documentParsers.get(0);
+        }
+        
+        return universalParser;
     }
     
     /**

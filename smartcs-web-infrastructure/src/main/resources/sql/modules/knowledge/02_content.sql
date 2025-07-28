@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS `t_kb_content` (
   `content_type` VARCHAR(32) NOT NULL COMMENT 'document/audio/video',
   `file_url` VARCHAR(512) COMMENT '原始文件地址',
   `file_type` VARCHAR(256) COMMENT '文件扩展名',
-  `status` VARCHAR(32) DEFAULT 'uploaded' COMMENT 'uploaded/parsed/vectorized/enabled/disabled',
+  `status` VARCHAR(32) DEFAULT 'enabled' COMMENT 'enabled/disabled',
   `segment_mode` VARCHAR(32) DEFAULT 'general' COMMENT '分段模式 general/parent_child',
   `char_count` BIGINT DEFAULT 0 COMMENT '字符数',
   `recall_count` BIGINT DEFAULT 0 COMMENT '召回次数',

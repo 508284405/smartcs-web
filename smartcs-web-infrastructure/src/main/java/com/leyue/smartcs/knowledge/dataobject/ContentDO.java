@@ -45,7 +45,7 @@ public class ContentDO extends BaseDO {
     private String fileType;
 
     /**
-     * 状态 uploaded/parsed/vectorized/enabled/disabled
+     * 状态 /enabled/disabled
      */
     @TableField("status")
     private String status;

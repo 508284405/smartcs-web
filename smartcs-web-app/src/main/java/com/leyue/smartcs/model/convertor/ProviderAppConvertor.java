@@ -29,6 +29,6 @@ public interface ProviderAppConvertor {
     ProviderDTO toDTO(Provider provider);
 
     default ProviderType toProviderType(String providerType){
-        return ProviderType.fromKey(providerType);
+        return ProviderType.valueOf(providerType);
     }
 }
