@@ -61,7 +61,7 @@ public class ChunkingPipeline {
                 throw new IllegalArgumentException("策略 " + strategy.getName() + " 的配置参数无效");
             }
 
-            // 执行当前策略
+            // 执行当前策略，传递完整配置
             List<ChunkDTO> strategyResult = strategy.chunk(currentDocuments, documentType, config);
 
             if (strategy.isCombinable() && strategy != strategies.get(strategies.size() - 1)) {

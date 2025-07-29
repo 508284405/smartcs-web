@@ -3,6 +3,7 @@ package com.leyue.smartcs.knowledge.convertor;
 import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
 import com.leyue.smartcs.domain.knowledge.enums.SegmentMode;
+import com.leyue.smartcs.domain.knowledge.enums.StrategyNameEnum;
 import com.leyue.smartcs.dto.knowledge.ContentDTO;
 import com.leyue.smartcs.knowledge.dataobject.ContentDO;
 import com.leyue.smartcs.knowledge.parser.SegmentStrategy;
@@ -59,5 +60,15 @@ public interface ContentConvertor {
         if (segmentMode == null)
             return null;
         return SegmentMode.fromCode(segmentMode);
+    }
+
+    /**
+     * 计算召回率百分比
+     */
+    default Double calculateRecallRate(Content content) {
+        if (content == null || content.getChunkCount() == null || content.getChunkCount() == 0) {
+            return 0.0;
+        }
+        return (content.getRecallCount() != null ? content.getRecallCount() : 0) * 100.0 / content.getChunkCount();
     }
 } 

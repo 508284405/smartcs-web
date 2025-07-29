@@ -77,4 +77,64 @@ public class ContentDTO {
      * 更新时间（毫秒时间戳）
      */
     private Long updatedAt;
+
+    /**
+     * 元数据信息（JSON格式）
+     */
+    private String metadata;
+
+    /**
+     * 原始文件名称
+     */
+    private String originalFileName;
+
+    /**
+     * 文件大小（字节）
+     */
+    private Long fileSize;
+
+    /**
+     * 来源 upload/api/import
+     */
+    private String source;
+
+    /**
+     * 处理时间（毫秒）
+     */
+    private Long processingTime;
+
+    /**
+     * 向量化时间（毫秒）
+     */
+    private Long embeddingTime;
+
+    /**
+     * 嵌入成本（tokens）
+     */
+    private Long embeddingCost;
+
+    /**
+     * 平均段落长度
+     */
+    private Integer averageChunkLength;
+
+    /**
+     * 段落数量
+     */
+    private Integer chunkCount;
+
+    /**
+     * 处理状态 processing/success/failed
+     */
+    private String processingStatus;
+
+    /**
+     * 处理错误信息
+     */
+    private String processingErrorMessage;
+
+    /**
+     * 召回率百分比
+     */
+    private Double recallRate;
 } 

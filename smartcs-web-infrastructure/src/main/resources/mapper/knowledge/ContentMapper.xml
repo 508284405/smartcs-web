@@ -8,14 +8,24 @@
         <result column="knowledge_base_id" property="knowledgeBaseId" jdbcType="BIGINT"/>
         <result column="title" property="title" jdbcType="VARCHAR"/>
         <result column="content_type" property="contentType" jdbcType="VARCHAR"/>
+        <result column="file_url" property="fileUrl" jdbcType="VARCHAR"/>
+        <result column="file_type" property="fileType" jdbcType="VARCHAR"/>
+        <result column="text_extracted" property="textExtracted" jdbcType="LONGVARCHAR"/>
         <result column="status" property="status" jdbcType="VARCHAR"/>
         <result column="segment_mode" property="segmentMode" jdbcType="VARCHAR"/>
         <result column="char_count" property="charCount" jdbcType="BIGINT"/>
         <result column="recall_count" property="recallCount" jdbcType="BIGINT"/>
-        <result column="oss_url" property="ossUrl" jdbcType="VARCHAR"/>
+        <result column="metadata" property="metadata" jdbcType="LONGVARCHAR"/>
+        <result column="original_file_name" property="originalFileName" jdbcType="VARCHAR"/>
         <result column="file_size" property="fileSize" jdbcType="BIGINT"/>
-        <result column="file_type" property="fileType" jdbcType="VARCHAR"/>
-        <result column="extracted_text" property="extractedText" jdbcType="LONGVARCHAR"/>
+        <result column="source" property="source" jdbcType="VARCHAR"/>
+        <result column="processing_time" property="processingTime" jdbcType="BIGINT"/>
+        <result column="embedding_time" property="embeddingTime" jdbcType="BIGINT"/>
+        <result column="embedding_cost" property="embeddingCost" jdbcType="BIGINT"/>
+        <result column="average_chunk_length" property="averageChunkLength" jdbcType="INTEGER"/>
+        <result column="chunk_count" property="chunkCount" jdbcType="INTEGER"/>
+        <result column="processing_status" property="processingStatus" jdbcType="VARCHAR"/>
+        <result column="processing_error_message" property="processingErrorMessage" jdbcType="LONGVARCHAR"/>
         <result column="created_by" property="createdBy" jdbcType="BIGINT"/>
         <result column="created_at" property="createdAt" jdbcType="BIGINT"/>
         <result column="updated_at" property="updatedAt" jdbcType="BIGINT"/>
@@ -23,7 +33,10 @@
 
     <!-- 基础字段 -->
     <sql id="Base_Column_List">
-        id, knowledge_base_id, title, content_type, status, segment_mode, char_count, recall_count, oss_url, file_size, file_type, extracted_text, created_by, created_at, updated_at
+        id, knowledge_base_id, title, content_type, file_url, file_type, text_extracted, status, segment_mode, 
+        char_count, recall_count, metadata, original_file_name, file_size, source, processing_time, embedding_time, 
+        embedding_cost, average_chunk_length, chunk_count, processing_status, processing_error_message, 
+        created_by, created_at, updated_at
     </sql>
 
 </mapper> 

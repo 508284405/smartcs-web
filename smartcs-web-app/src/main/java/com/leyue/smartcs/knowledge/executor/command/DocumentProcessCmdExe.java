@@ -15,6 +15,7 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -45,34 +46,31 @@ public class DocumentProcessCmdExe {
      * @return 处理结果
      */
     @Transactional(rollbackOn = Exception.class)
-    public SingleResponse<DocumentProcessResultDTO> execute(DocumentProcessCmd cmd) {
+    public SingleResponse<DocumentProcessResultDTO> execute(@Valid DocumentProcessCmd cmd) {
         long startTime = System.currentTimeMillis();
         
         log.info("开始执行文档处理流程，知识库ID: {}, 文档标题: {}, 分段模式: {}", 
                 cmd.getKnowledgeBaseId(), cmd.getTitle(), cmd.getSegmentMode());
 
         try {
-            // 1. 参数校验
-            validateCommand(cmd);
-
-            // 2. 创建文档记录
+            // 1. 创建文档记录
             Long contentId = createContentRecord(cmd);
             
-            // 3. 文档分块处理
+            // 2. 文档分块处理
             List<ChunkDTO> chunks = processDocumentChunking(cmd);
             
-            // 4. 批量保存分块结果到数据库
+            // 3. 批量保存分块结果到数据库
             List<Long> chunkIds = batchSaveChunks(chunks, contentId);
             
-            // 5. 执行向量化处理
+            // 4. 执行向量化处理
             int vectorCount = processVectorization(chunks, chunkIds);
             
-            // 6. 更新文档状态
-            updateContentStatus(contentId, ContentStatusEnum.ENABLED);
+            // 5. 计算技术参数并更新文档状态
+            updateContentWithTechnicalParameters(contentId, chunks, startTime);
             
             long processingTime = System.currentTimeMillis() - startTime;
             
-            // 7. 构建响应结果
+            // 6. 构建响应结果
             DocumentProcessResultDTO result = new DocumentProcessResultDTO();
             result.setContentId(contentId);
             result.setChunkCount(chunks.size());
@@ -102,24 +100,6 @@ public class DocumentProcessCmdExe {
     }
 
     /**
-     * 参数校验
-     */
-    private void validateCommand(DocumentProcessCmd cmd) {
-        if (cmd.getKnowledgeBaseId() == null) {
-            throw new BizException("知识库ID不能为空");
-        }
-        if (cmd.getTitle() == null || cmd.getTitle().trim().isEmpty()) {
-            throw new BizException("文档标题不能为空");
-        }
-        if (cmd.getFileUrl() == null || cmd.getFileUrl().trim().isEmpty()) {
-            throw new BizException("文件地址不能为空");
-        }
-        if (cmd.getSegmentMode() == null || cmd.getSegmentMode().trim().isEmpty()) {
-            throw new BizException("分段模式不能为空");
-        }
-    }
-
-    /**
      * 创建文档记录
      */
     private Long createContentRecord(DocumentProcessCmd cmd) {
@@ -132,10 +112,15 @@ public class DocumentProcessCmdExe {
                 .contentType("document")
                 .fileType(cmd.getFileType())
                 .fileUrl(cmd.getFileUrl())
+                .originalFileName(cmd.getOriginalFileName())
+                .fileSize(cmd.getFileSize())
+                .source(cmd.getSource())
+                .metadata(cmd.getMetadata())
                 .status(ContentStatusEnum.DISABLED) // 初始状态为禁用，处理完成后启用
                 .segmentMode(SegmentMode.fromCode(cmd.getSegmentMode()))
                 .charCount(0L)
                 .recallCount(0L)
+                .processingStatus("processing")
                 .createdBy(currentUserId)
                 .createdAt(currentTime)
                 .updatedAt(currentTime)
@@ -215,6 +200,7 @@ public class DocumentProcessCmdExe {
      */
     private int processVectorization(List<ChunkDTO> chunks, List<Long> chunkIds) {
         int vectorCount = 0;
+        long embeddingStartTime = System.currentTimeMillis();
         
         // 获取嵌入模型
         EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
@@ -254,8 +240,53 @@ public class DocumentProcessCmdExe {
             }
         }
         
-        log.info("向量化处理完成，成功处理: {}/{}", vectorCount, chunks.size());
+        long embeddingTime = System.currentTimeMillis() - embeddingStartTime;
+        log.info("向量化处理完成，成功处理: {}/{}, 耗时: {}ms", vectorCount, chunks.size(), embeddingTime);
+        
+        // 更新内容的向量化时间
+        updateContentEmbeddingTime(chunks.get(0).getContentId(), embeddingTime, vectorCount);
+        
         return vectorCount;
+    }
+
+    /**
+     * 更新内容的向量化时间和成本
+     */
+    private void updateContentEmbeddingTime(Long contentId, Long embeddingTime, int vectorCount) {
+        Content content = contentGateway.findById(contentId);
+        if (content != null) {
+            content.setEmbeddingTime(embeddingTime);
+            content.setEmbeddingCost((long) vectorCount);
+            content.setUpdatedAt(System.currentTimeMillis());
+            contentGateway.update(content);
+        }
+    }
+
+    /**
+     * 计算技术参数并更新文档状态
+     */
+    private void updateContentWithTechnicalParameters(Long contentId, List<ChunkDTO> chunks, long startTime) {
+        Content content = contentGateway.findById(contentId);
+        if (content != null) {
+            // 计算技术参数
+            long processingTime = System.currentTimeMillis() - startTime;
+            int totalChars = calculateTotalChars(chunks).intValue();
+            int averageChunkLength = chunks.isEmpty() ? 0 : totalChars / chunks.size();
+            
+            // 更新技术参数
+            content.setProcessingTime(processingTime);
+            content.setChunkCount(chunks.size());
+            content.setCharCount((long) totalChars);
+            content.setAverageChunkLength(averageChunkLength);
+            content.setStatus(ContentStatusEnum.ENABLED);
+            content.setProcessingStatus("success");
+            content.setUpdatedAt(System.currentTimeMillis());
+            
+            contentGateway.update(content);
+            
+            log.info("更新内容技术参数完成，ID: {}, 处理时间: {}ms, 分块数: {}, 平均长度: {}", 
+                    contentId, processingTime, chunks.size(), averageChunkLength);
+        }
     }
 
     /**

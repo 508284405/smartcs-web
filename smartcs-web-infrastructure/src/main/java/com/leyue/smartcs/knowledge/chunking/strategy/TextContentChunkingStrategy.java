@@ -65,13 +65,26 @@ public class TextContentChunkingStrategy implements ChunkingStrategy {
         int chunkSize = getConfigValue(config, "chunkSize", 1000);
         int overlapSize = getConfigValue(config, "overlapSize", 200);
         boolean preserveSentences = getConfigValue(config, "preserveSentences", true);
+        String chunkSeparator = getConfigValue(config, "chunkSeparator", "\n\n");
+        int minChunkSize = getConfigValue(config, "minChunkSize", 10);
+        int maxChunkSize = getConfigValue(config, "maxChunkSize", 5000);
+        boolean keepSeparator = getConfigValue(config, "keepSeparator", true);
+        boolean stripWhitespace = getConfigValue(config, "stripWhitespace", true);
+        boolean removeAllUrls = getConfigValue(config, "removeAllUrls", false);
         
         for (int docIndex = 0; docIndex < documents.size(); docIndex++) {
             Document document = documents.get(docIndex);
             
+            // 文本预处理
+            String processedText = preprocessText(document.text(), stripWhitespace, removeAllUrls);
+            Document processedDocument = Document.from(processedText, document.metadata());
+            
             // 根据文档类型选择合适的分割器
             List<TextSegment> segments = createSplitter(chunkSize, overlapSize, preserveSentences)
-                    .split(document);
+                    .split(processedDocument);
+            
+            // 应用大小限制
+            segments = applySizeConstraints(segments, minChunkSize, maxChunkSize);
             
             log.debug("文档 {} 分割为 {} 个段落", docIndex, segments.size());
             
@@ -108,6 +121,104 @@ public class TextContentChunkingStrategy implements ChunkingStrategy {
         }
         
         return true;
+    }
+    
+    /**
+     * 文本预处理
+     */
+    private String preprocessText(String text, boolean stripWhitespace, boolean removeAllUrls) {
+        if (text == null) {
+            return "";
+        }
+        
+        String processedText = text;
+        
+        // 替换连续的空格、换行符和制表符
+        if (stripWhitespace) {
+            processedText = processedText.replaceAll("\\s+", " ");
+            processedText = processedText.trim();
+        }
+        
+        // 删除所有URL和电子邮件地址
+        if (removeAllUrls) {
+            // 简单的URL和邮箱移除逻辑
+            processedText = processedText.replaceAll("https?://\\S+", "");
+            processedText = processedText.replaceAll("\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b", "");
+            processedText = processedText.replaceAll("\\s+", " ").trim();
+        }
+        
+        return processedText;
+    }
+    
+    /**
+     * 应用大小限制
+     */
+    private List<TextSegment> applySizeConstraints(List<TextSegment> segments, int minChunkSize, int maxChunkSize) {
+        List<TextSegment> filteredSegments = new ArrayList<>();
+        
+        for (TextSegment segment : segments) {
+            String text = segment.text();
+            int textLength = text.length();
+            
+            // 检查最小大小限制
+            if (textLength < minChunkSize) {
+                // 如果太小，跳过这个段落
+                continue;
+            }
+            
+            // 检查最大大小限制
+            if (textLength > maxChunkSize) {
+                // 如果太大，进行进一步分割
+                List<TextSegment> subSegments = splitLargeSegment(segment, maxChunkSize);
+                filteredSegments.addAll(subSegments);
+            } else {
+                filteredSegments.add(segment);
+            }
+        }
+        
+        return filteredSegments;
+    }
+    
+    /**
+     * 分割大段落
+     */
+    private List<TextSegment> splitLargeSegment(TextSegment segment, int maxChunkSize) {
+        List<TextSegment> subSegments = new ArrayList<>();
+        String text = segment.text();
+        
+        int start = 0;
+        while (start < text.length()) {
+            int end = Math.min(start + maxChunkSize, text.length());
+            
+            // 尝试在句子边界分割
+            if (end < text.length()) {
+                int lastSentenceEnd = findLastSentenceEnd(text, start, end);
+                if (lastSentenceEnd > start) {
+                    end = lastSentenceEnd;
+                }
+            }
+            
+            String subText = text.substring(start, end);
+            TextSegment subSegment = TextSegment.from(subText, segment.metadata());
+            subSegments.add(subSegment);
+            
+            start = end;
+        }
+        
+        return subSegments;
+    }
+    
+    /**
+     * 查找最后一个句子结束位置
+     */
+    private int findLastSentenceEnd(String text, int start, int end) {
+        for (int i = end - 1; i >= start; i--) {
+            char c = text.charAt(i);
+            if (c == '.' || c == '!' || c == '?' || c == '\n') {
+                return i + 1;
+            }
+        }
+        return end;
     }
     
     /**

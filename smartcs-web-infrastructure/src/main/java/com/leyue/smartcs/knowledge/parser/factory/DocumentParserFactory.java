@@ -4,6 +4,7 @@ import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.impl.*;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -191,40 +192,22 @@ public class DocumentParserFactory {
         if (documentType == null) {
             return ChunkingStrategy.DEFAULT;
         }
-        
-        switch (documentType) {
-            case PDF:
-                return ChunkingStrategy.PAGE_BASED;
-                
-            case XLSX:
-            case XLS:
-            case CSV:
-                return ChunkingStrategy.ROW_BASED;
-                
-            case DOCX:
-                return ChunkingStrategy.SECTION_BASED;
-                
-            case MARKDOWN:
-            case MDX:
-                return ChunkingStrategy.SECTION_BASED;
-                
-            case HTML:
-                return ChunkingStrategy.TAG_BASED;
-                
-            case VTT:
-                return ChunkingStrategy.TIME_BASED;
-                
-            case PROPERTIES:
-                return ChunkingStrategy.GROUP_BASED;
-                
-            default:
-                return ChunkingStrategy.DEFAULT;
-        }
+        return switch (documentType) {
+            case PDF -> ChunkingStrategy.PAGE_BASED;
+            case XLSX, XLS, CSV -> ChunkingStrategy.ROW_BASED;
+            case DOCX -> ChunkingStrategy.SECTION_BASED;
+            case MARKDOWN, MDX -> ChunkingStrategy.SECTION_BASED;
+            case HTML -> ChunkingStrategy.TAG_BASED;
+            case VTT -> ChunkingStrategy.TIME_BASED;
+            case PROPERTIES -> ChunkingStrategy.GROUP_BASED;
+            default -> ChunkingStrategy.DEFAULT;
+        };
     }
     
     /**
      * 分块策略枚举
      */
+    @Getter
     public enum ChunkingStrategy {
         DEFAULT("默认分块", "基于文本长度的递归分块"),
         PAGE_BASED("页面分块", "按页面进行分块，适合PDF"),
@@ -240,14 +223,6 @@ public class DocumentParserFactory {
         ChunkingStrategy(String name, String description) {
             this.name = name;
             this.description = description;
-        }
-        
-        public String getName() {
-            return name;
-        }
-        
-        public String getDescription() {
-            return description;
         }
     }
 }
