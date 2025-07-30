@@ -29,6 +29,7 @@ public class ModelCreateCmd extends Command {
     
     /**
      * 模型类型（支持多种类型）
+     * 使用枚举的name值：LLM, TTS, TEXT_EMBEDDING, RERANK, SPEECH2TEXT
      */
     @NotEmpty(message = "模型类型不能为空")
     private List<String> modelType;
@@ -40,6 +41,7 @@ public class ModelCreateCmd extends Command {
     
     /**
      * 来源
+     * 使用枚举的name值：PREDEFINED_MODEL, CUSTOM_MODEL
      */
     private String fetchFrom;
     
@@ -54,9 +56,10 @@ public class ModelCreateCmd extends Command {
     private Boolean deprecated = false;
     
     /**
-     * 状态，默认active
+     * 状态，默认ACTIVE
+     * 使用枚举的name值：ACTIVE, INACTIVE, DISABLED
      */
-    private String status = "active";
+    private String status = "ACTIVE";
     
     /**
      * 是否负载均衡，默认false

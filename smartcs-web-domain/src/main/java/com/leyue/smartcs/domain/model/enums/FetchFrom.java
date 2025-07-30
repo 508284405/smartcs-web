@@ -46,4 +46,21 @@ public enum FetchFrom {
         
         throw new IllegalArgumentException("Unknown fetch from code: " + code);
     }
+    
+    /**
+     * 根据名称获取枚举值
+     */
+    public static FetchFrom fromName(String name) {
+        if (name == null) {
+            return null;
+        }
+        
+        for (FetchFrom fetchFrom : values()) {
+            if (fetchFrom.name().equals(name)) {
+                return fetchFrom;
+            }
+        }
+        
+        throw new IllegalArgumentException("Unknown fetch from name: " + name);
+    }
 }

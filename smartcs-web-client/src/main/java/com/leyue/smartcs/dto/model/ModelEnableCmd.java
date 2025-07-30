@@ -19,7 +19,8 @@ public class ModelEnableCmd extends Command {
     private Long id;
     
     /**
-     * 状态（active/inactive）
+     * 状态（ACTIVE/INACTIVE）
+     * 使用枚举的name值：ACTIVE, INACTIVE, DISABLED
      */
     @NotNull(message = "状态不能为空")
     private String status;

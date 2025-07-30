@@ -50,7 +50,7 @@ public class ModelPageQryExe {
             }
         }
         
-        ModelStatus status = qry.getStatus() != null ? ModelStatus.fromCode(qry.getStatus()) : null;
+        ModelStatus status = qry.getStatus() != null ? ModelStatus.fromName(qry.getStatus()) : null;
         
         // 分页查询
         PageResponse<com.leyue.smartcs.domain.model.Model> pageResponse = 

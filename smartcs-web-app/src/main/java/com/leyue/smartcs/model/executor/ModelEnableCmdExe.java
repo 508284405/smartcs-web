@@ -18,7 +18,7 @@ public class ModelEnableCmdExe {
     
     public SingleResponse<Boolean> execute(ModelEnableCmd cmd) {
         // 转换状态枚举
-        ModelStatus status = ModelStatus.fromCode(cmd.getStatus());
+        ModelStatus status = ModelStatus.fromName(cmd.getStatus());
         
         // 执行启用/禁用
         boolean result = modelDomainService.enableModel(cmd.getId(), status);

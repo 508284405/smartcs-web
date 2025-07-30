@@ -51,4 +51,21 @@ public enum ModelStatus {
         
         throw new IllegalArgumentException("Unknown model status code: " + code);
     }
+    
+    /**
+     * 根据名称获取枚举值
+     */
+    public static ModelStatus fromName(String name) {
+        if (name == null) {
+            return null;
+        }
+        
+        for (ModelStatus status : values()) {
+            if (status.name().equals(name)) {
+                return status;
+            }
+        }
+        
+        throw new IllegalArgumentException("Unknown model status name: " + name);
+    }
 }

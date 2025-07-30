@@ -21,16 +21,16 @@ public interface ModelConvertor {
      * DO转领域对象
      */
     @Mapping(target = "modelType", expression = "java(modelTypeListFromString(modelDO.getModelType()))")
-    @Mapping(target = "fetchFrom", expression = "java(fetchFromFromCode(modelDO.getFetchFrom()))")
-    @Mapping(target = "status", expression = "java(statusFromCode(modelDO.getStatus()))")
+    @Mapping(target = "fetchFrom", expression = "java(fetchFromFromName(modelDO.getFetchFrom()))")
+    @Mapping(target = "status", expression = "java(statusFromName(modelDO.getStatus()))")
     Model toDomain(ModelDO modelDO);
     
     /**
      * 领域对象转DO
      */
     @Mapping(target = "modelType", expression = "java(modelTypeListToString(model.getModelType()))")
-    @Mapping(target = "fetchFrom", expression = "java(fetchFromToCode(model.getFetchFrom()))")
-    @Mapping(target = "status", expression = "java(statusToCode(model.getStatus()))")
+    @Mapping(target = "fetchFrom", expression = "java(fetchFromToName(model.getFetchFrom()))")
+    @Mapping(target = "status", expression = "java(statusToName(model.getStatus()))")
     ModelDO toDO(Model model);
     
     /**
@@ -67,30 +67,30 @@ public interface ModelConvertor {
     }
     
     /**
-     * 来源代码转枚举
+     * 来源名称转枚举
      */
-    default FetchFrom fetchFromFromCode(String code) {
-        return code != null ? FetchFrom.fromCode(code) : null;
+    default FetchFrom fetchFromFromName(String name) {
+        return name != null ? FetchFrom.fromName(name) : null;
     }
     
     /**
-     * 来源枚举转代码
+     * 来源枚举转名称
      */
-    default String fetchFromToCode(FetchFrom fetchFrom) {
-        return fetchFrom != null ? fetchFrom.getCode() : null;
+    default String fetchFromToName(FetchFrom fetchFrom) {
+        return fetchFrom != null ? fetchFrom.name() : null;
     }
     
     /**
-     * 状态代码转枚举
+     * 状态名称转枚举
      */
-    default ModelStatus statusFromCode(String code) {
-        return code != null ? ModelStatus.fromCode(code) : null;
+    default ModelStatus statusFromName(String name) {
+        return name != null ? ModelStatus.fromName(name) : null;
     }
     
     /**
-     * 状态枚举转代码
+     * 状态枚举转名称
      */
-    default String statusToCode(ModelStatus status) {
-        return status != null ? status.getCode() : null;
+    default String statusToName(ModelStatus status) {
+        return status != null ? status.name() : null;
     }
 }

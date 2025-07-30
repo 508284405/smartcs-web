@@ -35,6 +35,7 @@ public class ModelUpdateCmd extends Command {
     
     /**
      * 模型类型（支持多种类型）
+     * 使用枚举的name值：LLM, TTS, TEXT_EMBEDDING, RERANK, SPEECH2TEXT
      */
     @NotEmpty(message = "模型类型不能为空")
     private List<String> modelType;
@@ -46,6 +47,7 @@ public class ModelUpdateCmd extends Command {
     
     /**
      * 来源
+     * 使用枚举的name值：PREDEFINED_MODEL, CUSTOM_MODEL
      */
     private String fetchFrom;
     
@@ -61,6 +63,7 @@ public class ModelUpdateCmd extends Command {
     
     /**
      * 状态
+     * 使用枚举的name值：ACTIVE, INACTIVE, DISABLED
      */
     private String status;
     
