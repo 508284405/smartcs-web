@@ -1,9 +1,7 @@
 package com.leyue.smartcs.knowledge.executor.command;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -11,24 +9,21 @@ import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.config.ModelBeanManagerService;
-import com.leyue.smartcs.domain.model.gateway.ModelGateway;
-import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
 import com.leyue.smartcs.dto.knowledge.KnowledgeGeneralChunkCmd;
-
+import com.leyue.smartcs.knowledge.chunking.LangChain4jChunkingStrategy;
 import com.leyue.smartcs.knowledge.enums.DocumentTypeEnum;
+import com.leyue.smartcs.knowledge.model.ChunkingStrategyConfig;
 import com.leyue.smartcs.knowledge.parser.DocumentParser;
 import com.leyue.smartcs.knowledge.parser.factory.DocumentParserFactory;
+import com.leyue.smartcs.knowledge.parser.impl.LangChain4jDocumentParserAdapter;
 import com.leyue.smartcs.knowledge.parser.model.ParserExtendParam;
-import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 import com.leyue.smartcs.knowledge.util.ChunkingParameterConverter;
-import com.leyue.smartcs.knowledge.model.ChunkingStrategyConfig;
+import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -42,6 +37,8 @@ public class KnowledgeGeneralChunkCmdExe {
 
     private final TextPreprocessor textPreprocessor;
     private final DocumentParserFactory documentParserFactory;
+    private final LangChain4jDocumentParserAdapter langChain4jParserAdapter;
+    private final LangChain4jChunkingStrategy langChain4jChunkingStrategy;
 
     /**
      * 执行通用文档分块
@@ -61,26 +58,22 @@ public class KnowledgeGeneralChunkCmdExe {
             
             log.info("开始执行通用文档分块，文件: {}", fileName);
             
-            // 根据文件类型选择合适的解析器
-            DocumentParser parser = documentParserFactory.getParser(fileName);
+            // 优先使用LangChain4j解析器适配器
             DocumentTypeEnum documentType = DocumentTypeEnum.fromFileName(fileName);
+            DocumentParser parser;
             
-            log.info("选择的解析器: {}，文档类型: {}",
-                    parser.getClass().getSimpleName(), documentType);
+            if (langChain4jParserAdapter.supports(documentType)) {
+                parser = langChain4jParserAdapter;
+                log.info("使用LangChain4j解析器适配器，文档类型: {}", documentType);
+            } else {
+                parser = documentParserFactory.getParser(fileName);
+                log.info("使用传统解析器: {}，文档类型: {}",
+                        parser.getClass().getSimpleName(), documentType);
+            }
             
             // 构建ChatModel
             ParserExtendParam parserExtendParam = new ParserExtendParam();
             parserExtendParam.setModelRequest(cmd.getModelRequest());
-
-//            // 先进行文本预处理
-//            List<Document> preprocessedDocuments = textPreprocessor.preprocessText(
-//                    List.of(Document.from("", dev.langchain4j.data.document.Metadata.from("type", "temp"))), // 创建临时文档用于预处理
-//                    cmd.getRemoveAllUrls(),
-//                    cmd.getUseQASegmentation(),
-//                    cmd.getQaLanguage(),
-//                    chatModel);
-            
-//            log.info("文本预处理完成，生成{}个预处理文档", preprocessedDocuments.size());
             
             // 解析文档
             List<Document> parsedDocuments = parser.parse(resource, fileName, parserExtendParam);
@@ -95,8 +88,8 @@ public class KnowledgeGeneralChunkCmdExe {
                 throw new BizException("分块参数配置无效");
             }
 
-            // 使用改进的分块策略
-            List<ChunkDTO> allChunks = executeWithImprovedStrategy(parsedDocuments, documentType, strategyConfig, cmd);
+            // 使用LangChain4j分块策略
+            List<ChunkDTO> allChunks = executeWithLangChain4jStrategy(parsedDocuments, documentType, strategyConfig, cmd);
 
             log.info("通用文档分块完成，文件: {}，生成{}个分块", fileName, allChunks.size());
             return MultiResponse.of(allChunks);
@@ -110,135 +103,34 @@ public class KnowledgeGeneralChunkCmdExe {
 
 
     /**
-     * 改进的分块方式（使用所有参数）
+     * 使用LangChain4j分块策略（新的统一实现）
      */
-    private List<ChunkDTO> executeWithImprovedStrategy(List<Document> documents, 
-                                                      DocumentTypeEnum documentType, 
-                                                      ChunkingStrategyConfig strategyConfig,
-                                                      KnowledgeGeneralChunkCmd cmd) {
+    private List<ChunkDTO> executeWithLangChain4jStrategy(List<Document> documents, 
+                                                         DocumentTypeEnum documentType, 
+                                                         ChunkingStrategyConfig strategyConfig,
+                                                         KnowledgeGeneralChunkCmd cmd) {
         List<ChunkDTO> allChunks = new ArrayList<>();
         
-        // 根据文档类型选择最佳分块策略
-        DocumentParserFactory.ChunkingStrategy strategy = 
-                documentParserFactory.getChunkingStrategy(documentType);
+        // 根据文档类型推荐最佳分块策略
+        String fileExtension = getFileExtension(extractFileName(cmd.getFileUrl()));
+        LangChain4jChunkingStrategy.ChunkingType chunkingType = 
+                langChain4jChunkingStrategy.recommendChunkingType(fileExtension);
         
-        log.info("使用改进分块策略: {} - {}", strategy.getName(), strategy.getDescription());
+        log.info("使用LangChain4j分块策略: {}, 文档类型: {}", chunkingType, documentType);
         
-        // 应用改进的分块策略
-        List<TextSegment> segments = applyImprovedChunkingStrategy(documents, strategy, strategyConfig, cmd);
+        // 执行分块
+        List<TextSegment> segments = langChain4jChunkingStrategy.chunkDocuments(documents, chunkingType, strategyConfig);
 
-        log.info("改进分块策略 {} 生成 {} 个段落", strategy.name(), segments.size());
+        log.info("LangChain4j分块策略 {} 生成 {} 个段落", chunkingType, segments.size());
         
         // 转换为ChunkDTO
         for (int i = 0; i < segments.size(); i++) {
             TextSegment segment = segments.get(i);
-            ChunkDTO chunkDTO = convertToChunkDTO(segment, i, "improved", documentType);
+            ChunkDTO chunkDTO = convertToChunkDTO(segment, i, "langchain4j", documentType);
             allChunks.add(chunkDTO);
         }
         
         return allChunks;
-    }
-
-    /**
-     * 应用改进的分块策略（使用所有参数）
-     */
-    private List<TextSegment> applyImprovedChunkingStrategy(List<Document> documents, 
-                                                           DocumentParserFactory.ChunkingStrategy strategy,
-                                                           ChunkingStrategyConfig strategyConfig,
-                                                           KnowledgeGeneralChunkCmd cmd) {
-        List<TextSegment> allSegments = new ArrayList<>();
-        if (documents == null || documents.isEmpty()) {
-            return allSegments;
-        }
-        
-        // 获取配置参数
-        int chunkSize = strategyConfig.getChunkSize();
-        int overlapSize = strategyConfig.getOverlapSize();
-        String chunkSeparator = strategyConfig.getChunkSeparator();
-        int minChunkSize = strategyConfig.getMinChunkSize();
-        int maxChunkSize = strategyConfig.getMaxChunkSize();
-        boolean keepSeparator = strategyConfig.getKeepSeparator();
-        boolean stripWhitespace = strategyConfig.getStripWhitespace();
-        boolean removeAllUrls = strategyConfig.getRemoveAllUrls();
-        
-        switch (strategy) {
-            case PAGE_BASED:
-            case SECTION_BASED:
-            case ROW_BASED:
-            case TAG_BASED:
-            case TIME_BASED:
-            case GROUP_BASED:
-                // 对于特殊策略，文档已经在解析阶段被优化分块了
-                // 应用文本预处理
-                for (Document doc : documents) {
-                    String processedText = preprocessText(doc.text(), stripWhitespace, removeAllUrls);
-                    Document processedDoc = Document.from(processedText, doc.metadata());
-                    allSegments.add(TextSegment.from(processedDoc.text(), processedDoc.metadata()));
-                }
-                break;
-                
-            case DEFAULT:
-            default:
-                // 使用改进的递归分块器，支持所有参数
-                for (Document doc : documents) {
-                    // 文本预处理
-                    String processedText = preprocessText(doc.text(), stripWhitespace, removeAllUrls);
-                    Document processedDoc = Document.from(processedText, doc.metadata());
-                    
-                    // 使用自定义参数进行分块
-                    List<TextSegment> segments = DocumentSplitters.recursive(chunkSize, overlapSize)
-                            .split(processedDoc);
-                    
-                    // 应用大小限制
-                    segments = applySizeConstraints(segments, minChunkSize, maxChunkSize);
-                    
-                    allSegments.addAll(segments);
-                }
-                break;
-        }
-        
-        return allSegments;
-    }
-    
-    /**
-     * 应用分块策略（传统方式，向后兼容）
-     */
-    private List<TextSegment> applyChunkingStrategy(List<Document> documents, 
-                                                   DocumentParserFactory.ChunkingStrategy strategy,
-                                                   KnowledgeGeneralChunkCmd cmd) {
-        List<TextSegment> allSegments = new ArrayList<>();
-        if (documents == null || documents.isEmpty()) {
-            return allSegments;
-        }
-        
-        switch (strategy) {
-            case PAGE_BASED:
-            case SECTION_BASED:
-            case ROW_BASED:
-            case TAG_BASED:
-            case TIME_BASED:
-            case GROUP_BASED:
-                // 对于特殊策略，文档已经在解析阶段被优化分块了
-                // 直接转换为TextSegment
-                for (Document doc : documents) {
-                    allSegments.add(TextSegment.from(doc.text(), doc.metadata()));
-                }
-                break;
-                
-            case DEFAULT:
-            default:
-                // 使用LangChain4j的默认递归分块器
-                for (Document doc : documents) {
-                    List<TextSegment> segments = DocumentSplitters.recursive(
-                            cmd.getChunkSize() != null ? cmd.getChunkSize() : 1000,
-                            cmd.getOverlapSize() != null ? cmd.getOverlapSize() : 200
-                    ).split(doc);
-                    allSegments.addAll(segments);
-                }
-                break;
-        }
-        
-        return allSegments;
     }
     
     /**
@@ -388,5 +280,16 @@ public class KnowledgeGeneralChunkCmdExe {
         }
         
         return fileName;
+    }
+
+    /**
+     * 获取文件扩展名
+     */
+    private String getFileExtension(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+        int lastDotIndex = fileName.lastIndexOf('.');
+        return lastDotIndex >= 0 ? fileName.substring(lastDotIndex + 1).toLowerCase() : "";
     }
 }

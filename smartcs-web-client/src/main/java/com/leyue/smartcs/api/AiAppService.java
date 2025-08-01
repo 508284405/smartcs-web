@@ -8,6 +8,10 @@ import com.leyue.smartcs.dto.app.AiAppCreateCmd;
 import com.leyue.smartcs.dto.app.AiAppUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppStatusUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppListQry;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
 
 /**
  * AI应用管理服务接口
@@ -55,4 +59,25 @@ public interface AiAppService {
      * @return 应用列表
      */
     PageResponse<AiAppDTO> listApps(AiAppListQry qry);
+    
+    /**
+     * 优化Prompt
+     * @param cmd 优化命令
+     * @return 优化结果
+     */
+    SingleResponse<AiAppPromptOptimizeResponse> optimizePrompt(AiAppPromptOptimizeCmd cmd);
+    
+    /**
+     * 更新功能配置
+     * @param cmd 功能配置命令
+     * @return 更新结果
+     */
+    Response updateFunctionConfig(AiAppFunctionConfigCmd cmd);
+    
+    /**
+     * 获取功能配置
+     * @param appId 应用ID
+     * @return 功能配置
+     */
+    SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(Long appId);
 }

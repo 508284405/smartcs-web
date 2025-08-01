@@ -9,6 +9,10 @@ import com.leyue.smartcs.dto.app.AiAppCreateCmd;
 import com.leyue.smartcs.dto.app.AiAppUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppStatusUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppListQry;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -78,5 +82,34 @@ public class AdminAiAppController {
     public PageResponse<AiAppDTO> listApps(@Valid AiAppListQry qry) {
         log.info("分页查询AI应用列表请求: 页码={}, 每页={}", qry.getPageIndex(), qry.getPageSize());
         return aiAppService.listApps(qry);
+    }
+    
+    /**
+     * 优化Prompt
+     */
+    @PostMapping("/optimize-prompt")
+    public SingleResponse<AiAppPromptOptimizeResponse> optimizePrompt(@RequestBody @Valid AiAppPromptOptimizeCmd cmd) {
+        log.info("优化Prompt请求: appId={}, originalPrompt length={}", cmd.getAppId(), 
+                cmd.getOriginalPrompt() != null ? cmd.getOriginalPrompt().length() : 0);
+        return aiAppService.optimizePrompt(cmd);
+    }
+    
+    /**
+     * 更新功能配置
+     */
+    @PutMapping("/{id}/function-config")
+    public Response updateFunctionConfig(@PathVariable Long id, @RequestBody @Valid AiAppFunctionConfigCmd cmd) {
+        log.info("更新AI应用功能配置请求: appId={}", id);
+        cmd.setAppId(id);
+        return aiAppService.updateFunctionConfig(cmd);
+    }
+    
+    /**
+     * 获取功能配置
+     */
+    @GetMapping("/{id}/function-config")
+    public SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(@PathVariable Long id) {
+        log.info("获取AI应用功能配置请求: appId={}", id);
+        return aiAppService.getFunctionConfig(id);
     }
 }

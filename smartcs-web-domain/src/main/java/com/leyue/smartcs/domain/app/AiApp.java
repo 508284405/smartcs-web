@@ -64,11 +64,6 @@ public class AiApp {
     private List<String> tags;
     
     /**
-     * 创建者ID
-     */
-    private Long creatorId;
-    
-    /**
      * 创建者
      */
     private String createdBy;
@@ -87,15 +82,6 @@ public class AiApp {
      * 更新时间（毫秒时间戳）
      */
     private Long updatedAt;
-    
-    /**
-     * 检查用户是否为应用创建者
-     * @param userId 用户ID
-     * @return 是否为创建者
-     */
-    public boolean isCreator(Long userId) {
-        return this.creatorId != null && this.creatorId.equals(userId);
-    }
     
     /**
      * 检查应用名称是否有效

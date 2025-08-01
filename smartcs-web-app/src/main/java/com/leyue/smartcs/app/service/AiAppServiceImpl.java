@@ -15,6 +15,12 @@ import com.leyue.smartcs.dto.app.AiAppCreateCmd;
 import com.leyue.smartcs.dto.app.AiAppUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppStatusUpdateCmd;
 import com.leyue.smartcs.dto.app.AiAppListQry;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
+import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
+import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
+import com.leyue.smartcs.app.executor.AiAppPromptOptimizeCmdExe;
+import com.leyue.smartcs.app.executor.AiAppFunctionConfigCmdExe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +39,8 @@ public class AiAppServiceImpl implements AiAppService {
     private final AiAppDeleteCmdExe aiAppDeleteCmdExe;
     private final AiAppGetQryExe aiAppGetQryExe;
     private final AiAppListQryExe aiAppListQryExe;
+    private final AiAppPromptOptimizeCmdExe aiAppPromptOptimizeCmdExe;
+    private final AiAppFunctionConfigCmdExe aiAppFunctionConfigCmdExe;
     
     @Override
     public SingleResponse<AiAppDTO> createApp(AiAppCreateCmd cmd) {
@@ -62,5 +70,20 @@ public class AiAppServiceImpl implements AiAppService {
     @Override
     public PageResponse<AiAppDTO> listApps(AiAppListQry qry) {
         return aiAppListQryExe.execute(qry);
+    }
+    
+    @Override
+    public SingleResponse<AiAppPromptOptimizeResponse> optimizePrompt(AiAppPromptOptimizeCmd cmd) {
+        return aiAppPromptOptimizeCmdExe.execute(cmd);
+    }
+    
+    @Override
+    public Response updateFunctionConfig(AiAppFunctionConfigCmd cmd) {
+        return aiAppFunctionConfigCmdExe.updateFunctionConfig(cmd);
+    }
+    
+    @Override
+    public SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(Long appId) {
+        return aiAppFunctionConfigCmdExe.getFunctionConfig(appId);
     }
 }

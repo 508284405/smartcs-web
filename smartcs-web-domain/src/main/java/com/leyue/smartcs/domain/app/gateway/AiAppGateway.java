@@ -75,4 +75,11 @@ public interface AiAppGateway {
      * @return 是否存在
      */
     boolean existsByCode(String code, Long excludeId);
+    
+    /**
+     * 保存AI应用（包含创建和更新）
+     * @param aiApp AI应用
+     * @return 保存后的AI应用
+     */
+    AiApp save(AiApp aiApp);
 }

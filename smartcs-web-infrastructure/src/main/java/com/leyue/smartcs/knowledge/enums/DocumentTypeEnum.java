@@ -25,6 +25,7 @@ public enum DocumentTypeEnum {
     
     // HTML文档
     HTML("html", "HTML文档", Set.of("html", "htm"), "text/html"),
+    HTM("htm", "HTML文档", Set.of("htm"), "text/html"),
     
     // Excel文档
     XLSX("xlsx", "Excel文档(新版)", Set.of("xlsx"), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
@@ -32,9 +33,23 @@ public enum DocumentTypeEnum {
     
     // Word文档
     DOCX("docx", "Word文档", Set.of("docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+    DOC("doc", "Word文档(旧版)", Set.of("doc"), "application/msword"),
+    
+    // PowerPoint文档
+    PPTX("pptx", "PowerPoint文档(新版)", Set.of("pptx"), "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+    PPT("ppt", "PowerPoint文档(旧版)", Set.of("ppt"), "application/vnd.ms-powerpoint"),
     
     // CSV文档
     CSV("csv", "CSV文档", Set.of("csv"), "text/csv"),
+    
+    // 富文本格式
+    RTF("rtf", "富文本格式", Set.of("rtf"), "application/rtf"),
+    
+    // XML文档
+    XML("xml", "XML文档", Set.of("xml"), "application/xml"),
+    
+    // JSON文档
+    JSON("json", "JSON文档", Set.of("json"), "application/json"),
     
     // 字幕文档
     VTT("vtt", "WebVTT字幕文件", Set.of("vtt"), "text/vtt"),
@@ -105,8 +120,8 @@ public enum DocumentTypeEnum {
      * 是否为结构化文档（需要保持结构信息的文档）
      */
     public boolean isStructured() {
-        return this == PDF || this == XLSX || this == XLS || this == DOCX || 
-               this == HTML || this == CSV;
+        return this == PDF || this == XLSX || this == XLS || this == DOCX || this == DOC ||
+               this == PPTX || this == PPT || this == HTML || this == CSV;
     }
     
     /**
@@ -120,13 +135,13 @@ public enum DocumentTypeEnum {
      * 是否为标记语言文档
      */
     public boolean isMarkup() {
-        return this == MARKDOWN || this == MDX || this == HTML;
+        return this == MARKDOWN || this == MDX || this == HTML || this == HTM || this == XML;
     }
     
     /**
      * 是否为纯文本文档
      */
     public boolean isPlainText() {
-        return this == TXT || this == PROPERTIES || this == VTT;
+        return this == TXT || this == PROPERTIES || this == VTT || this == JSON;
     }
 }

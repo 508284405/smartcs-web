@@ -97,4 +97,13 @@ public class AiAppGatewayImpl implements AiAppGateway {
         AiAppDO result = aiAppMapper.selectByCodeExcludeId(code, excludeId);
         return result != null;
     }
+    
+    @Override
+    public AiApp save(AiApp aiApp) {
+        if (aiApp.getId() == null) {
+            return create(aiApp);
+        } else {
+            return update(aiApp);
+        }
+    }
 }

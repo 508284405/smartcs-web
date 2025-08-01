@@ -59,9 +59,4 @@ public class AiAppDO extends BaseDO {
      */
     @TableField(typeHandler = JacksonTypeHandler.class)
     private List<String> tags;
-    
-    /**
-     * 创建者ID
-     */
-    private Long creatorId;
 }
