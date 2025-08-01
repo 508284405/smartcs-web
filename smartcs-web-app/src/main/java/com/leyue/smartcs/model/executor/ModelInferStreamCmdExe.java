@@ -56,14 +56,14 @@ public class ModelInferStreamCmdExe {
 
             // 查询模型实例
             Optional<Model> modelOpt = modelGateway.findById(request.getModelId());
-            if (!modelOpt.isPresent()) {
+            if (modelOpt.isEmpty()) {
                 throw new BizException("模型实例不存在");
             }
 
             Model model = modelOpt.get();
             
             // 检查模型状态
-            if (!"ACTIVE".equals(model.getStatus())) {
+            if (!"ACTIVE".equals(model.getStatus().name())) {
                 throw new BizException("模型实例未激活");
             }
 

@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.enums.ProviderType;
 
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +62,10 @@ public class ModelBeanManagerService {
             // 根据提供商和模型类型创建不同的Bean
             if (provider.getProviderType().isOpenAiCompatible()) {
                 if ("chat".equals(modelType)) {
-                    // 只创建流式模型
+                    // 创建同步聊天模型
+                    createOpenAiChatModelBean(beanFactory, beanName, provider);
+                } else if ("streaming_chat".equals(modelType)) {
+                    // 创建流式聊天模型
                     createOpenAiStreamingChatModelBean(beanFactory, beanName, provider);
                 } else if ("embedding".equals(modelType)) {
                     createOpenAiEmbeddingModelBean(beanFactory, beanName, provider);
@@ -118,6 +123,21 @@ public class ModelBeanManagerService {
 
 
     /**
+     * 创建OpenAI同步Chat模型Bean
+     */
+    private void createOpenAiChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
+                                          Provider provider) {
+        // 使用LangChain4j创建OpenAiChatModel实例
+        ChatModel chatModel = OpenAiChatModel.builder()
+                .baseUrl(provider.getEndpoint())
+                .apiKey(provider.getApiKey())
+                .build();
+
+        // 注册已构建的实例
+        beanFactory.registerSingleton(beanName, chatModel);
+    }
+
+    /**
      * 创建OpenAI流式Chat模型Bean
      */
     private void createOpenAiStreamingChatModelBean(DefaultListableBeanFactory beanFactory, String beanName,
@@ -158,10 +178,9 @@ public class ModelBeanManagerService {
      * 生成Bean名称
      */
     private String generateBeanName(Provider provider, String modelType) {
-        String actualModelType = "chat".equals(modelType) ? "streaming_chat" : modelType;
         return String.format("%s_%s_model_%d",
                 provider.getProviderType().getKey(),
-                actualModelType,
+                modelType,
                 provider.getId());
     }
 
@@ -169,10 +188,9 @@ public class ModelBeanManagerService {
      * 生成Bean注册key
      */
     public String getBeanKey(Provider provider, String modelType) {
-        String actualModelType = "chat".equals(modelType) ? "streaming_chat" : modelType;
         return String.format("%s:%s:%d",
                 provider.getProviderType().getKey(),
-                actualModelType,
+                modelType,
                 provider.getId());
     }
 
