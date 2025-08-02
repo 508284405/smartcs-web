@@ -19,11 +19,14 @@ import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
 import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
+import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.app.executor.AiAppPromptOptimizeCmdExe;
 import com.leyue.smartcs.app.executor.AiAppFunctionConfigCmdExe;
+import com.leyue.smartcs.app.executor.AiAppChatCmdExe;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * AI应用管理服务实现
@@ -41,6 +44,7 @@ public class AiAppServiceImpl implements AiAppService {
     private final AiAppListQryExe aiAppListQryExe;
     private final AiAppPromptOptimizeCmdExe aiAppPromptOptimizeCmdExe;
     private final AiAppFunctionConfigCmdExe aiAppFunctionConfigCmdExe;
+    private final AiAppChatCmdExe aiAppChatCmdExe;
     
     @Override
     public SingleResponse<AiAppDTO> createApp(AiAppCreateCmd cmd) {
@@ -85,5 +89,11 @@ public class AiAppServiceImpl implements AiAppService {
     @Override
     public SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(Long appId) {
         return aiAppFunctionConfigCmdExe.getFunctionConfig(appId);
+    }
+    
+    @Override
+    public SseEmitter chatWithAppSSE(AiAppChatCmd cmd) {
+        log.info("执行AI应用SSE聊天: appId={}, sessionId={}", cmd.getAppId(), cmd.getSessionId());
+        return aiAppChatCmdExe.execute(cmd);
     }
 }

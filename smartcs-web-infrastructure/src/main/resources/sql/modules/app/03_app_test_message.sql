@@ -1,0 +1,31 @@
+-- APP模块 - 应用测试消息表
+CREATE TABLE IF NOT EXISTS `t_app_test_message` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `message_id` VARCHAR(128) UNIQUE NOT NULL COMMENT '消息ID',
+  `session_id` VARCHAR(128) NOT NULL COMMENT '会话ID',
+  `app_id` BIGINT NOT NULL COMMENT 'AI应用ID',
+  `message_type` VARCHAR(16) NOT NULL COMMENT '消息类型: USER/ASSISTANT/SYSTEM',
+  `content` TEXT NOT NULL COMMENT '消息内容',
+  `variables` JSON COMMENT '消息变量（用户消息时使用）',
+  `model_info` JSON COMMENT '模型信息（AI回复时使用）',
+  `token_usage` JSON COMMENT 'Token使用情况',
+  `process_time` INT COMMENT '处理时间（毫秒）',
+  `cost` DECIMAL(10,6) DEFAULT 0 COMMENT '消息费用',
+  `status` VARCHAR(16) DEFAULT 'SUCCESS' COMMENT '消息状态: SUCCESS/FAILED/PROCESSING',
+  `error_message` TEXT COMMENT '错误信息',
+  `timestamp` BIGINT NOT NULL COMMENT '消息时间戳（毫秒）',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者', 
+  `created_at` BIGINT COMMENT '创建时间（毫秒时间戳）',
+  `updated_at` BIGINT COMMENT '更新时间（毫秒时间戳）',
+  INDEX idx_message_id (`message_id`),
+  INDEX idx_session_id (`session_id`),
+  INDEX idx_app_id (`app_id`),
+  INDEX idx_message_type (`message_type`),
+  INDEX idx_timestamp (`timestamp`),
+  INDEX idx_status (`status`),
+  INDEX idx_created_at (`created_at`),
+  -- 复合索引用于会话消息查询
+  INDEX idx_session_timestamp (`session_id`, `timestamp`)
+) COMMENT 'AI应用测试消息表';

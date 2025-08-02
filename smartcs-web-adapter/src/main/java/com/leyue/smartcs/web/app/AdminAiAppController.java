@@ -13,11 +13,13 @@ import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
 import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
+import com.leyue.smartcs.dto.app.AiAppChatCmd;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * AI应用管理控制器
@@ -111,5 +113,17 @@ public class AdminAiAppController {
     public SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(@PathVariable Long id) {
         log.info("获取AI应用功能配置请求: appId={}", id);
         return aiAppService.getFunctionConfig(id);
+    }
+    
+    /**
+     * AI应用聊天（SSE流式响应）
+     */
+    @PostMapping("/chat")
+    public SseEmitter chatWithApp(@RequestBody @Valid AiAppChatCmd cmd) {
+        log.info("AI应用聊天请求: appId={}, message length={}, sessionId={}", 
+                cmd.getAppId(), 
+                cmd.getMessage() != null ? cmd.getMessage().length() : 0,
+                cmd.getSessionId());
+        return aiAppService.chatWithAppSSE(cmd);
     }
 }

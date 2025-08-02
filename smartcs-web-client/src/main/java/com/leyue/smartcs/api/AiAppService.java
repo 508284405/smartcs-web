@@ -12,6 +12,8 @@ import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
 import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
+import com.leyue.smartcs.dto.app.AiAppChatCmd;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * AI应用管理服务接口
@@ -80,4 +82,11 @@ public interface AiAppService {
      * @return 功能配置
      */
     SingleResponse<AiAppFunctionConfigResponse> getFunctionConfig(Long appId);
+    
+    /**
+     * AI应用聊天（SSE流式响应）
+     * @param cmd 聊天命令
+     * @return SSE响应流
+     */
+    SseEmitter chatWithAppSSE(AiAppChatCmd cmd);
 }

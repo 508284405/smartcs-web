@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.app.mapper.AppTestMessageMapper">
+    
+    <!-- 根据消息ID查询消息 -->
+    <select id="selectByMessageId" resultType="com.leyue.smartcs.app.dataobject.AppTestMessageDO">
+        SELECT * FROM t_app_test_message 
+        WHERE message_id = #{messageId} AND is_deleted = 0
+    </select>
+    
+    <!-- 根据会话ID查询消息列表（按时间排序） -->
+    <select id="findMessagesBySessionId" resultType="com.leyue.smartcs.app.dataobject.AppTestMessageDO">
+        SELECT * FROM t_app_test_message 
+        WHERE session_id = #{sessionId} AND is_deleted = 0
+        ORDER BY timestamp ASC
+        <if test="limit != null">
+            LIMIT #{limit}
+        </if>
+        <if test="offset != null">
+            OFFSET #{offset}
+        </if>
+    </select>
+    
+    <!-- 根据会话ID统计消息数量 -->
+    <select id="countMessagesBySessionId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_app_test_message 
+        WHERE session_id = #{sessionId} AND is_deleted = 0
+    </select>
+    
+    <!-- 根据会话ID获取最新的消息 -->
+    <select id="findLatestMessageBySessionId" resultType="com.leyue.smartcs.app.dataobject.AppTestMessageDO">
+        SELECT * FROM t_app_test_message 
+        WHERE session_id = #{sessionId} AND is_deleted = 0
+        <if test="messageType != null">
+            AND message_type = #{messageType}
+        </if>
+        ORDER BY timestamp DESC
+        LIMIT 1
+    </select>
+    
+    <!-- 批量插入消息 -->
+    <insert id="batchInsert">
+        INSERT INTO t_app_test_message (
+            message_id, session_id, app_id, message_type, content, variables,
+            model_info, token_usage, process_time, cost, status, error_message,
+            timestamp, created_by, updated_by, created_at, updated_at
+        ) VALUES
+        <foreach collection="messages" item="item" separator=",">
+            (
+                #{item.messageId}, #{item.sessionId}, #{item.appId}, #{item.messageType},
+                #{item.content}, #{item.variables}, #{item.modelInfo}, #{item.tokenUsage},
+                #{item.processTime}, #{item.cost}, #{item.status}, #{item.errorMessage},
+                #{item.timestamp}, #{item.createdBy}, #{item.updatedBy}, 
+                #{item.createdAt}, #{item.updatedAt}
+            )
+        </foreach>
+    </insert>
+</mapper>

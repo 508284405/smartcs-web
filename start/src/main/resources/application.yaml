@@ -27,6 +27,88 @@ mcp:
       endpoint: "/mcp/sql"
       description: "SQL Query MCP Server"
 
+# SmartCS AI配置
+smartcs:
+  ai:
+    # RAG系统配置
+    rag:
+      enabled: true
+      default-max-results: 5
+      default-min-score: 0.7
+      content-separator: "\n\n---\n\n"
+      max-content-length: 4000
+    
+    # 工具系统配置
+    tools:
+      enabled: true
+      knowledge-search:
+        enabled: true
+        max-results: 10
+    
+    # 结构化输出配置
+    structured-output:
+      enabled: true
+      json-schema: true
+    
+    # 记忆管理配置
+    memory:
+      type: redis  # redis, inmemory
+      max-messages: 20
+      ttl-hours: 24
+      cleanup-interval: 1h
+    
+    # 向量存储配置
+    vector-store:
+      type: redis  # redis, inmemory
+      redis:
+        index-prefix: "smartcs_"
+        dimension: 1536
+    
+    # 可观测性配置
+    observability:
+      metrics:
+        enabled: true
+      tracing:
+        enabled: true
+      logging:
+        enabled: true
+        level: info
+
+# LangChain4j配置
+langchain4j:
+  embedding-store:
+    redis:
+      index-name: "smartcs_embedding_index"
+      prefix: "smartcs:embedding:"
+      dimension: 1536
+  
+  # 模型配置示例
+  open-ai:
+    chat-model:
+      model-name: "gpt-3.5-turbo"
+      temperature: 0.7
+    streaming-chat-model:
+      model-name: "gpt-3.5-turbo"
+      temperature: 0.7
+
+# 指标配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    metrics:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+
 # 日志配置
 logging:
   level:
@@ -36,6 +118,12 @@ logging:
         smartcs:
           config:
             feign: debug
+          app:
+            rag: debug
+            ai: debug
+            observability: info
+    dev:
+      langchain4j: debug
 #server:
 #  servlet:
 #    context-path: /smartcs
