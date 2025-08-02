@@ -182,7 +182,7 @@ public class KnowledgeSearchTool {
                 
                 if (includeMetadata && content.textSegment().metadata() != null) {
                     result.append("\n【元数据】\n");
-                    content.textSegment().metadata().forEach((key, value) -> 
+                    content.textSegment().metadata().toMap().forEach((key, value) -> 
                         result.append(key).append(": ").append(value).append("\n"));
                 }
                 

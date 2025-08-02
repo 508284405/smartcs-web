@@ -30,7 +30,6 @@ import java.util.UUID;
 @Slf4j
 public class AiAppChatApplicationService {
 
-    @Qualifier("domainAiAppChatService")
     private final AiAppChatService domainChatService;
 
     /**

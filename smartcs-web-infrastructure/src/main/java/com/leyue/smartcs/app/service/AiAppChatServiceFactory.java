@@ -124,7 +124,7 @@ public class AiAppChatServiceFactory {
             log.info("创建新的AI聊天服务实例: modelKey={}, enableRag={}, enableTools={}, knowledgeBaseId={}", 
                     modelKey, enableRag, enableTools, knowledgeBaseId);
             
-            AiServices.Builder<AiAppChatService> builder = AiServices.builder(AiAppChatService.class)
+            var builder = AiServices.builder(AiAppChatService.class)
                     .chatModel(chatModel)
                     .chatMemoryProvider(memoryId -> createChatMemory(memoryId.toString()));
 
@@ -171,13 +171,13 @@ public class AiAppChatServiceFactory {
                                            String modelKey) {
         log.info("创建RAG聊天服务实例: modelKey={}", modelKey);
 
-        AiServices.Builder<AiAppChatService> builder = AiServices.builder(AiAppChatService.class)
+        var builder = AiServices.builder(AiAppChatService.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(memoryId -> createChatMemory(memoryId.toString()));
 
         // 设置流式模型
         if (streamingChatModel != null) {
-            builder.streamingChatLanguageModel(streamingChatModel);
+            builder.streamingChatModel(streamingChatModel);
         }
 
         // 配置RAG检索增强器
@@ -200,13 +200,13 @@ public class AiAppChatServiceFactory {
                                               String modelKey) {
         log.info("创建简单聊天服务实例: modelKey={}", modelKey);
 
-        AiServices.Builder<AiAppChatService> builder = AiServices.builder(AiAppChatService.class)
+        var builder = AiServices.builder(AiAppChatService.class)
                 .chatModel(chatModel)
                 .chatMemoryProvider(memoryId -> createChatMemory(memoryId.toString()));
 
         // 设置流式模型
         if (streamingChatModel != null) {
-            builder.streamingChatLanguageModel(streamingChatModel);
+            builder.streamingChatModel(streamingChatModel);
         }
 
         return builder.build();

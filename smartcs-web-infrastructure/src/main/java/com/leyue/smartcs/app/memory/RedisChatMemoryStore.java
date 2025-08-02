@@ -125,9 +125,18 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
      */
     private String serializeChatMessage(ChatMessage message) {
         try {
+            String text = "";
+            if (message instanceof dev.langchain4j.data.message.UserMessage) {
+                text = ((dev.langchain4j.data.message.UserMessage) message).singleText();
+            } else if (message instanceof dev.langchain4j.data.message.AiMessage) {
+                text = ((dev.langchain4j.data.message.AiMessage) message).text();
+            } else if (message instanceof dev.langchain4j.data.message.SystemMessage) {
+                text = ((dev.langchain4j.data.message.SystemMessage) message).text();
+            }
+            
             Map<String, Object> messageMap = Map.of(
                 "type", message.type().name(),
-                "text", message.text() != null ? message.text() : ""
+                "text", text
             );
             return JSON.toJSONString(messageMap);
         } catch (Exception e) {

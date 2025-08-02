@@ -2,6 +2,9 @@ package com.leyue.smartcs.app.ai;
 
 import com.leyue.smartcs.app.rag.RagOrchestrator;
 import com.leyue.smartcs.app.service.AiAppChatServiceFactory;
+import com.leyue.smartcs.domain.app.model.ChatRequest;
+import com.leyue.smartcs.domain.app.model.ChatResponse;
+import com.leyue.smartcs.domain.app.model.StreamingHandler;
 import com.leyue.smartcs.domain.app.service.AiAppChatService;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -57,10 +60,21 @@ public class EnhancedAppChatAssistant implements AppChatAssistant {
             AiAppChatService chatService = chatServiceFactory.getOrCreateService(
                 chatModel, streamingChatModel, modelKey, false);
             
-            String response = chatService.chat(sessionId, systemPrompt, userMessage, variables);
+            // 构建ChatRequest对象
+            ChatRequest request = ChatRequest.builder()
+                    .sessionId(sessionId)
+                    .systemPrompt(systemPrompt)
+                    .userMessage(userMessage)
+                    .variables(variables)
+                    .includeMemory(true)
+                    .streamEnabled(false)
+                    .build();
             
-            log.debug("同步聊天完成: sessionId={}, responseLength={}", sessionId, response.length());
-            return response;
+            ChatResponse response = chatService.chat(request);
+            String content = response.getContent();
+            
+            log.debug("同步聊天完成: sessionId={}, responseLength={}", sessionId, content.length());
+            return content;
             
         } catch (Exception e) {
             log.error("同步聊天失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
@@ -78,25 +92,27 @@ public class EnhancedAppChatAssistant implements AppChatAssistant {
             AiAppChatService chatService = chatServiceFactory.getOrCreateService(
                 chatModel, streamingChatModel, modelKey, false);
             
-            TokenStream tokenStream = chatService.chatStream(sessionId, systemPrompt, userMessage, variables);
+            // 构建ChatRequest对象
+            ChatRequest request = ChatRequest.builder()
+                    .sessionId(sessionId)
+                    .systemPrompt(systemPrompt)
+                    .userMessage(userMessage)
+                    .variables(variables)
+                    .includeMemory(true)
+                    .streamEnabled(true)
+                    .build();
             
-            // 处理流式响应
-            StringBuilder fullResponse = new StringBuilder();
-            
-            tokenStream
-                .onNext(token -> {
-                    fullResponse.append(token);
-                    onNext.accept(token);
-                })
-                .onComplete(response -> {
+            // 创建StreamingHandler
+            StreamingHandler handler = StreamingHandler.simple(
+                onNext::accept,
+                fullResponse -> {
                     log.debug("流式聊天完成: sessionId={}, responseLength={}", sessionId, fullResponse.length());
-                    onComplete.accept(Response.from(AiMessage.from(fullResponse.toString())));
-                })
-                .onError(throwable -> {
-                    log.error("流式聊天出错: sessionId={}, error={}", sessionId, throwable.getMessage(), throwable);
-                    onError.accept(throwable);
-                })
-                .start();
+                    onComplete.accept(Response.from(AiMessage.from(fullResponse)));
+                },
+                onError::accept
+            );
+            
+            chatService.chatStream(request, handler);
                 
         } catch (Exception e) {
             log.error("启动流式聊天失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
@@ -124,10 +140,22 @@ public class EnhancedAppChatAssistant implements AppChatAssistant {
             AiAppChatService chatService = chatServiceFactory.getOrCreateService(
                 chatModel, streamingChatModel, modelKey, true);
             
-            String response = chatService.chatWithRag(sessionId, systemPrompt, userMessage, variables, knowledgeBaseId);
+            // 构建ChatRequest对象
+            ChatRequest request = ChatRequest.builder()
+                    .sessionId(sessionId)
+                    .systemPrompt(systemPrompt)
+                    .userMessage(userMessage)
+                    .variables(variables)
+                    .knowledgeBaseId(knowledgeBaseId)
+                    .includeMemory(true)
+                    .streamEnabled(false)
+                    .build();
             
-            log.debug("RAG同步聊天完成: sessionId={}, responseLength={}", sessionId, response.length());
-            return response;
+            ChatResponse response = chatService.chatWithRag(request);
+            String content = response.getContent();
+            
+            log.debug("RAG同步聊天完成: sessionId={}, responseLength={}", sessionId, content.length());
+            return content;
             
         } catch (Exception e) {
             log.error("RAG同步聊天失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
@@ -159,25 +187,28 @@ public class EnhancedAppChatAssistant implements AppChatAssistant {
             AiAppChatService chatService = chatServiceFactory.getOrCreateService(
                 chatModel, streamingChatModel, modelKey, true);
             
-            TokenStream tokenStream = chatService.chatWithRagStream(sessionId, systemPrompt, userMessage, variables, knowledgeBaseId);
+            // 构建ChatRequest对象
+            ChatRequest request = ChatRequest.builder()
+                    .sessionId(sessionId)
+                    .systemPrompt(systemPrompt)
+                    .userMessage(userMessage)
+                    .variables(variables)
+                    .knowledgeBaseId(knowledgeBaseId)
+                    .includeMemory(true)
+                    .streamEnabled(true)
+                    .build();
             
-            // 处理流式响应
-            StringBuilder fullResponse = new StringBuilder();
-            
-            tokenStream
-                .onNext(token -> {
-                    fullResponse.append(token);
-                    onNext.accept(token);
-                })
-                .onComplete(response -> {
+            // 创建StreamingHandler
+            StreamingHandler handler = StreamingHandler.simple(
+                onNext::accept,
+                fullResponse -> {
                     log.debug("RAG流式聊天完成: sessionId={}, responseLength={}", sessionId, fullResponse.length());
-                    onComplete.accept(Response.from(AiMessage.from(fullResponse.toString())));
-                })
-                .onError(throwable -> {
-                    log.error("RAG流式聊天出错: sessionId={}, error={}", sessionId, throwable.getMessage(), throwable);
-                    onError.accept(throwable);
-                })
-                .start();
+                    onComplete.accept(Response.from(AiMessage.from(fullResponse)));
+                },
+                onError::accept
+            );
+            
+            chatService.chatWithRagStream(request, handler);
                 
         } catch (Exception e) {
             log.error("启动RAG流式聊天失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
@@ -185,76 +216,7 @@ public class EnhancedAppChatAssistant implements AppChatAssistant {
         }
     }
 
-    /**
-     * 无记忆的单次聊天
-     * 
-     * @param systemPrompt 系统提示词
-     * @param userMessage 用户消息
-     * @param variables 模板变量
-     * @return AI响应
-     */
-    public String chatOnce(String systemPrompt, String userMessage, Map<String, Object> variables) {
-        try {
-            log.debug("开始单次聊天: messageLength={}", userMessage.length());
-            
-            AiAppChatService chatService = chatServiceFactory.getOrCreateService(
-                chatModel, streamingChatModel, modelKey, false);
-            
-            String response = chatService.chatOnce(systemPrompt, userMessage, variables);
-            
-            log.debug("单次聊天完成: responseLength={}", response.length());
-            return response;
-            
-        } catch (Exception e) {
-            log.error("单次聊天失败: error={}", e.getMessage(), e);
-            throw new RuntimeException("单次聊天失败: " + e.getMessage(), e);
-        }
-    }
 
-    /**
-     * 无记忆的流式聊天
-     * 
-     * @param systemPrompt 系统提示词
-     * @param userMessage 用户消息
-     * @param variables 模板变量
-     * @param onNext 接收流式token的回调
-     * @param onComplete 完成时的回调
-     * @param onError 出错时的回调
-     */
-    public void chatOnceStream(String systemPrompt, String userMessage, Map<String, Object> variables,
-                              Consumer<String> onNext, Consumer<Response<AiMessage>> onComplete, 
-                              Consumer<Throwable> onError) {
-        try {
-            log.debug("开始单次流式聊天: messageLength={}", userMessage.length());
-            
-            AiAppChatService chatService = chatServiceFactory.getOrCreateService(
-                chatModel, streamingChatModel, modelKey, false);
-            
-            TokenStream tokenStream = chatService.chatOnceStream(systemPrompt, userMessage, variables);
-            
-            // 处理流式响应
-            StringBuilder fullResponse = new StringBuilder();
-            
-            tokenStream
-                .onNext(token -> {
-                    fullResponse.append(token);
-                    onNext.accept(token);
-                })
-                .onComplete(response -> {
-                    log.debug("单次流式聊天完成: responseLength={}", fullResponse.length());
-                    onComplete.accept(Response.from(AiMessage.from(fullResponse.toString())));
-                })
-                .onError(throwable -> {
-                    log.error("单次流式聊天出错: error={}", throwable.getMessage(), throwable);
-                    onError.accept(throwable);
-                })
-                .start();
-                
-        } catch (Exception e) {
-            log.error("启动单次流式聊天失败: error={}", e.getMessage(), e);
-            onError.accept(e);
-        }
-    }
 
     /**
      * 获取模型标识
