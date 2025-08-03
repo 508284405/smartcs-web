@@ -18,15 +18,13 @@ public interface ModelTaskGateway {
      * @param message 输入消息
      * @param sessionId 会话ID
      * @param systemPrompt 系统Prompt
-     * @param enableRAG 是否启用RAG
-     * @param knowledgeId 知识库ID
+     * @param knowledgeIds 知识库ID列表
      * @param inferenceParams 推理参数
-     * @param saveToContext 是否保存到上下文
      * @return 任务ID
      */
     String createInferenceTask(String taskId, Long modelId, String message, String sessionId,
-                              String systemPrompt, Boolean enableRAG, Long knowledgeId,
-                              String inferenceParams, Boolean saveToContext);
+                              String systemPrompt, List<Long> knowledgeIds,
+                              String inferenceParams);
     
     /**
      * 保存任务
@@ -83,42 +81,25 @@ public interface ModelTaskGateway {
      * @param status 新状态
      * @return 是否更新成功
      */
-    boolean updateStatus(String taskId, ModelTask.TaskStatus status);
+    boolean updateTaskStatus(String taskId, ModelTask.TaskStatus status);
     
     /**
      * 更新任务进度
      * 
      * @param taskId 任务ID
-     * @param progress 进度百分比
+     * @param progress 进度（0-100）
      * @return 是否更新成功
      */
-    boolean updateProgress(String taskId, int progress);
+    boolean updateTaskProgress(String taskId, int progress);
     
     /**
-     * 完成任务
+     * 更新任务结果
      * 
      * @param taskId 任务ID
-     * @param outputData 输出数据
+     * @param result 任务结果
      * @return 是否更新成功
      */
-    boolean completeTask(String taskId, String outputData);
-    
-    /**
-     * 任务执行失败
-     * 
-     * @param taskId 任务ID
-     * @param errorMessage 错误信息
-     * @return 是否更新成功
-     */
-    boolean failTask(String taskId, String errorMessage);
-    
-    /**
-     * 取消任务
-     * 
-     * @param taskId 任务ID
-     * @return 是否取消成功
-     */
-    boolean cancelTask(String taskId);
+    boolean updateTaskResult(String taskId, String result);
     
     /**
      * 删除任务
@@ -127,12 +108,4 @@ public interface ModelTaskGateway {
      * @return 是否删除成功
      */
     boolean deleteTask(String taskId);
-    
-    /**
-     * 清理过期任务
-     * 
-     * @param expiredTime 过期时间（毫秒时间戳）
-     * @return 清理数量
-     */
-    int cleanExpiredTasks(long expiredTime);
 }

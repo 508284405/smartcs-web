@@ -67,10 +67,8 @@ public class ModelInferCmdExe {
                     request.getMessage(),
                     sessionId,
                     request.getSystemPrompt(),
-                    request.getEnableRAG(),
-                    request.getKnowledgeId(),
-                    request.getInferenceParams(),
-                    request.getSaveToContext()
+                    request.getKnowledgeIds(),
+                    request.getInferenceParams()
             );
 
             long inferenceTime = System.currentTimeMillis() - startTime;

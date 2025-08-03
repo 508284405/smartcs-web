@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.security;
+package com.leyue.smartcs.rag.security;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

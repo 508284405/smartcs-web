@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.memory;
+package com.leyue.smartcs.rag.memory;
 
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.TypeReference;
@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RList;
 import org.redisson.api.RedissonClient;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -22,7 +22,7 @@ import java.util.Map;
  * 基于Redisson的聊天记忆存储实现
  * 支持分布式会话管理和持久化存储
  */
-@Component
+@Repository
 @RequiredArgsConstructor
 @Slf4j
 public class RedisChatMemoryStore implements ChatMemoryStore {

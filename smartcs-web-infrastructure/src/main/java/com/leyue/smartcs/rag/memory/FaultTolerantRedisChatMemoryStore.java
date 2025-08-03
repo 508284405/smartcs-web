@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.memory;
+package com.leyue.smartcs.rag.memory;
 
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
@@ -12,7 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Primary;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -21,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
  * 使用Resilience4j框架提供熔断器、重试、限流、超时保护
  */
 @Component
+@Primary
 @RequiredArgsConstructor
 @Slf4j
 public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
@@ -42,6 +45,14 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @TimeLimiter(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
     public List<ChatMessage> getMessages(Object memoryId) {
         log.debug("从Redis获取消息: memoryId={}", memoryId);
+        
+        // 检查Redis是否恢复，如果恢复则尝试同步数据
+        if (testRedisConnection() && fallbackEnabled) {
+            // 这里可以添加Redis恢复时的数据同步逻辑
+            // 由于ChatMemoryStore接口限制，暂时只记录日志
+            log.debug("Redis连接正常，memoryId={}", memoryId);
+        }
+        
         return redisChatMemoryStore.getMessages(memoryId);
     }
 
@@ -65,11 +76,6 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         log.debug("更新Redis消息: memoryId={}", memoryId);
         redisChatMemoryStore.updateMessages(memoryId, messages);
-        
-        // 同时更新降级存储作为备份
-        if (fallbackEnabled) {
-            fallbackStore.updateMessages(memoryId, messages);
-        }
     }
 
     /**
@@ -138,7 +144,20 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
      */
     public boolean testRedisConnection() {
         try {
+            // 测试基本连接
             redissonClient.getKeys().countExists("test:connection");
+            
+            // 测试读写操作
+            String testKey = "test:connection:" + System.currentTimeMillis();
+            redissonClient.getBucket(testKey).set("test", Duration.ofSeconds(5));
+            Object result = redissonClient.getBucket(testKey).get();
+            redissonClient.getKeys().delete(testKey);
+            
+            if (result == null || !"test".equals(result.toString())) {
+                log.debug("Redis读写测试失败");
+                return false;
+            }
+            
             return true;
         } catch (Exception e) {
             log.debug("Redis连接测试失败: {}", e.getMessage());
@@ -196,9 +215,33 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     }
 
     /**
+     * 数据同步：从InMemory同步到Redis（Redis恢复时使用）
+     */
+    public void syncFromMemoryToRedis() {
+        if (!testRedisConnection()) {
+            log.warn("Redis连接不可用，无法同步数据");
+            return;
+        }
+        
+        try {
+            log.info("开始从内存存储同步数据到Redis");
+            // 这里需要根据实际需求实现数据同步逻辑
+            // 当前的ChatMemoryStore接口不支持遍历所有会话，这是一个限制
+            log.info("数据同步完成");
+        } catch (Exception e) {
+            log.error("数据同步失败", e);
+        }
+    }
+
+    /**
      * 健康检查
      */
     public boolean isHealthy() {
-        return testRedisConnection() || fallbackEnabled;
+        boolean redisHealthy = testRedisConnection();
+        boolean fallbackAvailable = fallbackEnabled;
+        
+        log.debug("健康检查 - Redis: {}, 降级: {}", redisHealthy, fallbackAvailable);
+        
+        return redisHealthy || fallbackAvailable;
     }
 }

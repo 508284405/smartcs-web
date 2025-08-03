@@ -2,7 +2,7 @@ package com.leyue.smartcs.model.config;
 
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.model.ai.ModelInferenceService;
-import com.leyue.smartcs.model.rag.ModelKnowledgeRetriever;
+import com.leyue.smartcs.rag.retriever.ModelKnowledgeRetriever;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 /**
  * 模型推理服务配置类
@@ -72,7 +74,18 @@ public class ModelInferenceServiceConfig {
      * @return ModelInferenceService实例
      */
     public ModelInferenceService createModelInferenceService(Long modelId) {
-        log.info("创建特定模型的ModelInferenceService: modelId={}", modelId);
+        return createModelInferenceService(modelId, null);
+    }
+
+    /**
+     * 创建特定模型的ModelInferenceService - 支持多知识库
+     * 
+     * @param modelId 模型ID
+     * @param knowledgeIds 知识库ID列表
+     * @return ModelInferenceService实例
+     */
+    public ModelInferenceService createModelInferenceService(Long modelId, List<Long> knowledgeIds) {
+        log.info("创建特定模型的ModelInferenceService: modelId={}, knowledgeIds={}", modelId, knowledgeIds);
 
         try {
             // 检查模型是否支持推理
@@ -92,7 +105,7 @@ public class ModelInferenceServiceConfig {
                     .build();
 
         } catch (Exception e) {
-            log.error("创建特定模型的ModelInferenceService失败: modelId={}", modelId, e);
+            log.error("创建特定模型的ModelInferenceService失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
             throw new RuntimeException("无法创建ModelInferenceService: modelId=" + modelId, e);
         }
     }
@@ -137,17 +150,19 @@ public class ModelInferenceServiceConfig {
      */
     public boolean validateConfiguration() {
         try {
-            // 检查关键组件是否可用
+            // 验证DynamicModelManager是否可用
             if (dynamicModelManager == null) {
                 log.error("DynamicModelManager未配置");
                 return false;
             }
 
+            // 验证ModelKnowledgeRetriever是否可用
             if (modelKnowledgeRetriever == null) {
                 log.error("ModelKnowledgeRetriever未配置");
                 return false;
             }
 
+            // 验证ChatMemoryStore是否可用
             if (chatMemoryStore == null) {
                 log.error("ChatMemoryStore未配置");
                 return false;
@@ -157,7 +172,7 @@ public class ModelInferenceServiceConfig {
             return true;
 
         } catch (Exception e) {
-            log.error("配置验证失败", e);
+            log.error("ModelInferenceServiceConfig配置验证失败", e);
             return false;
         }
     }

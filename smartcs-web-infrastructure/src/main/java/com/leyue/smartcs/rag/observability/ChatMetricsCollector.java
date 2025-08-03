@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.observability;
+package com.leyue.smartcs.rag.observability;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;

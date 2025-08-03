@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.observability;
+package com.leyue.smartcs.rag.observability;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

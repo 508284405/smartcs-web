@@ -73,12 +73,6 @@ public class ModelInferStreamCmdExe {
             // 发送进度消息
             sendProgressMessage(sse, sessionId, "正在准备模型推理...");
 
-            if (request.getEnableRAG() != null && request.getEnableRAG()) {
-                sendProgressMessage(sse, sessionId, "正在检索相关知识...");
-            }
-
-            sendProgressMessage(sse, sessionId, "正在调用模型生成响应...");
-
             // 使用流式推理
             StringBuilder fullAnswer = new StringBuilder();
             modelInferenceGateway.inferStream(
@@ -86,11 +80,9 @@ public class ModelInferStreamCmdExe {
                     request.getMessage(),
                     sessionId,
                     request.getSystemPrompt(),
-                    request.getEnableRAG(),
-                    request.getKnowledgeId(),
+                    request.getKnowledgeIds(),
                     request.getInferenceParams(),
-                    request.getSaveToContext(),
-                    (chunk) -> {
+                    chunk -> {
                         try {
                             fullAnswer.append(chunk);
 

@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.model.gateway;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -14,14 +15,12 @@ public interface ModelInferenceGateway {
      * @param message 输入消息
      * @param sessionId 会话ID
      * @param systemPrompt 系统Prompt
-     * @param enableRAG 是否启用RAG
-     * @param knowledgeId 知识库ID
+     * @param knowledgeIds 知识库ID列表
      * @param inferenceParams 推理参数（JSON格式）
-     * @param saveToContext 是否保存到上下文
      * @return 推理结果
      */
     String infer(Long modelId, String message, String sessionId, String systemPrompt, 
-                Boolean enableRAG, Long knowledgeId, String inferenceParams, Boolean saveToContext);
+                List<Long> knowledgeIds, String inferenceParams);
     
     /**
      * 流式推理
@@ -30,14 +29,12 @@ public interface ModelInferenceGateway {
      * @param message 输入消息
      * @param sessionId 会话ID
      * @param systemPrompt 系统Prompt
-     * @param enableRAG 是否启用RAG
-     * @param knowledgeId 知识库ID
+     * @param knowledgeIds 知识库ID列表
      * @param inferenceParams 推理参数（JSON格式）
-     * @param saveToContext 是否保存到上下文
      * @param chunkConsumer 流式数据处理器
      */
     void inferStream(Long modelId, String message, String sessionId, String systemPrompt,
-                    Boolean enableRAG, Long knowledgeId, String inferenceParams, Boolean saveToContext,
+                    List<Long> knowledgeIds, String inferenceParams,
                     Consumer<String> chunkConsumer);
     
     /**

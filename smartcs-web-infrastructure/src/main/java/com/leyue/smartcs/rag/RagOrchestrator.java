@@ -1,5 +1,8 @@
-package com.leyue.smartcs.app.rag;
+package com.leyue.smartcs.rag;
 
+import com.leyue.smartcs.rag.retriever.EnhancedContentAggregator;
+import com.leyue.smartcs.rag.retriever.EnhancedContentInjector;
+import com.leyue.smartcs.rag.retriever.KnowledgeContentRetriever;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.query.Query;

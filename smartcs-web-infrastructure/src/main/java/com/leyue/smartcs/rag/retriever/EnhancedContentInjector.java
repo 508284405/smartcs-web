@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.rag;
+package com.leyue.smartcs.rag.retriever;
 
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;

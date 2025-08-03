@@ -1,21 +1,22 @@
 package com.leyue.smartcs.model.gatewayimpl;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
 import com.alibaba.fastjson2.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.leyue.smartcs.domain.model.ModelTask;
 import com.leyue.smartcs.domain.model.gateway.ModelTaskGateway;
 import com.leyue.smartcs.model.convertor.ModelTaskConvertor;
 import com.leyue.smartcs.model.dataobject.ModelTaskDO;
 import com.leyue.smartcs.model.mapper.ModelTaskMapper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 模型任务Gateway实现
@@ -29,17 +30,15 @@ public class ModelTaskGatewayImpl implements ModelTaskGateway {
     
     @Override
     public String createInferenceTask(String taskId, Long modelId, String message, String sessionId,
-                                    String systemPrompt, Boolean enableRAG, Long knowledgeId,
-                                    String inferenceParams, Boolean saveToContext) {
+                                    String systemPrompt, List<Long> knowledgeIds,
+                                    String inferenceParams) {
         // 构建输入数据
         Map<String, Object> inputData = new HashMap<>();
         inputData.put("message", message);
         inputData.put("sessionId", sessionId);
         inputData.put("systemPrompt", systemPrompt);
-        inputData.put("enableRAG", enableRAG);
-        inputData.put("knowledgeId", knowledgeId);
+        inputData.put("knowledgeIds", knowledgeIds);
         inputData.put("inferenceParams", inferenceParams);
-        inputData.put("saveToContext", saveToContext);
         
         // 创建任务对象
         ModelTask task = ModelTask.builder()
@@ -118,7 +117,7 @@ public class ModelTaskGatewayImpl implements ModelTaskGateway {
     }
     
     @Override
-    public boolean updateStatus(String taskId, ModelTask.TaskStatus status) {
+    public boolean updateTaskStatus(String taskId, ModelTask.TaskStatus status) {
         Optional<ModelTask> taskOpt = findOptionalByTaskId(taskId);
         if (taskOpt.isEmpty()) {
             return false;
@@ -140,7 +139,7 @@ public class ModelTaskGatewayImpl implements ModelTaskGateway {
     }
     
     @Override
-    public boolean updateProgress(String taskId, int progress) {
+    public boolean updateTaskProgress(String taskId, int progress) {
         LambdaUpdateWrapper<ModelTaskDO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ModelTaskDO::getTaskId, taskId)
                .set(ModelTaskDO::getProgress, progress);
@@ -150,40 +149,14 @@ public class ModelTaskGatewayImpl implements ModelTaskGateway {
     }
     
     @Override
-    public boolean completeTask(String taskId, String outputData) {
+    public boolean updateTaskResult(String taskId, String result) {
         Optional<ModelTask> taskOpt = findOptionalByTaskId(taskId);
         if (taskOpt.isEmpty()) {
             return false;
         }
         
         ModelTask task = taskOpt.get();
-        task.complete(outputData);
-        save(task);
-        return true;
-    }
-    
-    @Override
-    public boolean failTask(String taskId, String errorMessage) {
-        Optional<ModelTask> taskOpt = findOptionalByTaskId(taskId);
-        if (taskOpt.isEmpty()) {
-            return false;
-        }
-        
-        ModelTask task = taskOpt.get();
-        task.fail(errorMessage);
-        save(task);
-        return true;
-    }
-    
-    @Override
-    public boolean cancelTask(String taskId) {
-        Optional<ModelTask> taskOpt = findOptionalByTaskId(taskId);
-        if (taskOpt.isEmpty()) {
-            return false;
-        }
-        
-        ModelTask task = taskOpt.get();
-        task.cancel();
+        task.complete(result);
         save(task);
         return true;
     }
@@ -196,15 +169,5 @@ public class ModelTaskGatewayImpl implements ModelTaskGateway {
         
         int result = taskMapper.update(null, wrapper);
         return result > 0;
-    }
-    
-    @Override
-    public int cleanExpiredTasks(long expiredTime) {
-        LambdaUpdateWrapper<ModelTaskDO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.lt(ModelTaskDO::getCreatedAt, expiredTime)
-               .in(ModelTaskDO::getStatus, "COMPLETED", "FAILED", "CANCELLED")
-               .set(ModelTaskDO::getIsDeleted, 1);
-        
-        return taskMapper.update(null, wrapper);
     }
 }

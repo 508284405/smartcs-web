@@ -60,10 +60,8 @@ public class ModelInferAsyncCmdExe {
                     request.getMessage(),
                     request.getSessionId(),
                     request.getSystemPrompt(),
-                    request.getEnableRAG(),
-                    request.getKnowledgeId(),
-                    request.getInferenceParams(),
-                    request.getSaveToContext()
+                    request.getKnowledgeIds(),
+                    request.getInferenceParams()
             );
 
             return SingleResponse.of(taskId);

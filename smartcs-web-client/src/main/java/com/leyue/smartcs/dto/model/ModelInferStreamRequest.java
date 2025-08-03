@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 /**
  * 模型流式推理请求DTO
  */
@@ -39,22 +41,12 @@ public class ModelInferStreamRequest {
     private String systemPrompt;
 
     /**
-     * 是否启用RAG检索增强
+     * 知识库ID列表（支持多知识库查询）
      */
-    private Boolean enableRAG;
-
-    /**
-     * 知识库ID（当启用RAG时使用）
-     */
-    private Long knowledgeId;
+    private List<Long> knowledgeIds;
 
     /**
      * 推理参数（JSON格式，包含temperature、max_tokens等）
      */
     private String inferenceParams;
-
-    /**
-     * 是否保存到上下文
-     */
-    private Boolean saveToContext;
 }

@@ -1,6 +1,6 @@
-package com.leyue.smartcs.app.tools;
+package com.leyue.smartcs.rag.tools;
 
-import com.leyue.smartcs.app.rag.KnowledgeContentRetriever;
+import com.leyue.smartcs.rag.retriever.KnowledgeContentRetriever;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.query.Query;
@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 知识库搜索工具

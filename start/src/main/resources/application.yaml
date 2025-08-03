@@ -82,6 +82,60 @@ smartcs:
         enabled: true
         level: info
 
+# PDF解析器优化配置 - 框架代替自定义解析
+pdf:
+  # 解析器配置
+  parser:
+    mode: framework                    # 解析模式：framework（推荐）, custom
+    enable-quality-assessment: true    # 启用质量评估
+    enable-metadata-enhancement: true  # 启用元数据增强
+    max-file-size: 50MB               # 最大文件大小限制
+  
+  # 文本提取配置
+  text:
+    extractor: apache-tika            # 文本提取器：apache-tika（推荐）
+    quality-threshold: 0.6            # 文本质量阈值
+    auto-language-detection: true     # 自动语言检测
+    preserve-formatting: true        # 保留格式
+  
+  # 表格提取配置
+  table:
+    enabled: true                     # 启用表格提取
+    extractor: tika-html             # 表格提取器：tika-html
+    json-format: true                # 使用JSON格式存储
+    include-headers: true            # 包含表头
+    min-table-rows: 2                # 最小表格行数
+    min-table-columns: 2             # 最小表格列数
+  
+  # OCR配置
+  ocr:
+    enabled: false                    # OCR功能（需要Tesseract支持）
+    engine: tesseract                # OCR引擎
+    language: chi_sim+eng            # 识别语言
+    confidence-threshold: 0.7        # 置信度阈值
+    min-image-size: 100              # 最小图像尺寸
+    batch-processing: true           # 批处理模式
+  
+  # 多模态内容合并配置
+  merger:
+    parallel-processing: true        # 并行处理模式
+    content-priority: text,table,ocr # 内容优先级
+    quality-threshold: 0.5           # 质量阈值
+    max-content-length: 50000        # 最大内容长度
+    enable-degradation: true         # 启用降级处理
+  
+  # 图像预处理配置
+  image:
+    preprocess:
+      enabled: true                  # 启用图像预处理
+      enhance-contrast: true         # 对比度增强
+      auto-resize: true             # 自动调整尺寸
+      target-width: 1200            # 目标宽度
+      target-height: 1200           # 目标高度
+      quality-threshold: 0.8        # 质量阈值
+      noise-reduction: true         # 噪点减少
+      grayscale-conversion: false   # 灰度转换
+
 # LangChain4j配置
 langchain4j:
   embedding-store:

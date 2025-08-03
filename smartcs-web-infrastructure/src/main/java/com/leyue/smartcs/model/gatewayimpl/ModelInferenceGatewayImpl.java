@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -29,17 +30,17 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
      */
     @Override
     public String infer(Long modelId, String message, String sessionId, String systemPrompt,
-                       Boolean enableRAG, Long knowledgeId, String inferenceParams, Boolean saveToContext) {
+                       List<Long> knowledgeIds, String inferenceParams) {
         
-        log.info("开始同步推理: modelId={}, sessionId={}, enableRAG={}, knowledgeId={}", 
-                modelId, sessionId, enableRAG, knowledgeId);
+        log.info("开始同步推理: modelId={}, sessionId={}, knowledgeIds={}", 
+                modelId, sessionId, knowledgeIds);
 
         try {
             // 验证模型支持
             validateModelSupport(modelId, false);
 
             // 创建模型专用的推理服务
-            var inferenceService = createInferenceService(modelId, enableRAG);
+            var inferenceService = createInferenceService(modelId, knowledgeIds);
 
             // 使用LangChain4j框架进行推理 - 自动处理RAG、记忆和上下文
             String result = inferenceService.chat(sessionId, message, 
@@ -61,18 +62,18 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
      */
     @Override
     public void inferStream(Long modelId, String message, String sessionId, String systemPrompt,
-                           Boolean enableRAG, Long knowledgeId, String inferenceParams, Boolean saveToContext,
+                           List<Long> knowledgeIds, String inferenceParams,
                            Consumer<String> chunkConsumer) {
 
-        log.info("开始流式推理: modelId={}, sessionId={}, enableRAG={}, knowledgeId={}", 
-                modelId, sessionId, enableRAG, knowledgeId);
+        log.info("开始流式推理: modelId={}, sessionId={}, knowledgeIds={}", 
+                modelId, sessionId, knowledgeIds);
 
         try {
             // 验证模型支持
             validateModelSupport(modelId, true);
 
             // 创建模型专用的推理服务
-            var inferenceService = createInferenceService(modelId, enableRAG);
+            var inferenceService = createInferenceService(modelId, knowledgeIds);
 
             // 使用LangChain4j框架进行流式推理 - 自动处理RAG、记忆和上下文
             TokenStream tokenStream = inferenceService.chatStream(sessionId, message,
@@ -163,18 +164,12 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
      * 创建推理服务 - 核心简化逻辑
      * 框架自动处理所有复杂性：RAG、记忆、工具调用等
      */
-    private com.leyue.smartcs.model.ai.ModelInferenceService createInferenceService(Long modelId, Boolean enableRAG) {
+    private com.leyue.smartcs.model.ai.ModelInferenceService createInferenceService(Long modelId, List<Long> knowledgeIds) {
         try {
-            // 根据是否启用RAG选择不同的服务配置
-            if (enableRAG != null && enableRAG) {
-                // 启用RAG增强的服务
-                return serviceConfig.createModelInferenceService(modelId);
-            } else {
-                // 简单推理服务（无RAG）
-                return serviceConfig.createSimpleModelInferenceService(modelId);
-            }
+            // 默认启用RAG增强的服务
+            return serviceConfig.createModelInferenceService(modelId, knowledgeIds);
         } catch (Exception e) {
-            log.error("创建推理服务失败: modelId={}, enableRAG={}", modelId, enableRAG, e);
+            log.error("创建推理服务失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
             throw new BizException("无法创建推理服务: " + e.getMessage());
         }
     }
