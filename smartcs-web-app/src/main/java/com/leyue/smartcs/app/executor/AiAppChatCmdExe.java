@@ -1,43 +1,38 @@
 package com.leyue.smartcs.app.executor;
 
-import com.leyue.smartcs.app.security.ChatSecurityValidator;
-import com.leyue.smartcs.app.service.*;
-import com.leyue.smartcs.domain.app.entity.AppTestMessage;
-import com.leyue.smartcs.domain.app.entity.AppTestSession;
-import com.leyue.smartcs.domain.model.Model;
-import com.leyue.smartcs.domain.model.Provider;
+import com.leyue.smartcs.app.service.SmartChatService;
+import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
+import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
-import com.leyue.smartcs.dto.app.AiAppDTO;
+import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * AI应用聊天命令执行器
+ * 重构版本：完全基于LangChain4j框架的SmartChatService
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class AiAppChatCmdExe {
 
-    private final ChatSecurityValidator securityValidator;
-    private final ChatConfigurationService configurationService;
-    private final SessionManager sessionManager;
-    private final MessageManager messageManager;
-    private final AiAppChatApplicationService chatService;
+    private final SmartChatService smartChatService;
+    private final IdGeneratorGateway idGeneratorGateway;
 
     /**
      * 执行SSE聊天
+     * 简化版本：直接使用SmartChatService的流式能力
      */
     public SseEmitter execute(AiAppChatCmd cmd) {
-        SseEmitter emitter = new SseEmitter(cmd.getTimeout());
-        String sessionId = sessionManager.generateSessionId(cmd.getAppId(), cmd.getSessionId());
+        SseEmitter emitter = new SseEmitter(cmd.getTimeout() != null ? cmd.getTimeout() : 30000L);
+        String sessionId = generateSessionId(cmd);
         
         log.info("开始执行AI应用聊天: appId={}, sessionId={}, message length={}",
                 cmd.getAppId(), sessionId, cmd.getMessage().length());
@@ -46,13 +41,8 @@ public class AiAppChatCmdExe {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
                 
-                // 安全验证
-                if (!validateInput(cmd, sessionId, emitter)) {
-                    return;
-                }
-                
-                // 处理聊天
-                processChatAsync(emitter, cmd, sessionId);
+                // 直接使用SmartChatService的流式聊天
+                processChatStream(emitter, cmd, sessionId);
                 
             } catch (Exception e) {
                 handleError(emitter, cmd.getAppId(), sessionId, e);
@@ -64,106 +54,66 @@ public class AiAppChatCmdExe {
     }
 
     /**
-     * 异步处理聊天
+     * 处理流式聊天
+     * 使用LangChain4j原生TokenStream，框架自动处理RAG和记忆
      */
-    private void processChatAsync(SseEmitter emitter, AiAppChatCmd cmd, String sessionId) throws Exception {
-        long startTime = System.currentTimeMillis();
-        
-        // 1. 获取配置信息
-        sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在加载应用配置..."));
-        ChatConfigurationService.ConfigurationValidationResult configResult = 
-            configurationService.validateConfiguration(cmd.getAppId(), cmd.getModelId());
-        
-        if (!configResult.isValid()) {
-            throw new RuntimeException("配置验证失败: " + configResult.getErrorMessage());
-        }
-        
-        ChatConfigurationService.ChatConfiguration config = configResult.getConfiguration();
-        AiAppDTO app = config.app;
-        Model model = config.model;
-        Provider provider = config.provider;
-        
-        // 2. 构建系统提示词
-        sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在构建对话上下文..."));
-        String systemPrompt = configurationService.buildSystemPrompt(app, cmd.getVariables());
-        
-        // 3. 初始化会话
-        sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在初始化会话..."));
-        AppTestSession session = sessionManager.initializeSession(sessionId, cmd.getAppId(), model.getId(), cmd);
-        
-        // 4. 保存用户消息
-        String userMessageId = UUID.randomUUID().toString().replace("-", "");
-        AppTestMessage userMessage = messageManager.createEnhancedUserMessage(
-            userMessageId, sessionId, cmd, app, model, provider, systemPrompt);
-        messageManager.saveUserMessage(userMessage);
-        
-        // 5. 执行聊天
+    private void processChatStream(SseEmitter emitter, AiAppChatCmd cmd, String sessionId) throws Exception {
         sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在生成AI回答..."));
-        executeChatStrategy(emitter, cmd, sessionId, systemPrompt, startTime, model);
-    }
-
-    /**
-     * 执行聊天策略
-     */
-    private void executeChatStrategy(SseEmitter emitter, AiAppChatCmd cmd,
-                                   String sessionId, String systemPrompt, long startTime, Model model) throws IOException {
         
-        if (cmd.getIncludeHistory()) {
-            if (cmd.getEnableRAG() && cmd.getKnowledgeId() != null) {
-                chatService.executeRagMemoryChat(emitter, sessionId, systemPrompt, 
-                    cmd.getMessage(), cmd.getVariables(), cmd.getKnowledgeId(), 
-                    startTime, cmd.getAppId(), model, messageManager);
-            } else {
-                chatService.executeMemoryChat(emitter, sessionId, systemPrompt, 
-                    cmd.getMessage(), cmd.getVariables(), startTime, cmd.getAppId(), model, messageManager);
-            }
-        } else {
-            String tempSessionId = "temp_" + (cmd.getEnableRAG() ? "rag_" : "") + 
-                                  UUID.randomUUID().toString().replace("-", "");
-            
-            if (cmd.getEnableRAG() && cmd.getKnowledgeId() != null) {
-                chatService.executeRagMemoryChat(emitter, tempSessionId, systemPrompt, 
-                    cmd.getMessage(), cmd.getVariables(), cmd.getKnowledgeId(), 
-                    startTime, cmd.getAppId(), model, messageManager);
-            } else {
-                chatService.executeMemoryChat(emitter, tempSessionId, systemPrompt, 
-                    cmd.getMessage(), cmd.getVariables(), startTime, cmd.getAppId(), model, messageManager);
-            }
-        }
+        // 使用SmartChatService的流式聊天 - 框架自动处理RAG和记忆
+        TokenStream tokenStream = smartChatService.chatStream(sessionId, cmd.getMessage());
+        StringBuilder fullResponse = new StringBuilder();
+        
+        tokenStream
+            .onPartialResponse(partialResponse -> {
+                try {
+                    fullResponse.append(partialResponse);
+                    AiAppChatResponse dataResponse = AiAppChatResponse.builder()
+                            .sessionId(sessionId)
+                            .content(partialResponse)
+                            .finished(false)
+                            .timestamp(System.currentTimeMillis())
+                            .build();
+                    sendSSEMessage(emitter, AiAppChatSSEMessage.data(sessionId, dataResponse));
+                } catch (IOException e) {
+                    log.error("发送流式消息失败: sessionId={}", sessionId, e);
+                }
+            })
+            .onCompleteResponse(response -> {
+                try {
+                    log.info("AI聊天完成: sessionId={}, responseLength={}", 
+                            sessionId, fullResponse.length());
+                    AiAppChatResponse completeResponse = AiAppChatResponse.builder()
+                            .sessionId(sessionId)
+                            .content(fullResponse.toString())
+                            .finished(true)
+                            .timestamp(System.currentTimeMillis())
+                            .build();
+                    sendSSEMessage(emitter, AiAppChatSSEMessage.complete(sessionId, completeResponse));
+                    emitter.complete();
+                } catch (IOException e) {
+                    log.error("发送完成消息失败: sessionId={}", sessionId, e);
+                    emitter.completeWithError(e);
+                }
+            })
+            .onError(throwable -> {
+                log.error("AI聊天流式处理出错: sessionId={}", sessionId, throwable);
+                try {
+                    sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, 
+                        "聊天处理失败: " + throwable.getMessage()));
+                } catch (IOException e) {
+                    log.error("发送错误消息失败", e);
+                }
+                emitter.completeWithError(throwable);
+            })
+            .start();
     }
 
     /**
-     * 验证输入
+     * 生成会话ID
      */
-    private boolean validateInput(AiAppChatCmd cmd, String sessionId, SseEmitter emitter) {
-        try {
-            ChatSecurityValidator.ValidationResult validationResult = 
-                securityValidator.validateChatInput(cmd.getMessage(), cmd.getVariables(), sessionId);
-            
-            if (!validationResult.isValid()) {
-                log.warn("聊天输入安全验证失败: sessionId={}, error={}", 
-                        sessionId, validationResult.getErrorMessage());
-                sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, 
-                    "输入验证失败: " + validationResult.getErrorMessage()));
-                emitter.complete();
-                return false;
-            }
-            
-            // 清理输入内容
-            String sanitizedMessage = securityValidator.sanitizeInput(cmd.getMessage());
-            cmd.setMessage(sanitizedMessage);
-            return true;
-            
-        } catch (Exception e) {
-            log.error("输入验证失败: sessionId={}, error={}", sessionId, e.getMessage(), e);
-            try {
-                sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, "输入验证失败"));
-                emitter.complete();
-            } catch (IOException ioException) {
-                log.error("发送错误消息失败", ioException);
-            }
-            return false;
-        }
+    private String generateSessionId(AiAppChatCmd cmd) {
+        return idGeneratorGateway.generateIdStr();
     }
 
     /**
@@ -196,13 +146,11 @@ public class AiAppChatCmdExe {
 
         emitter.onCompletion(() -> {
             log.info("AI应用聊天完成: appId={}, sessionId={}", appId, sessionId);
-            sessionManager.updateSessionStatus(sessionId, AppTestSession.SessionState.FINISHED);
         });
 
         emitter.onError(throwable -> {
             log.error("AI应用聊天出错: appId={}, sessionId={}, error={}", 
                      appId, sessionId, throwable.getMessage(), throwable);
-            sessionManager.updateSessionStatus(sessionId, AppTestSession.SessionState.EXPIRED);
         });
     }
 

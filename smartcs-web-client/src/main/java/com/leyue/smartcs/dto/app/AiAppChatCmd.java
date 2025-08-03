@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,19 +41,9 @@ public class AiAppChatCmd {
     private Long modelId;
 
     /**
-     * 是否包含历史上下文
+     * 知识库ID列表（可选，支持多选）
      */
-    private Boolean includeHistory = true;
-
-    /**
-     * 是否启用RAG检索
-     */
-    private Boolean enableRAG = false;
-
-    /**
-     * 知识库ID（启用RAG时使用）
-     */
-    private Long knowledgeId;
+    private List<Long> knowledgeBaseIds;
 
     /**
      * 推理参数（JSON格式）

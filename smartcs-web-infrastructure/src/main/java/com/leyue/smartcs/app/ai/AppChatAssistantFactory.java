@@ -37,11 +37,9 @@ public class AppChatAssistantFactory {
         return assistantCache.computeIfAbsent(modelKey, key -> {
             log.info("创建新的增强版AI聊天助手实例: modelKey={}", key);
             
-            // 创建增强版助手实例
-            EnhancedAppChatAssistant enhancedAssistant = applicationContext.getBean(EnhancedAppChatAssistant.class);
-            enhancedAssistant.initialize(chatModel, streamingChatModel, modelKey);
-            
-            return enhancedAssistant;
+            // 创建传统助手实例 - 简化版本
+            return new AppChatAssistantImpl(chatModel, streamingChatModel, 
+                applicationContext.getBean(dev.langchain4j.store.memory.chat.ChatMemoryStore.class));
         });
     }
 

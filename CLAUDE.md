@@ -55,6 +55,13 @@ This is a Spring Boot 3.4.4 application using COLA (Clean Object-oriented and La
 
 ## Development Guidelines
 
+### Architecture Principles
+**⚠️ CRITICAL: LangChain4j集成框架是最高优先级，也是设计的最高优先级。**
+- 优先使用LangChain4j提供的组件和接口
+- 避免过度设计和自定义抽象
+- 保持架构简单直接
+- 所有LLM相关功能必须基于LangChain4j框架
+
 ### Code Standards (from .cursor/rules)
 - Use UTF-8 encoding with Chinese comments
 - Use `@Slf4j` for logging

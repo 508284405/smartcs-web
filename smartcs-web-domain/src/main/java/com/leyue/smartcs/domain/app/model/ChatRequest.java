@@ -3,6 +3,7 @@ package com.leyue.smartcs.domain.app.model;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -34,9 +35,9 @@ public class ChatRequest {
     private Map<String, Object> variables;
     
     /**
-     * 知识库ID（可选，用于RAG）
+     * 知识库ID列表（可选，用于RAG，支持多选）
      */
-    private Long knowledgeBaseId;
+    private List<Long> knowledgeBaseIds;
     
     /**
      * 是否包含历史记忆
@@ -82,12 +83,12 @@ public class ChatRequest {
     /**
      * 创建RAG聊天请求
      */
-    public static ChatRequest withRag(String sessionId, String systemPrompt, String userMessage, Long knowledgeBaseId) {
+    public static ChatRequest withRag(String sessionId, String systemPrompt, String userMessage, List<Long> knowledgeBaseIds) {
         return ChatRequest.builder()
                 .sessionId(sessionId)
                 .systemPrompt(systemPrompt)
                 .userMessage(userMessage)
-                .knowledgeBaseId(knowledgeBaseId)
+                .knowledgeBaseIds(knowledgeBaseIds)
                 .includeMemory(true)
                 .streamEnabled(false)
                 .build();
@@ -109,7 +110,7 @@ public class ChatRequest {
      * 是否启用RAG
      */
     public boolean isRagEnabled() {
-        return knowledgeBaseId != null;
+        return knowledgeBaseIds != null && !knowledgeBaseIds.isEmpty();
     }
     
     /**
