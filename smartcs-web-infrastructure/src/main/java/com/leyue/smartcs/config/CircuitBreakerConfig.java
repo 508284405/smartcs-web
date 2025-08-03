@@ -1,14 +1,10 @@
 package com.leyue.smartcs.config;
 
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import io.github.resilience4j.retry.RetryRegistry;
-import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
-import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +15,8 @@ import java.time.Duration;
 
 /**
  * Resilience4j 熔断器配置
- * 提供熔断器、重试、限流、超时等容错组件的配置
+ * 提供熔断器、重试、限流、超时等容错组件的注册表配置
+ * 具体的组件实例由Resilience4j根据application.yaml配置自动创建
  */
 @Configuration
 @Slf4j
@@ -81,133 +78,5 @@ public class CircuitBreakerConfig {
                 .build();
 
         return TimeLimiterRegistry.of(config);
-    }
-
-    /**
-     * Redis存储熔断器
-     */
-    @Bean("redis-memory-store")
-    public CircuitBreaker redisMemoryStoreCircuitBreaker(CircuitBreakerRegistry registry) {
-        return registry.circuitBreaker("redis-memory-store");
-    }
-
-    /**
-     * ID生成器Feign熔断器
-     */
-    @Bean("id-generator-feign")
-    public CircuitBreaker idGeneratorFeignCircuitBreaker(CircuitBreakerRegistry registry) {
-        return registry.circuitBreaker("id-generator-feign");
-    }
-
-    /**
-     * 用户中心Feign熔断器
-     */
-    @Bean("user-center-feign")
-    public CircuitBreaker userCenterFeignCircuitBreaker(CircuitBreakerRegistry registry) {
-        return registry.circuitBreaker("user-center-feign");
-    }
-
-    /**
-     * 订单Feign熔断器
-     */
-    @Bean("order-feign")
-    public CircuitBreaker orderFeignCircuitBreaker(CircuitBreakerRegistry registry) {
-        return registry.circuitBreaker("order-feign");
-    }
-
-    /**
-     * Redis存储重试
-     */
-    @Bean("redis-memory-store")
-    public Retry redisMemoryStoreRetry(RetryRegistry registry) {
-        return registry.retry("redis-memory-store");
-    }
-
-    /**
-     * ID生成器Feign重试
-     */
-    @Bean("id-generator-feign")
-    public Retry idGeneratorFeignRetry(RetryRegistry registry) {
-        return registry.retry("id-generator-feign");
-    }
-
-    /**
-     * 用户中心Feign重试
-     */
-    @Bean("user-center-feign")
-    public Retry userCenterFeignRetry(RetryRegistry registry) {
-        return registry.retry("user-center-feign");
-    }
-
-    /**
-     * 订单Feign重试
-     */
-    @Bean("order-feign")
-    public Retry orderFeignRetry(RetryRegistry registry) {
-        return registry.retry("order-feign");
-    }
-
-    /**
-     * Redis存储限流
-     */
-    @Bean("redis-memory-store")
-    public Bulkhead redisMemoryStoreBulkhead(BulkheadRegistry registry) {
-        return registry.bulkhead("redis-memory-store");
-    }
-
-    /**
-     * ID生成器Feign限流
-     */
-    @Bean("id-generator-feign")
-    public Bulkhead idGeneratorFeignBulkhead(BulkheadRegistry registry) {
-        return registry.bulkhead("id-generator-feign");
-    }
-
-    /**
-     * 用户中心Feign限流
-     */
-    @Bean("user-center-feign")
-    public Bulkhead userCenterFeignBulkhead(BulkheadRegistry registry) {
-        return registry.bulkhead("user-center-feign");
-    }
-
-    /**
-     * 订单Feign限流
-     */
-    @Bean("order-feign")
-    public Bulkhead orderFeignBulkhead(BulkheadRegistry registry) {
-        return registry.bulkhead("order-feign");
-    }
-
-    /**
-     * Redis存储超时
-     */
-    @Bean("redis-memory-store")
-    public TimeLimiter redisMemoryStoreTimeLimiter(TimeLimiterRegistry registry) {
-        return registry.timeLimiter("redis-memory-store");
-    }
-
-    /**
-     * ID生成器Feign超时
-     */
-    @Bean("id-generator-feign")
-    public TimeLimiter idGeneratorFeignTimeLimiter(TimeLimiterRegistry registry) {
-        return registry.timeLimiter("id-generator-feign");
-    }
-
-    /**
-     * 用户中心Feign超时
-     */
-    @Bean("user-center-feign")
-    public TimeLimiter userCenterFeignTimeLimiter(TimeLimiterRegistry registry) {
-        return registry.timeLimiter("user-center-feign");
-    }
-
-    /**
-     * 订单Feign超时
-     */
-    @Bean("order-feign")
-    public TimeLimiter orderFeignTimeLimiter(TimeLimiterRegistry registry) {
-        return registry.timeLimiter("order-feign");
     }
 } 
