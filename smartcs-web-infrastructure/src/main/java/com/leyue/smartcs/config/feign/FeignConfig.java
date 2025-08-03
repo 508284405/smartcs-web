@@ -74,4 +74,37 @@ public class FeignConfig {
             }
         };
     }
+
+    /**
+     * Feign错误解码器，用于处理熔断器异常
+     */
+    @Bean
+    public feign.codec.ErrorDecoder feignErrorDecoder() {
+        return new feign.codec.ErrorDecoder() {
+            @Override
+            public Exception decode(String methodKey, feign.Response response) {
+                // 根据HTTP状态码返回相应的异常
+                switch (response.status()) {
+                    case 400:
+                        return new RuntimeException("Bad Request");
+                    case 401:
+                        return new RuntimeException("Unauthorized");
+                    case 403:
+                        return new RuntimeException("Forbidden");
+                    case 404:
+                        return new RuntimeException("Not Found");
+                    case 500:
+                        return new RuntimeException("Internal Server Error");
+                    case 502:
+                        return new RuntimeException("Bad Gateway");
+                    case 503:
+                        return new RuntimeException("Service Unavailable");
+                    case 504:
+                        return new RuntimeException("Gateway Timeout");
+                    default:
+                        return new RuntimeException("Unknown Error");
+                }
+            }
+        };
+    }
 } 

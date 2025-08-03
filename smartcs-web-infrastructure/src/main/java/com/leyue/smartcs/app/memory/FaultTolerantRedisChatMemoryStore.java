@@ -3,20 +3,22 @@ package com.leyue.smartcs.app.memory;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 容错的Redis聊天记忆存储
- * 支持降级到InMemory存储，防止Redis单点故障
+ * 使用Resilience4j框架提供熔断器、重试、限流、超时保护
  */
 @Component
 @RequiredArgsConstructor
@@ -24,160 +26,119 @@ import java.util.concurrent.atomic.AtomicLong;
 public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
 
     private final RedisChatMemoryStore redisChatMemoryStore;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
     
     // 降级策略配置
     @Value("${smartcs.ai.memory.fallback.enabled:true}")
     private boolean fallbackEnabled;
     
-    @Value("${smartcs.ai.memory.fallback.failure-threshold:3}")
-    private int failureThreshold;
-    
-    @Value("${smartcs.ai.memory.fallback.recovery-interval:60000}")
-    private long recoveryIntervalMs;
-    
-    // 熔断器状态
-    private final AtomicBoolean circuitOpen = new AtomicBoolean(false);
-    private final AtomicLong lastFailureTime = new AtomicLong(0);
-    private final AtomicLong consecutiveFailures = new AtomicLong(0);
-    
     // 降级存储
     private final InMemoryChatMemoryStore fallbackStore = new InMemoryChatMemoryStore();
 
     @Override
+    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
+    @Retry(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
+    @Bulkhead(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
+    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
     public List<ChatMessage> getMessages(Object memoryId) {
-        if (isCircuitOpen()) {
-            log.debug("熔断器开启，使用内存存储获取消息: memoryId={}", memoryId);
+        log.debug("从Redis获取消息: memoryId={}", memoryId);
+        return redisChatMemoryStore.getMessages(memoryId);
+    }
+
+    /**
+     * 获取消息的降级方法
+     */
+    public List<ChatMessage> getMessagesFallback(Object memoryId, Exception e) {
+        log.warn("Redis获取消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+        if (fallbackEnabled) {
             return fallbackStore.getMessages(memoryId);
-        }
-        
-        try {
-            List<ChatMessage> messages = redisChatMemoryStore.getMessages(memoryId);
-            recordSuccess();
-            return messages;
-        } catch (Exception e) {
-            log.warn("Redis获取消息失败，尝试降级: memoryId={}, error={}", memoryId, e.getMessage());
-            recordFailure();
-            
-            if (fallbackEnabled) {
-                return fallbackStore.getMessages(memoryId);
-            } else {
-                throw new RuntimeException("Redis存储失败且降级被禁用", e);
-            }
+        } else {
+            throw new RuntimeException("Redis存储失败且降级被禁用", e);
         }
     }
 
     @Override
+    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
+    @Retry(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
+    @Bulkhead(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
+    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
-        if (isCircuitOpen()) {
-            log.debug("熔断器开启，使用内存存储更新消息: memoryId={}", memoryId);
-            fallbackStore.updateMessages(memoryId, messages);
-            return;
-        }
+        log.debug("更新Redis消息: memoryId={}", memoryId);
+        redisChatMemoryStore.updateMessages(memoryId, messages);
         
-        try {
-            redisChatMemoryStore.updateMessages(memoryId, messages);
-            recordSuccess();
-            
-            // 同时更新降级存储作为备份
-            if (fallbackEnabled) {
-                fallbackStore.updateMessages(memoryId, messages);
-            }
-        } catch (Exception e) {
-            log.warn("Redis更新消息失败，尝试降级: memoryId={}, error={}", memoryId, e.getMessage());
-            recordFailure();
-            
-            if (fallbackEnabled) {
-                fallbackStore.updateMessages(memoryId, messages);
-            } else {
-                throw new RuntimeException("Redis存储失败且降级被禁用", e);
-            }
+        // 同时更新降级存储作为备份
+        if (fallbackEnabled) {
+            fallbackStore.updateMessages(memoryId, messages);
+        }
+    }
+
+    /**
+     * 更新消息的降级方法
+     */
+    public void updateMessagesFallback(Object memoryId, List<ChatMessage> messages, Exception e) {
+        log.warn("Redis更新消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+        if (fallbackEnabled) {
+            fallbackStore.updateMessages(memoryId, messages);
+        } else {
+            throw new RuntimeException("Redis存储失败且降级被禁用", e);
         }
     }
 
     @Override
+    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
+    @Retry(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
+    @Bulkhead(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
+    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
     public void deleteMessages(Object memoryId) {
-        if (isCircuitOpen()) {
-            log.debug("熔断器开启，使用内存存储删除消息: memoryId={}", memoryId);
+        log.debug("删除Redis消息: memoryId={}", memoryId);
+        redisChatMemoryStore.deleteMessages(memoryId);
+        
+        // 同时删除降级存储中的数据
+        if (fallbackEnabled) {
             fallbackStore.deleteMessages(memoryId);
-            return;
-        }
-        
-        try {
-            redisChatMemoryStore.deleteMessages(memoryId);
-            recordSuccess();
-            
-            // 同时删除降级存储中的数据
-            if (fallbackEnabled) {
-                fallbackStore.deleteMessages(memoryId);
-            }
-        } catch (Exception e) {
-            log.warn("Redis删除消息失败，尝试降级: memoryId={}, error={}", memoryId, e.getMessage());
-            recordFailure();
-            
-            if (fallbackEnabled) {
-                fallbackStore.deleteMessages(memoryId);
-            } else {
-                throw new RuntimeException("Redis存储失败且降级被禁用", e);
-            }
         }
     }
 
     /**
-     * 检查熔断器是否开启
+     * 删除消息的降级方法
      */
-    private boolean isCircuitOpen() {
-        if (!circuitOpen.get()) {
-            return false;
-        }
-        
-        // 检查是否到了恢复时间
-        long timeSinceLastFailure = System.currentTimeMillis() - lastFailureTime.get();
-        if (timeSinceLastFailure > recoveryIntervalMs) {
-            log.info("尝试恢复Redis连接");
-            if (testRedisConnection()) {
-                log.info("Redis连接恢复，关闭熔断器");
-                circuitOpen.set(false);
-                consecutiveFailures.set(0);
-                return false;
-            } else {
-                lastFailureTime.set(System.currentTimeMillis());
-            }
-        }
-        
-        return true;
-    }
-
-    /**
-     * 记录成功操作
-     */
-    private void recordSuccess() {
-        consecutiveFailures.set(0);
-        if (circuitOpen.get()) {
-            log.info("Redis操作成功，关闭熔断器");
-            circuitOpen.set(false);
+    public void deleteMessagesFallback(Object memoryId, Exception e) {
+        log.warn("Redis删除消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+        if (fallbackEnabled) {
+            fallbackStore.deleteMessages(memoryId);
+        } else {
+            throw new RuntimeException("Redis存储失败且降级被禁用", e);
         }
     }
 
     /**
-     * 记录失败操作
+     * 异步获取消息（用于TimeLimiter）
      */
-    private void recordFailure() {
-        lastFailureTime.set(System.currentTimeMillis());
-        long failures = consecutiveFailures.incrementAndGet();
-        
-        if (failures >= failureThreshold && !circuitOpen.get()) {
-            log.error("Redis连续失败{}次，开启熔断器", failures);
-            circuitOpen.set(true);
+    public CompletableFuture<List<ChatMessage>> getMessagesAsync(Object memoryId) {
+        return CompletableFuture.supplyAsync(() -> {
+            log.debug("异步从Redis获取消息: memoryId={}", memoryId);
+            return redisChatMemoryStore.getMessages(memoryId);
+        });
+    }
+
+    /**
+     * 异步获取消息的降级方法
+     */
+    public CompletableFuture<List<ChatMessage>> getMessagesAsyncFallback(Object memoryId, Exception e) {
+        log.warn("Redis异步获取消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+        if (fallbackEnabled) {
+            return CompletableFuture.completedFuture(fallbackStore.getMessages(memoryId));
+        } else {
+            throw new RuntimeException("Redis存储失败且降级被禁用", e);
         }
     }
 
     /**
      * 测试Redis连接
      */
-    private boolean testRedisConnection() {
+    public boolean testRedisConnection() {
         try {
-            redisTemplate.hasKey("test:connection");
+            redissonClient.getKeys().countExists("test:connection");
             return true;
         } catch (Exception e) {
             log.debug("Redis连接测试失败: {}", e.getMessage());
@@ -189,30 +150,9 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
      * 获取存储状态
      */
     public StorageStatus getStatus() {
-        boolean redisAvailable = !isCircuitOpen();
-        long failureCount = consecutiveFailures.get();
-        long lastFailure = lastFailureTime.get();
+        boolean redisAvailable = testRedisConnection();
         
-        return new StorageStatus(redisAvailable, failureCount, lastFailure);
-    }
-
-    /**
-     * 手动重置熔断器
-     */
-    public void resetCircuitBreaker() {
-        log.info("手动重置熔断器");
-        circuitOpen.set(false);
-        consecutiveFailures.set(0);
-        lastFailureTime.set(0);
-    }
-
-    /**
-     * 强制开启熔断器（用于维护）
-     */
-    public void forceCircuitOpen() {
-        log.info("强制开启熔断器");
-        circuitOpen.set(true);
-        lastFailureTime.set(System.currentTimeMillis());
+        return new StorageStatus(redisAvailable, 0, 0);
     }
 
     /**
@@ -240,8 +180,8 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
      * 数据同步：从Redis同步到InMemory（恢复时使用）
      */
     public void syncFromRedisToMemory() {
-        if (isCircuitOpen()) {
-            log.warn("熔断器开启，无法从Redis同步数据");
+        if (!testRedisConnection()) {
+            log.warn("Redis连接不可用，无法同步数据");
             return;
         }
         
@@ -259,6 +199,6 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
      * 健康检查
      */
     public boolean isHealthy() {
-        return !isCircuitOpen() || fallbackEnabled;
+        return testRedisConnection() || fallbackEnabled;
     }
 }

@@ -9,17 +9,17 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.redisson.api.RList;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
- * 基于Redis的聊天记忆存储实现
+ * 基于Redisson的聊天记忆存储实现
  * 支持分布式会话管理和持久化存储
  */
 @Component
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class RedisChatMemoryStore implements ChatMemoryStore {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedissonClient redissonClient;
     
     private static final String MEMORY_KEY_PREFIX = "chat:memory:";
     private static final Duration DEFAULT_TTL = Duration.ofHours(24); // 24小时过期
@@ -37,15 +37,15 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
     public List<ChatMessage> getMessages(Object memoryId) {
         String key = buildMemoryKey(memoryId);
         try {
-            List<Object> messageList = redisTemplate.opsForList().range(key, 0, -1);
-            if (messageList == null || messageList.isEmpty()) {
+            RList<String> messageList = redissonClient.getList(key);
+            if (messageList.isEmpty()) {
                 log.debug("会话记忆为空: memoryId={}", memoryId);
                 return new ArrayList<>();
             }
 
             List<ChatMessage> messages = new ArrayList<>();
-            for (Object messageObj : messageList) {
-                ChatMessage message = deserializeChatMessage(messageObj.toString());
+            for (String messageStr : messageList) {
+                ChatMessage message = deserializeChatMessage(messageStr);
                 if (message != null) {
                     messages.add(message);
                 }
@@ -64,8 +64,10 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         String key = buildMemoryKey(memoryId);
         try {
+            RList<String> messageList = redissonClient.getList(key);
+            
             // 清除旧的消息
-            redisTemplate.delete(key);
+            messageList.clear();
             
             if (messages == null || messages.isEmpty()) {
                 log.debug("清空会话记忆: memoryId={}", memoryId);
@@ -92,8 +94,8 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
             }
 
             if (!serializedMessages.isEmpty()) {
-                redisTemplate.opsForList().rightPushAll(key, serializedMessages.toArray());
-                redisTemplate.expire(key, DEFAULT_TTL.toMillis(), TimeUnit.MILLISECONDS);
+                messageList.addAll(serializedMessages);
+                messageList.expire(DEFAULT_TTL);
                 log.debug("更新会话记忆: memoryId={}, messageCount={}", memoryId, serializedMessages.size());
             }
             
@@ -106,7 +108,7 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
     public void deleteMessages(Object memoryId) {
         String key = buildMemoryKey(memoryId);
         try {
-            redisTemplate.delete(key);
+            redissonClient.getKeys().delete(key);
             log.info("删除会话记忆: memoryId={}", memoryId);
         } catch (Exception e) {
             log.error("删除聊天记忆失败: memoryId={}, error={}", memoryId, e.getMessage(), e);
@@ -175,8 +177,8 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
     public long getMessageCount(Object memoryId) {
         String key = buildMemoryKey(memoryId);
         try {
-            Long count = redisTemplate.opsForList().size(key);
-            return count != null ? count : 0;
+            RList<String> messageList = redissonClient.getList(key);
+            return messageList.size();
         } catch (Exception e) {
             log.error("获取会话记忆统计失败: memoryId={}", memoryId, e);
             return 0;
@@ -189,7 +191,8 @@ public class RedisChatMemoryStore implements ChatMemoryStore {
     public void setMemoryTtl(Object memoryId, Duration ttl) {
         String key = buildMemoryKey(memoryId);
         try {
-            redisTemplate.expire(key, ttl.toMillis(), TimeUnit.MILLISECONDS);
+            RList<String> messageList = redissonClient.getList(key);
+            messageList.expire(ttl);
             log.debug("设置会话记忆过期时间: memoryId={}, ttl={}", memoryId, ttl);
         } catch (Exception e) {
             log.error("设置会话记忆过期时间失败: memoryId={}", memoryId, e);

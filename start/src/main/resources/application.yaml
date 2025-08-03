@@ -18,6 +18,14 @@ spring:
         max-age: 3600
   reactor:
     context-propagation: auto # Boot 3.2+ 原生支持
+  # Spring Cache配置
+  cache:
+    type: redis
+    redis:
+      time-to-live: 1800000 # 30分钟默认TTL
+      cache-null-values: false
+      use-key-prefix: true
+      key-prefix: "smartcs:cache:"
 
 # MCP (Model Context Protocol) 配置
 mcp:
@@ -103,11 +111,12 @@ management:
     metrics:
       enabled: true
   metrics:
-    export:
-      prometheus:
-        enabled: true
     tags:
       application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 # 日志配置
 logging:
@@ -116,14 +125,119 @@ logging:
     com:
       leyue:
         smartcs:
-          config:
-            feign: debug
-          app:
-            rag: debug
-            ai: debug
-            observability: info
+            config:
+              feign: debug
+            app:
+              rag: debug
+              ai: debug
+              observability: info
     dev:
       langchain4j: debug
+    io.github.resilience4j: debug
+
+# Resilience4j 熔断器配置
+resilience4j:
+  circuitbreaker:
+    instances:
+      redis-memory-store:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 60s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.lang.Exception
+      id-generator-feign:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      user-center-feign:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      order-feign:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      redis-memory-store:
+        max-attempts: 3
+        wait-duration: 1s
+        retry-exceptions:
+          - java.lang.Exception
+      id-generator-feign:
+        max-attempts: 2
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.lang.Exception
+      user-center-feign:
+        max-attempts: 2
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.lang.Exception
+      order-feign:
+        max-attempts: 2
+        wait-duration: 500ms
+        retry-exceptions:
+          - java.lang.Exception
+  ratelimiter:
+    instances:
+      redis-memory-store:
+        limit-for-period: 100
+        limit-refresh-period: 1s
+        timeout-duration: 5s
+      id-generator-feign:
+        limit-for-period: 50
+        limit-refresh-period: 1s
+        timeout-duration: 3s
+      user-center-feign:
+        limit-for-period: 50
+        limit-refresh-period: 1s
+        timeout-duration: 3s
+      order-feign:
+        limit-for-period: 50
+        limit-refresh-period: 1s
+        timeout-duration: 3s
+  timelimiter:
+    instances:
+      redis-memory-store:
+        timeout-duration: 10s
+        cancel-running-future: true
+      id-generator-feign:
+        timeout-duration: 5s
+        cancel-running-future: true
+      user-center-feign:
+        timeout-duration: 5s
+        cancel-running-future: true
+      order-feign:
+        timeout-duration: 5s
+        cancel-running-future: true
+  bulkhead:
+    instances:
+      redis-memory-store:
+        max-concurrent-calls: 20
+        max-wait-duration: 5s
+      id-generator-feign:
+        max-concurrent-calls: 10
+        max-wait-duration: 3s
+      user-center-feign:
+        max-concurrent-calls: 10
+        max-wait-duration: 3s
+      order-feign:
+        max-concurrent-calls: 10
+        max-wait-duration: 3s
+
 #server:
 #  servlet:
 #    context-path: /smartcs
