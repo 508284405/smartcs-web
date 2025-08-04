@@ -1,12 +1,15 @@
 package com.leyue.smartcs.model.ai;
 
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,11 +28,11 @@ public class DynamicModelManager {
 
     private final ModelGateway modelGateway;
     private final ProviderGateway providerGateway;
-    private final ModelBeanManagerService modelBeanManagerService;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
     private final Map<Long, StreamingChatModel> streamingChatModelCache = new ConcurrentHashMap<>();
+    private final Map<Long, EmbeddingModel> embeddingModelCache = new ConcurrentHashMap<>();
 
     /**
      * 根据模型ID获取ChatModel
@@ -58,6 +61,21 @@ public class DynamicModelManager {
             Model model = getModel(id);
             Provider provider = getProvider(model.getProviderId());
             return buildStreamingChatModel(provider);
+        });
+    }
+
+    /**
+     * 根据模型ID获取EmbeddingModel
+     * 
+     * @param modelId 模型ID
+     * @return EmbeddingModel实例
+     */
+    public EmbeddingModel getEmbeddingModel(Long modelId) {
+        return embeddingModelCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建EmbeddingModel实例: modelId={}", id);
+            Model model = getModel(id);
+            Provider provider = getProvider(model.getProviderId());
+            return buildEmbeddingModel(provider);
         });
     }
 
@@ -103,6 +121,7 @@ public class DynamicModelManager {
         log.info("清除模型缓存: modelId={}", modelId);
         chatModelCache.remove(modelId);
         streamingChatModelCache.remove(modelId);
+        embeddingModelCache.remove(modelId);
     }
 
     /**
@@ -112,6 +131,7 @@ public class DynamicModelManager {
         log.info("清除所有模型缓存");
         chatModelCache.clear();
         streamingChatModelCache.clear();
+        embeddingModelCache.clear();
     }
 
     /**
@@ -123,6 +143,7 @@ public class DynamicModelManager {
         Map<String, Integer> stats = new ConcurrentHashMap<>();
         stats.put("chatModelCache", chatModelCache.size());
         stats.put("streamingChatModelCache", streamingChatModelCache.size());
+        stats.put("embeddingModelCache", embeddingModelCache.size());
         return stats;
     }
 
@@ -146,21 +167,38 @@ public class DynamicModelManager {
      * 构建ChatModel实例
      */
     private ChatModel buildChatModel(Provider provider) {
-        Object modelBean = modelBeanManagerService.getModelBean(provider, "chat");
-        if (modelBean instanceof ChatModel) {
-            return (ChatModel) modelBean;
+        if (provider.getProviderType().isOpenAiCompatible()) {
+            return OpenAiChatModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .apiKey(provider.getApiKey())
+                    .build();
         }
-        throw new IllegalStateException("无法获取ChatModel实例: provider=" + provider.getProviderType().getKey());
+        throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
 
     /**
      * 构建StreamingChatModel实例
      */
     private StreamingChatModel buildStreamingChatModel(Provider provider) {
-        Object modelBean = modelBeanManagerService.getModelBean(provider, "streaming_chat");
-        if (modelBean instanceof StreamingChatModel) {
-            return (StreamingChatModel) modelBean;
+        if (provider.getProviderType().isOpenAiCompatible()) {
+            return OpenAiStreamingChatModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .apiKey(provider.getApiKey())
+                    .build();
         }
-        throw new IllegalStateException("无法获取StreamingChatModel实例: provider=" + provider.getProviderType().getKey());
+        throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
+    }
+
+    /**
+     * 构建EmbeddingModel实例
+     */
+    private EmbeddingModel buildEmbeddingModel(Provider provider) {
+        if (provider.getProviderType().isOpenAiCompatible()) {
+            return OpenAiEmbeddingModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .apiKey(provider.getApiKey())
+                    .build();
+        }
+        throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
 }

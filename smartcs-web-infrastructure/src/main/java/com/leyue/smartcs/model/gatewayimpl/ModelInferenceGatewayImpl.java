@@ -3,7 +3,6 @@ package com.leyue.smartcs.model.gatewayimpl;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.model.gateway.ModelInferenceGateway;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
-import com.leyue.smartcs.model.config.ModelInferenceServiceConfig;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,6 @@ import java.util.function.Consumer;
 public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
 
     private final DynamicModelManager dynamicModelManager;
-    private final ModelInferenceServiceConfig serviceConfig;
 
     /**
      * 同步推理 - 完全基于LangChain4j框架

@@ -1,7 +1,6 @@
 package com.leyue.smartcs.knowledge.executor.query;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -9,16 +8,15 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import dev.langchain4j.data.document.Document;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.common.Constants;
 import com.leyue.smartcs.domain.knowledge.Faq;
 import com.leyue.smartcs.domain.knowledge.gateway.FaqGateway;
@@ -40,10 +38,10 @@ public class FaqSearchQryExe {
     private final SearchGateway searchGateway;
     private final FaqConvertor faqConvertor;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     public MultiResponse<FaqDTO> execute(FaqSearchQry qry) {
-        return searchFaq(qry.getKeyword(), qry.getK());
+        return searchFaq(qry.getKeyword(), qry.getK(), qry.getModelId());
     }
 
     /**
@@ -51,16 +49,13 @@ public class FaqSearchQryExe {
      *
      * @param keyword 关键词
      * @param k       数量限制
+     * @param modelId 模型ID
      * @return FAQ结果
      */
-    private MultiResponse<FaqDTO> searchFaq(String keyword, int k) {
+    private MultiResponse<FaqDTO> searchFaq(String keyword, int k, Long modelId) {
         try {
             // 获取嵌入模型
-            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-            if (embeddingModel == null) {
-                log.warn("嵌入模型未找到，无法执行向量搜索");
-                return MultiResponse.of(Collections.emptyList());
-            }
+            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(modelId);
 
             // 生成查询向量
             dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(keyword).content();

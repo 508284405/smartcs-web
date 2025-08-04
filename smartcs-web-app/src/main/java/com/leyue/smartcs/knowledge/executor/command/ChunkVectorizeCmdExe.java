@@ -3,9 +3,9 @@ package com.leyue.smartcs.knowledge.executor.command;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
@@ -28,15 +28,16 @@ public class ChunkVectorizeCmdExe {
 
     private final ChunkGateway chunkGateway;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     /**
      * 执行切片向量化命令
      * 
      * @param id 切片ID
+     * @param modelId 模型ID
      * @return 操作结果
      */
-    public Response execute(Long id) {
+    public Response execute(Long id, Long modelId) {
         log.info("开始对切片进行向量化处理，切片ID: {}", id);
 
         try {
@@ -57,10 +58,7 @@ public class ChunkVectorizeCmdExe {
             Document document = Document.from(chunk.getContent(), metadata);
 
             // 获取嵌入模型
-            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-            if (embeddingModel == null) {
-                throw new BizException("EMBEDDING_MODEL_NOT_FOUND", "嵌入模型未找到");
-            }
+            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(modelId);
 
             // 生成嵌入向量并创建TextSegment
             dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(document.text()).content();

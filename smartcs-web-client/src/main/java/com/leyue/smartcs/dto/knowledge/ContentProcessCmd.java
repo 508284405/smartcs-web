@@ -19,6 +19,12 @@ public class ContentProcessCmd {
     private Long knowledgeBaseId;
     
     /**
+     * 模型ID（用于嵌入模型）
+     */
+    @NotNull(message = "模型ID不能为空")
+    private Long modelId;
+    
+    /**
      * 文件URL列表
      */
     @NotNull(message = "文件列表不能为空")

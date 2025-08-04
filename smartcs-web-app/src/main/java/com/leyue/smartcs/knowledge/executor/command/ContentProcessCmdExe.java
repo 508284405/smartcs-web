@@ -9,7 +9,7 @@ import com.leyue.smartcs.domain.knowledge.enums.SegmentMode;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.*;
-import com.leyue.smartcs.config.ModelBeanManagerService;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -35,7 +35,7 @@ public class ContentProcessCmdExe {
     private final ContentGateway contentGateway;
     private final ChunkGateway chunkGateway;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     /**
      * 执行文档处理流程
@@ -64,7 +64,7 @@ public class ContentProcessCmdExe {
             List<Long> chunkIds = saveChunksToDatabase(allChunks, contentIds.get(0));
             
             // 5. 向量化处理
-            int vectorCount = processVectorization(allChunks);
+            int vectorCount = processVectorization(allChunks, cmd.getModelId());
             
             // 6. 更新内容状态
             updateContentStatus(contentIds, ContentStatusEnum.ENABLED);
@@ -212,15 +212,11 @@ public class ContentProcessCmdExe {
     /**
      * 向量化处理
      */
-    private int processVectorization(List<ChunkDTO> chunks) {
+    private int processVectorization(List<ChunkDTO> chunks, Long modelId) {
         int vectorCount = 0;
         
         // 获取嵌入模型
-        EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-        if (embeddingModel == null) {
-            log.warn("嵌入模型未找到，跳过向量化处理");
-            return 0;
-        }
+        EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(modelId);
         
         for (ChunkDTO chunkDTO : chunks) {
             try {

@@ -3,6 +3,7 @@ package com.leyue.smartcs.dto.knowledge;
 import com.alibaba.cola.dto.PageQuery;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -17,6 +18,12 @@ public class KnowledgeSearchQry extends PageQuery {
      * 知识库ID
      */
     private Long kbId;
+    
+    /**
+     * 模型ID（用于嵌入模型）
+     */
+    @NotNull(message = "模型ID不能为空")
+    private Long modelId;
 
     /**
      * 内容ID

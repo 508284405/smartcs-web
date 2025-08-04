@@ -25,7 +25,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class KnowledgeContentRetriever implements ContentRetriever {
 
-    @Qualifier("knowledgeEmbeddingStore")
     private final EmbeddingStore<TextSegment> knowledgeEmbeddingStore;
     
     private final EmbeddingModel embeddingModel;

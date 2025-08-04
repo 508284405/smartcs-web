@@ -7,17 +7,16 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.EmbeddingWithScore;
 import com.leyue.smartcs.dto.knowledge.KnowledgeSearchQry;
-import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,9 +29,8 @@ import lombok.extern.slf4j.Slf4j;
 public class TextSearchQryExe {
 
     private final ChunkGateway chunkGateway;
-    private final ChunkConvertor chunkConvertor;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     /**
      * 执行文本检索查询
@@ -43,11 +41,7 @@ public class TextSearchQryExe {
     public MultiResponse<EmbeddingWithScore> execute(KnowledgeSearchQry qry) {
         try {
             // 获取嵌入模型
-            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-            if (embeddingModel == null) {
-                log.warn("嵌入模型未找到，无法执行向量搜索");
-                return MultiResponse.of(Collections.emptyList());
-            }
+            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(qry.getModelId());
 
             // 生成查询向量
             dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(qry.getKeyword()).content();

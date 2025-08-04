@@ -1,6 +1,7 @@
 package com.leyue.smartcs.dto.knowledge;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import lombok.Data;
@@ -10,6 +11,12 @@ import lombok.Data;
  */
 @Data
 public class DocumentSearchRequest {
+    
+    /**
+     * 模型ID（用于嵌入模型）
+     */
+    @NotNull(message = "模型ID不能为空")
+    private Long modelId;
     
     /**
      * 自然语言查询

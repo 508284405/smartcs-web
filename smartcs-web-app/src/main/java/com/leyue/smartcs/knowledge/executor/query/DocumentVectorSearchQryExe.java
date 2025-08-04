@@ -7,12 +7,10 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.dto.MultiResponse;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
-import com.leyue.smartcs.knowledge.convertor.ChunkConverter;
-import com.leyue.smartcs.knowledge.convertor.DocumentSearchConvertor;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -32,9 +30,7 @@ public class DocumentVectorSearchQryExe {
 
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final ChunkGateway chunkGateway;
-    private final DocumentSearchConvertor documentSearchConvertor;
-    private final ChunkConverter chunkConverter;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     /**
      * 执行文档向量搜索
@@ -47,11 +43,7 @@ public class DocumentVectorSearchQryExe {
 
         try {
             // 获取嵌入模型
-            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-            if (embeddingModel == null) {
-                log.warn("嵌入模型未找到，无法执行向量搜索");
-                return MultiResponse.of(Collections.emptyList());
-            }
+            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(request.getModelId());
 
             // 生成查询向量
             dev.langchain4j.data.embedding.Embedding queryEmbedding = embeddingModel.embed(request.getQuery()).content();

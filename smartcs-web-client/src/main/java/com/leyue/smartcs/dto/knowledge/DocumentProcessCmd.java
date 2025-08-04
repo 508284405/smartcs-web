@@ -23,6 +23,12 @@ public class DocumentProcessCmd extends Command {
     private Long knowledgeBaseId;
     
     /**
+     * 模型ID（用于嵌入模型）
+     */
+    @NotNull(message = "模型ID不能为空")
+    private Long modelId;
+    
+    /**
      * 文档标题
      */
     @NotBlank(message = "文档标题不能为空")

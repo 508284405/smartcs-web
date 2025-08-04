@@ -125,7 +125,7 @@ spring:
 
 ### 扩展LLM模型
 
-1. 在`ModelBeanManagerService`中添加新的模型创建逻辑
+1. 在`DynamicModelManager`中添加新的模型构建逻辑
 2. 更新`BotProfile`配置支持新的厂商类型
 3. 在配置文件中添加相应的API配置
 

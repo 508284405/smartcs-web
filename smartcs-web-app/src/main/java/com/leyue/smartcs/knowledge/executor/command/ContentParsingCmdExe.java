@@ -2,12 +2,12 @@ package com.leyue.smartcs.knowledge.executor.command;
 
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.exception.BizException;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.utils.OssFileDownloader;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -43,13 +43,13 @@ public class ContentParsingCmdExe {
     private EmbeddingStore<TextSegment> embeddingStore;
 
     @Autowired
-    private ModelBeanManagerService modelBeanManagerService;
+    private DynamicModelManager dynamicModelManager;
 
     /**
      * 执行内容解析
      */
     @Transactional(rollbackOn = Exception.class)
-    public Response execute(Long contentId) {
+    public Response execute(Long contentId, Long modelId) {
         log.info("执行内容解析, 内容ID: {}", contentId);
 
         try {
@@ -73,10 +73,7 @@ public class ContentParsingCmdExe {
             Document document = Document.from(contentText);
 
             // 获取嵌入模型
-            EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-            if (embeddingModel == null) {
-                throw new BizException("嵌入模型未找到");
-            }
+            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(modelId);
 
             // 生成嵌入向量并创建TextSegment
             dev.langchain4j.data.embedding.Embedding embedding = embeddingModel.embed(document.text()).content();

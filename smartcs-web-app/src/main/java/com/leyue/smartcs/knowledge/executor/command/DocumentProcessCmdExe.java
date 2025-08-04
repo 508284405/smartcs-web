@@ -3,7 +3,6 @@ package com.leyue.smartcs.knowledge.executor.command;
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.config.context.UserContext;
-import com.leyue.smartcs.config.ModelBeanManagerService;
 import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
@@ -11,6 +10,7 @@ import com.leyue.smartcs.domain.knowledge.enums.SegmentMode;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.*;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -37,7 +37,7 @@ public class DocumentProcessCmdExe {
     private final ContentGateway contentGateway;
     private final ChunkGateway chunkGateway;
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final ModelBeanManagerService modelBeanManagerService;
+    private final DynamicModelManager dynamicModelManager;
 
     /**
      * 执行文档处理流程
@@ -63,7 +63,7 @@ public class DocumentProcessCmdExe {
             List<Long> chunkIds = batchSaveChunks(chunks, contentId);
             
             // 4. 执行向量化处理
-            int vectorCount = processVectorization(chunks, chunkIds);
+            int vectorCount = processVectorization(chunks, chunkIds, cmd.getModelId());
             
             // 5. 计算技术参数并更新文档状态
             updateContentWithTechnicalParameters(contentId, chunks, startTime);
@@ -198,16 +198,12 @@ public class DocumentProcessCmdExe {
     /**
      * 执行向量化处理
      */
-    private int processVectorization(List<ChunkDTO> chunks, List<Long> chunkIds) {
+    private int processVectorization(List<ChunkDTO> chunks, List<Long> chunkIds, Long modelId) {
         int vectorCount = 0;
         long embeddingStartTime = System.currentTimeMillis();
         
         // 获取嵌入模型
-        EmbeddingModel embeddingModel = (EmbeddingModel) modelBeanManagerService.getFirstModelBean();
-        if (embeddingModel == null) {
-            log.warn("嵌入模型未找到，跳过向量化处理");
-            return 0;
-        }
+        EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(modelId);
         
         for (int i = 0; i < chunks.size() && i < chunkIds.size(); i++) {
             try {
