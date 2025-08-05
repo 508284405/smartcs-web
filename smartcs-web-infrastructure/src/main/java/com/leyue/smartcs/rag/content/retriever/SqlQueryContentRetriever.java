@@ -57,7 +57,10 @@ public class SqlQueryContentRetriever implements ContentRetriever {
             
             if (results.isEmpty()) {
                 log.info("SQL查询无结果: {}", sqlQuery);
-                return List.of(Content.from(TextSegment.from("查询结果：无数据", Metadata.from("source", "sql_query", "query", sqlQuery))));
+                return List.of(Content.from(TextSegment.from("查询结果：无数据", Metadata.from(Map.of(
+                "source", "sql_query",
+                "query", sqlQuery
+            )))));
             }
             
             // 格式化结果并转换为Content
@@ -65,19 +68,19 @@ public class SqlQueryContentRetriever implements ContentRetriever {
             
             log.info("SQL查询执行成功，返回{}条记录", results.size());
             
-            return List.of(Content.from(TextSegment.from(formattedResult, Metadata.from(
+            return List.of(Content.from(TextSegment.from(formattedResult, Metadata.from(Map.of(
                 "source", "sql_query",
                 "query", sqlQuery,
                 "result_count", String.valueOf(results.size())
-            ))));
+            )))));
             
         } catch (Exception e) {
             log.error("SQL查询执行失败: {}", e.getMessage(), e);
-            return List.of(Content.from(TextSegment.from("查询执行失败: " + e.getMessage(), Metadata.from(
+            return List.of(Content.from(TextSegment.from("查询执行失败: " + e.getMessage(), Metadata.from(Map.of(
                 "source", "sql_query",
                 "query", query.text(),
                 "error", e.getMessage()
-            ))));
+            )))));
         }
     }
 

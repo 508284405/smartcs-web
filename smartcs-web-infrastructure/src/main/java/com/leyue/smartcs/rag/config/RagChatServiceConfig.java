@@ -50,16 +50,20 @@ public class RagChatServiceConfig {
      * 创建RAG增强器
      */
     @Bean
-    public RetrievalAugmentor retrievalAugmentor(QueryRouter queryRouter) {
+    public RetrievalAugmentor retrievalAugmentor(QueryRouter queryRouter, 
+                                                QueryTransformer queryTransformer,
+                                                ReRankingContentAggregator contentAggregator,
+                                                ContentInjector contentInjector) {
         return DefaultRetrievalAugmentor.builder()
 //                .contentRetriever(contentRetriever())
                 .queryRouter(queryRouter)
-                .queryTransformer(queryTransformer())
-                .contentAggregator(contentAggregator())
-                .contentInjector(contentInjector())
+                .queryTransformer(queryTransformer)
+                .contentAggregator(contentAggregator)
+                .contentInjector(contentInjector)
                 .build();
     }
 
+    @Bean
     public ContentInjector contentInjector() {
         return DefaultContentInjector.builder()
                 .promptTemplate(null)
@@ -94,11 +98,13 @@ public class RagChatServiceConfig {
     }
 
     @Bean
-    public QueryRouter queryRouter() {
+    public QueryRouter queryRouter(ContentRetriever contentRetriever, 
+                                  ContentRetriever webContentRetriever, 
+                                  ContentRetriever sqlQueryContentRetriever) {
         return LanguageModelQueryRouter.builder()
                 .chatModel(chatModel)
                 .promptTemplate(null)
-                .retrieverToDescription(Map.of(contentRetriever(), "知识库检索", webContentRetriever(), "Web搜索", sqlQueryContentRetriever(), "数据库查询"))
+                .retrieverToDescription(Map.of(contentRetriever, "知识库检索", webContentRetriever, "Web搜索", sqlQueryContentRetriever, "数据库查询"))
                 .build();
     }
 
