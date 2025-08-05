@@ -1,25 +1,34 @@
 package com.leyue.smartcs.rag.config;
 
-import com.leyue.smartcs.app.service.SmartChatService;
-import com.leyue.smartcs.app.service.StructuredChatServiceAi;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.model.ai.ModelInferenceService;
-import com.leyue.smartcs.rag.retriever.EnhancedContentAggregator;
-import com.leyue.smartcs.rag.retriever.EnhancedContentInjector;
-import com.leyue.smartcs.rag.retriever.KnowledgeContentRetriever;
-import com.leyue.smartcs.rag.tools.KnowledgeSearchTool;
+import com.leyue.smartcs.rag.SmartChatService;
+import com.leyue.smartcs.rag.StructuredChatServiceAi;
+import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.rag.content.aggregator.ReRankingContentAggregator;
+import dev.langchain4j.rag.content.injector.ContentInjector;
+import dev.langchain4j.rag.content.injector.DefaultContentInjector;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
+import dev.langchain4j.rag.content.retriever.WebSearchContentRetriever;
+import dev.langchain4j.rag.query.router.LanguageModelQueryRouter;
+import dev.langchain4j.rag.query.router.QueryRouter;
+import dev.langchain4j.rag.query.transformer.ExpandingQueryTransformer;
+import dev.langchain4j.rag.query.transformer.QueryTransformer;
 import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Map;
 
 /**
  * 智能聊天服务配置
@@ -33,20 +42,58 @@ public class RagChatServiceConfig {
     private final ChatModel chatModel;
     private final StreamingChatModel streamingChatModel;
     private final ChatMemoryStore chatMemoryStore;
-    private final KnowledgeContentRetriever retriever;
-    private final EnhancedContentInjector injector;
-    private final KnowledgeSearchTool knowledgeSearchTool;
     private final DynamicModelManager dynamicModelManager;
+    private final EmbeddingStore<TextSegment> embeddingStore;
 
     /**
      * 创建RAG增强器
      */
     @Bean
-    public RetrievalAugmentor retrievalAugmentor(ReRankingContentAggregator contentAggregator) {
+    public RetrievalAugmentor retrievalAugmentor(QueryRouter queryRouter) {
         return DefaultRetrievalAugmentor.builder()
-                .contentRetriever(retriever)
-                .contentAggregator(contentAggregator)
-                .contentInjector(injector)
+//                .contentRetriever(contentRetriever())
+                .queryRouter(queryRouter)
+                .queryTransformer(queryTransformer())
+                .contentAggregator(contentAggregator())
+                .contentInjector(contentInjector())
+                .build();
+    }
+
+    public ContentInjector contentInjector() {
+        return DefaultContentInjector.builder()
+                .promptTemplate(null)
+                .metadataKeysToInclude( null)
+                .build();
+    }
+
+    @Bean
+    public ContentRetriever contentRetriever() {
+        return EmbeddingStoreContentRetriever.from(embeddingStore);
+    }
+
+    @Bean
+    public ContentRetriever webContentRetriever() {
+        return WebSearchContentRetriever.builder()
+                .webSearchEngine(null)
+                .maxResults(10)
+                .build();
+    }
+
+    @Bean
+    public QueryTransformer queryTransformer() {
+        return ExpandingQueryTransformer.builder()
+                .chatModel(chatModel)
+                .n(5)
+                .promptTemplate(null)
+                .build();
+    }
+
+    @Bean
+    public QueryRouter queryRouter() {
+        return LanguageModelQueryRouter.builder()
+                .chatModel(chatModel)
+                .promptTemplate(null)
+                .retrieverToDescription(Map.of(contentRetriever(), "知识库检索", webContentRetriever(), "Web搜索"))
                 .build();
     }
 
@@ -70,19 +117,19 @@ public class RagChatServiceConfig {
      * 完全基于LangChain4j AI Services框架，声明式配置
      */
     @Bean
-    public SmartChatService smartChatService() {
+    public SmartChatService smartChatService(RetrievalAugmentor retrievalAugmentor) {
         log.info("创建智能聊天服务 - 基于LangChain4j AI Services");
 
         return AiServices.builder(SmartChatService.class)
                 .chatModel(chatModel)
                 .streamingChatModel(streamingChatModel)
-                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder() //记忆
                         .id(memoryId)
                         .maxMessages(20)
-                        .chatMemoryStore(chatMemoryStore)
+                        .chatMemoryStore(chatMemoryStore) // 持久化
                         .build())
-                .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
-                .tools(knowledgeSearchTool) // 注入知识库搜索工具
+                .retrievalAugmentor(retrievalAugmentor)
+//                .tools(knowledgeSearchTool) // 注入知识库搜索工具
                 .build();
     }
 
@@ -91,7 +138,7 @@ public class RagChatServiceConfig {
      * 自动集成RAG、记忆管理和结构化输出
      */
     @Bean
-    public StructuredChatServiceAi structuredChatServiceAi() {
+    public StructuredChatServiceAi structuredChatServiceAi(RetrievalAugmentor retrievalAugmentor) {
         log.info("创建结构化聊天服务 - 基于LangChain4j AiServices");
 
         return AiServices.builder(StructuredChatServiceAi.class)
@@ -102,7 +149,7 @@ public class RagChatServiceConfig {
                         .maxMessages(20)
                         .chatMemoryStore(chatMemoryStore)
                         .build())
-                .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
+                .retrievalAugmentor(retrievalAugmentor)
                 .build();
     }
 
@@ -111,7 +158,7 @@ public class RagChatServiceConfig {
      * 注意：这是一个简化版本，实际使用时需要支持动态模型切换
      */
     @Bean("modelInferenceService")
-    public ModelInferenceService modelInferenceService() {
+    public ModelInferenceService modelInferenceService(RetrievalAugmentor retrievalAugmentor) {
         Long defaultModelId = 1L; // 默认模型ID，实际应用中应该从配置中获取
 
         log.info("创建ModelInferenceService: defaultModelId={}", defaultModelId);
@@ -125,7 +172,7 @@ public class RagChatServiceConfig {
                             .maxMessages(20)
                             .chatMemoryStore(chatMemoryStore)
                             .build())
-                    .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
+                    .retrievalAugmentor(retrievalAugmentor)
                     .build();
 
         } catch (Exception e) {

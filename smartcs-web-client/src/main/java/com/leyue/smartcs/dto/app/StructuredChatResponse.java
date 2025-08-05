@@ -1,4 +1,4 @@
-package com.leyue.smartcs.domain.app.model;
+package com.leyue.smartcs.dto.app;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

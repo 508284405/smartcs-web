@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
 
-    private final RedisChatMemoryStore redisChatMemoryStore;
+    private final ChatMemoryStore chatMemoryStore;
     private final RedissonClient redissonClient;
     
     // 降级策略配置
@@ -53,7 +53,7 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
             log.debug("Redis连接正常，memoryId={}", memoryId);
         }
         
-        return redisChatMemoryStore.getMessages(memoryId);
+        return chatMemoryStore.getMessages(memoryId);
     }
 
     /**
@@ -75,7 +75,7 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @TimeLimiter(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         log.debug("更新Redis消息: memoryId={}", memoryId);
-        redisChatMemoryStore.updateMessages(memoryId, messages);
+        chatMemoryStore.updateMessages(memoryId, messages);
     }
 
     /**
@@ -97,7 +97,7 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @TimeLimiter(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
     public void deleteMessages(Object memoryId) {
         log.debug("删除Redis消息: memoryId={}", memoryId);
-        redisChatMemoryStore.deleteMessages(memoryId);
+        chatMemoryStore.deleteMessages(memoryId);
         
         // 同时删除降级存储中的数据
         if (fallbackEnabled) {
@@ -123,7 +123,7 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     public CompletableFuture<List<ChatMessage>> getMessagesAsync(Object memoryId) {
         return CompletableFuture.supplyAsync(() -> {
             log.debug("异步从Redis获取消息: memoryId={}", memoryId);
-            return redisChatMemoryStore.getMessages(memoryId);
+            return chatMemoryStore.getMessages(memoryId);
         });
     }
 
@@ -193,55 +193,5 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
             return String.format("StorageStatus{redisAvailable=%s, failureCount=%d, lastFailureTime=%d}", 
                                redisAvailable, failureCount, lastFailureTime);
         }
-    }
-
-    /**
-     * 数据同步：从Redis同步到InMemory（恢复时使用）
-     */
-    public void syncFromRedisToMemory() {
-        if (!testRedisConnection()) {
-            log.warn("Redis连接不可用，无法同步数据");
-            return;
-        }
-        
-        try {
-            log.info("开始从Redis同步数据到内存存储");
-            // 这里需要根据实际需求实现数据同步逻辑
-            // 当前的ChatMemoryStore接口不支持遍历所有会话，这是一个限制
-            log.info("数据同步完成");
-        } catch (Exception e) {
-            log.error("数据同步失败", e);
-        }
-    }
-
-    /**
-     * 数据同步：从InMemory同步到Redis（Redis恢复时使用）
-     */
-    public void syncFromMemoryToRedis() {
-        if (!testRedisConnection()) {
-            log.warn("Redis连接不可用，无法同步数据");
-            return;
-        }
-        
-        try {
-            log.info("开始从内存存储同步数据到Redis");
-            // 这里需要根据实际需求实现数据同步逻辑
-            // 当前的ChatMemoryStore接口不支持遍历所有会话，这是一个限制
-            log.info("数据同步完成");
-        } catch (Exception e) {
-            log.error("数据同步失败", e);
-        }
-    }
-
-    /**
-     * 健康检查
-     */
-    public boolean isHealthy() {
-        boolean redisHealthy = testRedisConnection();
-        boolean fallbackAvailable = fallbackEnabled;
-        
-        log.debug("健康检查 - Redis: {}, 降级: {}", redisHealthy, fallbackAvailable);
-        
-        return redisHealthy || fallbackAvailable;
     }
 }

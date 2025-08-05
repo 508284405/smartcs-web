@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.service;
+package com.leyue.smartcs.rag;
 
 import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;

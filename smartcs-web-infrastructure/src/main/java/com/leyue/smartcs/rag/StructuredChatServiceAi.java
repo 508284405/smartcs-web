@@ -1,6 +1,6 @@
-package com.leyue.smartcs.app.service;
+package com.leyue.smartcs.rag;
 
-import com.leyue.smartcs.domain.app.model.StructuredChatResponse;
+import com.leyue.smartcs.dto.app.StructuredChatResponse;
 import dev.langchain4j.service.MemoryId;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;

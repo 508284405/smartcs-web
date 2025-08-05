@@ -41,7 +41,7 @@ public class DocumentParserFactory {
         }
         
         log.info("文档解析器工厂初始化完成，支持的文档类型: {}", parserMap.keySet());
-        log.info("LangChain4j适配器已初始化，支持类型: {}", langChain4jAdapter.getSupportedTypes());
+        log.info("LangChain4j适配器已初始化，支持类型: {}", (Object) langChain4jAdapter.getSupportedTypes());
     }
     
     /**

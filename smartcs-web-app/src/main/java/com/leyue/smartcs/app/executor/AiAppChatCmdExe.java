@@ -1,6 +1,6 @@
 package com.leyue.smartcs.app.executor;
 
-import com.leyue.smartcs.app.service.SmartChatService;
+import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;

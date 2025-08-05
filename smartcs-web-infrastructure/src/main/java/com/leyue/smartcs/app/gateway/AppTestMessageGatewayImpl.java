@@ -1,4 +1,4 @@
-package com.leyue.smartcs.app.gatewayimpl;
+package com.leyue.smartcs.app.gateway;
 
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.leyue.smartcs.app.convertor.AppTestMessageConvertor;
