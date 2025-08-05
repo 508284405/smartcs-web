@@ -25,6 +25,14 @@ public interface ModelAppConvertor {
     @Mapping(target = "modelType", expression = "java(modelTypeListFromStringList(cmd.getModelType()))")
     @Mapping(target = "fetchFrom", expression = "java(fetchFromFromName(cmd.getFetchFrom()))")
     @Mapping(target = "status", expression = "java(statusFromName(cmd.getStatus()))")
+    @Mapping(target = "featuresList", ignore = true)
+    @Mapping(target = "modelTypeStrings", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "isDeleted", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     Model toDomain(ModelCreateCmd cmd);
     
     /**
@@ -33,6 +41,13 @@ public interface ModelAppConvertor {
     @Mapping(target = "modelType", expression = "java(modelTypeListFromStringList(cmd.getModelType()))")
     @Mapping(target = "fetchFrom", expression = "java(fetchFromFromName(cmd.getFetchFrom()))")
     @Mapping(target = "status", expression = "java(statusFromName(cmd.getStatus()))")
+    @Mapping(target = "featuresList", ignore = true)
+    @Mapping(target = "modelTypeStrings", ignore = true)
+    @Mapping(target = "isDeleted", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "updatedBy", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     Model toDomain(ModelUpdateCmd cmd);
     
     /**

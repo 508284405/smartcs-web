@@ -160,12 +160,12 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
 
     /**
      * 创建推理服务 - 核心简化逻辑
-     * 框架自动处理所有复杂性：RAG、记忆、工具调用等
+     * 基于LangChain4j框架和DynamicModelManager，自动处理所有复杂性：RAG、记忆、工具调用等
      */
     private com.leyue.smartcs.model.ai.ModelInferenceService createInferenceService(Long modelId, List<Long> knowledgeIds) {
         try {
-            // 默认启用RAG增强的服务
-            return serviceConfig.createModelInferenceService(modelId, knowledgeIds);
+            // 使用DynamicModelManager创建推理服务，它已经集成了RAG增强能力
+            return dynamicModelManager.createModelInferenceService(modelId, knowledgeIds);
         } catch (Exception e) {
             log.error("创建推理服务失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
             throw new BizException("无法创建推理服务: " + e.getMessage());

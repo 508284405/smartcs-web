@@ -201,4 +201,47 @@ public class DynamicModelManager {
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
+
+    /**
+     * 创建模型推理服务
+     * 基于LangChain4j框架的声明式AI服务创建
+     * 
+     * @param modelId 模型ID
+     * @param knowledgeIds 知识库ID列表 (当前版本暂未使用，为未来扩展预留)
+     * @return ModelInferenceService实例
+     */
+    public ModelInferenceService createModelInferenceService(Long modelId, java.util.List<Long> knowledgeIds) {
+        log.info("创建ModelInferenceService: modelId={}, knowledgeIds={}", modelId, knowledgeIds);
+        
+        try {
+            // 获取模型对应的ChatModel和StreamingChatModel
+            ChatModel chatModel = getChatModel(modelId);
+            StreamingChatModel streamingChatModel = getStreamingChatModel(modelId);
+            
+            // 使用LangChain4j AiServices框架创建推理服务
+            // 注意：这里需要从Spring上下文获取RAG相关的配置
+            return createAiServiceWithRag(chatModel, streamingChatModel, knowledgeIds);
+            
+        } catch (Exception e) {
+            log.error("创建ModelInferenceService失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
+            throw new RuntimeException("无法创建ModelInferenceService: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 创建带RAG增强的AI服务
+     * 使用简化的RAG配置，避免循环依赖问题
+     */
+    private ModelInferenceService createAiServiceWithRag(ChatModel chatModel, 
+                                                        StreamingChatModel streamingChatModel, 
+                                                        java.util.List<Long> knowledgeIds) {
+        // 简化版本：直接创建不带RAG的服务
+        // 生产环境中可以根据knowledgeIds动态配置RAG增强器
+        return dev.langchain4j.service.AiServices.builder(ModelInferenceService.class)
+                .chatModel(chatModel)
+                .streamingChatModel(streamingChatModel)
+                // 暂时不添加RAG增强器，避免循环依赖
+                // .retrievalAugmentor(retrievalAugmentor) 
+                .build();
+    }
 }

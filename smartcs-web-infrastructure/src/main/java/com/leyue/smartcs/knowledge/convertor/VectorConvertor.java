@@ -3,15 +3,12 @@ package com.leyue.smartcs.knowledge.convertor;
 import com.leyue.smartcs.domain.knowledge.Vector;
 import com.leyue.smartcs.knowledge.dataobject.VectorDO;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
 
 /**
  * 向量数据对象转换器
  */
-@Mapper
+@Mapper(componentModel = "spring")
 public interface VectorConvertor {
-    
-    VectorConvertor INSTANCE = Mappers.getMapper(VectorConvertor.class);
     
     /**
      * DO转Domain

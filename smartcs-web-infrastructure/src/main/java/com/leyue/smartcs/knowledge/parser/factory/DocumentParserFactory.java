@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 文档解析器工厂
@@ -202,7 +203,8 @@ public class DocumentParserFactory {
      * 获取所有支持的文档类型
      */
     public String[] getSupportedTypes() {
-        return parserMap.keySet().toArray(new String[0]);
+        Set<String> keySet = parserMap.keySet();
+        return keySet.toArray(new String[keySet.size()]);
     }
     
     /**

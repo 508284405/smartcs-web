@@ -42,21 +42,27 @@ public class RagChatServiceConfig {
      * 创建RAG增强器
      */
     @Bean
-    public RetrievalAugmentor retrievalAugmentor() {
+    public RetrievalAugmentor retrievalAugmentor(ReRankingContentAggregator contentAggregator) {
         return DefaultRetrievalAugmentor.builder()
                 .contentRetriever(retriever)
-                .contentAggregator(aggregator())
+                .contentAggregator(contentAggregator)
                 .contentInjector(injector)
                 .build();
     }
 
+    /**
+     * 创建重排序内容聚合器
+     * 基于LangChain4j 1.1.0最佳实践，使用简化配置避免过度复杂化
+     */
     @Bean
-    public ReRankingContentAggregator aggregator() {
+    public ReRankingContentAggregator contentAggregator() {
+        // 使用LangChain4j推荐的默认重排序配置
+        // 对于生产环境，可以根据需要配置专用的ScoringModel
         return ReRankingContentAggregator.builder()
                 .maxResults(5)
                 .minScore(0.5)
-                .scoringModel()
-                .querySelector(aggregator);
+                // 暂时不配置scoringModel，使用默认的基于相似度的排序
+                .build();
     }
 
     /**
@@ -75,7 +81,7 @@ public class RagChatServiceConfig {
                         .maxMessages(20)
                         .chatMemoryStore(chatMemoryStore)
                         .build())
-                .retrievalAugmentor(retrievalAugmentor())
+                .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
                 .tools(knowledgeSearchTool) // 注入知识库搜索工具
                 .build();
     }
@@ -96,7 +102,7 @@ public class RagChatServiceConfig {
                         .maxMessages(20)
                         .chatMemoryStore(chatMemoryStore)
                         .build())
-                .retrievalAugmentor(retrievalAugmentor())
+                .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
                 .build();
     }
 
@@ -119,7 +125,7 @@ public class RagChatServiceConfig {
                             .maxMessages(20)
                             .chatMemoryStore(chatMemoryStore)
                             .build())
-                    .retrievalAugmentor(retrievalAugmentor())
+                    .retrievalAugmentor(retrievalAugmentor(contentAggregator()))
                     .build();
 
         } catch (Exception e) {
