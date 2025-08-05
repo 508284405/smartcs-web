@@ -3,6 +3,7 @@ package com.leyue.smartcs.rag.config;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.model.ai.ModelInferenceService;
 import com.leyue.smartcs.rag.SmartChatService;
+import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
@@ -80,6 +81,10 @@ public class RagChatServiceConfig {
     }
 
     @Bean
+    public ContentRetriever sqlQueryContentRetriever() {
+        return new SqlQueryContentRetriever(null); // JdbcTemplate将通过构造函数注入
+    }
+    @Bean
     public QueryTransformer queryTransformer() {
         return ExpandingQueryTransformer.builder()
                 .chatModel(chatModel)
@@ -93,7 +98,7 @@ public class RagChatServiceConfig {
         return LanguageModelQueryRouter.builder()
                 .chatModel(chatModel)
                 .promptTemplate(null)
-                .retrieverToDescription(Map.of(contentRetriever(), "知识库检索", webContentRetriever(), "Web搜索"))
+                .retrieverToDescription(Map.of(contentRetriever(), "知识库检索", webContentRetriever(), "Web搜索", sqlQueryContentRetriever(), "数据库查询"))
                 .build();
     }
 
