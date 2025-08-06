@@ -5,6 +5,7 @@ import com.leyue.smartcs.model.ai.ModelInferenceService;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
+import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
@@ -77,9 +78,9 @@ public class RagChatServiceConfig {
     }
 
     @Bean
-    public ContentRetriever webContentRetriever() {
+    public ContentRetriever webContentRetriever(SearXNGWebSearchEngine searxngWebSearchEngine) {
         return WebSearchContentRetriever.builder()
-                .webSearchEngine(null)
+                .webSearchEngine(searxngWebSearchEngine)
                 .maxResults(10)
                 .build();
     }

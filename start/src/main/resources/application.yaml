@@ -46,6 +46,17 @@ smartcs:
       content-separator: "\n\n---\n\n"
       max-content-length: 4000
     
+    # Web搜索配置
+    web-search:
+      enabled: true
+      searxng:
+        base-url: "https://searx.be"
+        timeout: 10
+        max-results: 8
+        user-agent: "SmartCS-Web/1.0.0"
+        result-language: "zh-CN"
+        safe-content: true
+    
     # 工具系统配置
     tools:
       enabled: true
