@@ -5,6 +5,7 @@ import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
+import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,29 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * AI应用聊天命令执行器
- * 重构版本：完全基于LangChain4j框架的SmartChatService
+ * 
+ * <p>重构版本：完全基于LangChain4j框架的SmartChatService，支持自定义RAG配置。
+ * 提供流式SSE响应，集成完整的RAG（检索增强生成）能力。</p>
+ * 
+ * <h3>主要功能:</h3>
+ * <ul>
+ *   <li>基于LangChain4j的SmartChatService进行AI聊天</li>
+ *   <li>支持自定义RAG组件配置，允许前端动态调整检索参数</li>
+ *   <li>自动验证和修正配置参数，确保系统稳定性</li>
+ *   <li>流式SSE响应，提供实时的聊天体验</li>
+ *   <li>完整的错误处理和日志记录</li>
+ * </ul>
+ * 
+ * <h3>RAG配置支持:</h3>
+ * <ul>
+ *   <li>内容聚合器：控制返回结果的数量和质量</li>
+ *   <li>查询转换器：控制查询扩展的复杂度</li>
+ *   <li>查询路由器：选择性启用不同的检索器</li>
+ *   <li>参数验证：自动修正超出范围的配置值</li>
+ * </ul>
+ * 
+ * @see SmartChatService
+ * @see RagComponentConfig
  */
 @Component
 @RequiredArgsConstructor
@@ -42,8 +65,16 @@ public class AiAppChatCmdExe {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
                 
+                // 验证和处理RAG配置
+                RagComponentConfig ragConfig = validateAndProcessRagConfig(cmd.getRagConfig());
+                if (ragConfig != null) {
+                    log.info("使用自定义RAG配置: sessionId={}, ragConfig={}", sessionId, ragConfig);
+                } else {
+                    log.info("使用默认RAG配置: sessionId={}", sessionId);
+                }
+                
                 // 动态创建SmartChatService实例
-                SmartChatService smartChatService = dynamicModelManager.createSmartChatService(cmd.getModelId());
+                SmartChatService smartChatService = dynamicModelManager.createSmartChatService(cmd.getModelId(), ragConfig);
                 processChatStream(emitter, cmd, sessionId, smartChatService);
                 
             } catch (Exception e) {
@@ -109,6 +140,85 @@ public class AiAppChatCmdExe {
                 emitter.completeWithError(throwable);
             })
             .start();
+    }
+
+    /**
+     * 验证和处理RAG配置
+     * 
+     * <p>对传入的RAG配置进行全面验证，确保所有参数都在合理范围内。
+     * 对于超出范围的参数值，会自动修正为默认值并记录警告日志。</p>
+     * 
+     * <h3>验证规则:</h3>
+     * <ul>
+     *   <li><strong>内容聚合器</strong>：maxResults∈[1,50], minScore∈[0.0,1.0]</li>
+     *   <li><strong>查询转换器</strong>：n∈[1,10]</li>
+     *   <li><strong>Web搜索</strong>：maxResults∈[1,50], timeout∈[1,60]</li>
+     *   <li><strong>知识库搜索</strong>：topK∈[1,100], scoreThreshold∈[0.0,1.0]</li>
+     * </ul>
+     * 
+     * <h3>错误处理:</h3>
+     * <ul>
+     *   <li>参数超出范围时自动修正为默认值</li>
+     *   <li>配置验证异常时返回null，使用系统默认配置</li>
+     *   <li>所有验证过程都有详细的日志记录</li>
+     * </ul>
+     * 
+     * @param ragConfig 原始RAG配置，可以为null
+     * @return 验证后的RAG配置，如果为null或验证失败则返回null（表示使用默认配置）
+     */
+    private RagComponentConfig validateAndProcessRagConfig(RagComponentConfig ragConfig) {
+        if (ragConfig == null) {
+            return null;
+        }
+        
+        try {
+            // 验证内容聚合器配置
+            RagComponentConfig.ContentAggregatorConfig contentConfig = ragConfig.getContentAggregatorOrDefault();
+            if (contentConfig.getMaxResults() < 1 || contentConfig.getMaxResults() > 50) {
+                log.warn("内容聚合器maxResults超出范围，使用默认值: {}", contentConfig.getMaxResults());
+                contentConfig.setMaxResults(5);
+            }
+            if (contentConfig.getMinScore() < 0.0 || contentConfig.getMinScore() > 1.0) {
+                log.warn("内容聚合器minScore超出范围，使用默认值: {}", contentConfig.getMinScore());
+                contentConfig.setMinScore(0.5);
+            }
+            
+            // 验证查询转换器配置
+            RagComponentConfig.QueryTransformerConfig transformerConfig = ragConfig.getQueryTransformerOrDefault();
+            if (transformerConfig.getN() < 1 || transformerConfig.getN() > 10) {
+                log.warn("查询转换器n超出范围，使用默认值: {}", transformerConfig.getN());
+                transformerConfig.setN(5);
+            }
+            
+            // 验证Web搜索配置
+            RagComponentConfig.WebSearchConfig webConfig = ragConfig.getWebSearchOrDefault();
+            if (webConfig.getMaxResults() < 1 || webConfig.getMaxResults() > 50) {
+                log.warn("Web搜索maxResults超出范围，使用默认值: {}", webConfig.getMaxResults());
+                webConfig.setMaxResults(10);
+            }
+            if (webConfig.getTimeout() < 1 || webConfig.getTimeout() > 60) {
+                log.warn("Web搜索timeout超出范围，使用默认值: {}", webConfig.getTimeout());
+                webConfig.setTimeout(10);
+            }
+            
+            // 验证知识库搜索配置
+            RagComponentConfig.KnowledgeSearchConfig knowledgeConfig = ragConfig.getKnowledgeSearchOrDefault();
+            if (knowledgeConfig.getTopK() < 1 || knowledgeConfig.getTopK() > 100) {
+                log.warn("知识库搜索topK超出范围，使用默认值: {}", knowledgeConfig.getTopK());
+                knowledgeConfig.setTopK(5);
+            }
+            if (knowledgeConfig.getScoreThreshold() < 0.0 || knowledgeConfig.getScoreThreshold() > 1.0) {
+                log.warn("知识库搜索scoreThreshold超出范围，使用默认值: {}", knowledgeConfig.getScoreThreshold());
+                knowledgeConfig.setScoreThreshold(0.7);
+            }
+            
+            log.debug("RAG配置验证完成: ragConfig={}", ragConfig);
+            return ragConfig;
+            
+        } catch (Exception e) {
+            log.error("RAG配置验证失败，将使用默认配置", e);
+            return null;
+        }
     }
 
     /**

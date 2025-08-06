@@ -4,6 +4,7 @@ import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
+import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
 import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
@@ -274,11 +275,33 @@ public class DynamicModelManager {
     }
 
     /**
-     * 根据模型ID创建RetrievalAugmentor
+     * 根据模型ID创建RetrievalAugmentor（使用默认配置）
      */
     public RetrievalAugmentor createRetrievalAugmentor(Long modelId) {
+        return createRetrievalAugmentor(modelId, null);
+    }
+
+    /**
+     * 根据模型ID和配置创建RetrievalAugmentor
+     * 
+     * @param modelId 模型ID
+     * @param ragConfig RAG配置，如果为null则使用默认配置
+     */
+    public RetrievalAugmentor createRetrievalAugmentor(Long modelId, RagComponentConfig ragConfig) {
+        // 为了支持配置变化，我们不缓存带有自定义配置的实例
+        if (ragConfig != null) {
+            log.debug("创建自定义配置的RetrievalAugmentor实例: modelId={}, ragConfig={}", modelId, ragConfig);
+            
+            return DefaultRetrievalAugmentor.builder()
+                    .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault()))
+                    .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault()))
+                    .contentAggregator(createContentAggregator(modelId, ragConfig.getContentAggregatorOrDefault()))
+                    .contentInjector(createContentInjector(modelId))
+                    .build();
+        }
+        
         return retrievalAugmentorCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建RetrievalAugmentor实例: modelId={}", id);
+            log.debug("创建默认配置的RetrievalAugmentor实例: modelId={}", id);
             
             return DefaultRetrievalAugmentor.builder()
                     .queryRouter(createQueryRouter(id))
@@ -303,11 +326,31 @@ public class DynamicModelManager {
     }
 
     /**
-     * 根据模型ID创建QueryTransformer
+     * 根据模型ID创建QueryTransformer（使用默认配置）
      */
     public QueryTransformer createQueryTransformer(Long modelId) {
+        return createQueryTransformer(modelId, null);
+    }
+
+    /**
+     * 根据模型ID和配置创建QueryTransformer
+     * 
+     * @param modelId 模型ID
+     * @param config 查询转换器配置，如果为null则使用默认配置
+     */
+    public QueryTransformer createQueryTransformer(Long modelId, RagComponentConfig.QueryTransformerConfig config) {
+        if (config != null) {
+            log.debug("创建自定义配置的QueryTransformer实例: modelId={}, config={}", modelId, config);
+            ChatModel chatModel = getChatModel(modelId);
+            return ExpandingQueryTransformer.builder()
+                    .chatModel(chatModel)
+                    .n(config.getN())
+                    .promptTemplate(null)
+                    .build();
+        }
+        
         return queryTransformerCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建QueryTransformer实例: modelId={}", id);
+            log.debug("创建默认配置的QueryTransformer实例: modelId={}", id);
             ChatModel chatModel = getChatModel(id);
             return ExpandingQueryTransformer.builder()
                     .chatModel(chatModel)
@@ -318,11 +361,50 @@ public class DynamicModelManager {
     }
 
     /**
-     * 根据模型ID创建QueryRouter
+     * 根据模型ID创建QueryRouter（使用默认配置）
      */
     public QueryRouter createQueryRouter(Long modelId) {
+        return createQueryRouter(modelId, null);
+    }
+
+    /**
+     * 根据模型ID和配置创建QueryRouter
+     * 
+     * @param modelId 模型ID
+     * @param config 查询路由器配置，如果为null则使用默认配置
+     */
+    public QueryRouter createQueryRouter(Long modelId, RagComponentConfig.QueryRouterConfig config) {
+        if (config != null) {
+            log.debug("创建自定义配置的QueryRouter实例: modelId={}, config={}", modelId, config);
+            ChatModel chatModel = getChatModel(modelId);
+            
+            // 根据配置创建内容检索器
+            Map<ContentRetriever, String> retrievers = new java.util.HashMap<>();
+            
+            if (config.getEnableKnowledgeRetrieval()) {
+                ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.from(embeddingStore);
+                retrievers.put(contentRetriever, "知识库检索");
+            }
+            
+            if (config.getEnableWebSearch()) {
+                ContentRetriever webContentRetriever = createWebContentRetriever();
+                retrievers.put(webContentRetriever, "Web搜索");
+            }
+            
+            if (config.getEnableSqlQuery()) {
+                ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever();
+                retrievers.put(sqlQueryContentRetriever, "数据库查询");
+            }
+            
+            return LanguageModelQueryRouter.builder()
+                    .chatModel(chatModel)
+                    .promptTemplate(null)
+                    .retrieverToDescription(retrievers)
+                    .build();
+        }
+        
         return queryRouterCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建QueryRouter实例: modelId={}", id);
+            log.debug("创建默认配置的QueryRouter实例: modelId={}", id);
             ChatModel chatModel = getChatModel(id);
             
             // 创建内容检索器
@@ -342,11 +424,29 @@ public class DynamicModelManager {
     }
 
     /**
-     * 根据模型ID创建ReRankingContentAggregator
+     * 根据模型ID创建ReRankingContentAggregator（使用默认配置）
      */
     public ReRankingContentAggregator createContentAggregator(Long modelId) {
+        return createContentAggregator(modelId, null);
+    }
+
+    /**
+     * 根据模型ID和配置创建ReRankingContentAggregator
+     * 
+     * @param modelId 模型ID
+     * @param config 内容聚合器配置，如果为null则使用默认配置
+     */
+    public ReRankingContentAggregator createContentAggregator(Long modelId, RagComponentConfig.ContentAggregatorConfig config) {
+        if (config != null) {
+            log.debug("创建自定义配置的ReRankingContentAggregator实例: modelId={}, config={}", modelId, config);
+            return ReRankingContentAggregator.builder()
+                    .maxResults(config.getMaxResults())
+                    .minScore(config.getMinScore())
+                    .build();
+        }
+        
         return contentAggregatorCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建ReRankingContentAggregator实例: modelId={}", id);
+            log.debug("创建默认配置的ReRankingContentAggregator实例: modelId={}", id);
             return ReRankingContentAggregator.builder()
                     .maxResults(5)
                     .minScore(0.5)
@@ -355,9 +455,25 @@ public class DynamicModelManager {
     }
 
     /**
-     * 创建Web内容检索器
+     * 创建Web内容检索器（使用默认配置）
      */
     private ContentRetriever createWebContentRetriever() {
+        return createWebContentRetriever(null);
+    }
+
+    /**
+     * 创建Web内容检索器
+     * 
+     * @param config Web搜索配置，如果为null则使用默认配置
+     */
+    private ContentRetriever createWebContentRetriever(RagComponentConfig.WebSearchConfig config) {
+        if (config != null) {
+            return WebSearchContentRetriever.builder()
+                    .webSearchEngine(searxngWebSearchEngine)
+                    .maxResults(config.getMaxResults())
+                    .build();
+        }
+        
         return WebSearchContentRetriever.builder()
                 .webSearchEngine(searxngWebSearchEngine)
                 .maxResults(10)
@@ -372,18 +488,61 @@ public class DynamicModelManager {
     }
 
     /**
-     * 创建智能聊天服务
+     * 创建智能聊天服务（使用默认RAG配置）
      * 
-     * @param modelId 模型ID
-     * @return SmartChatService实例
+     * <p>使用系统默认的RAG组件配置创建智能聊天服务实例。</p>
+     * 
+     * <h3>默认配置:</h3>
+     * <ul>
+     *   <li>内容聚合器：maxResults=5, minScore=0.5</li>
+     *   <li>查询转换器：n=5</li>
+     *   <li>Web搜索：maxResults=10</li>
+     *   <li>知识库搜索：使用EmbeddingStore默认配置</li>
+     * </ul>
+     * 
+     * @param modelId 模型ID，必须是有效的模型标识
+     * @return SmartChatService实例，包含完整的RAG能力
+     * @throws RuntimeException 当模型不存在或创建服务失败时
      */
     public SmartChatService createSmartChatService(Long modelId) {
-        log.info("创建SmartChatService: modelId={}", modelId);
+        return createSmartChatService(modelId, null);
+    }
+
+    /**
+     * 创建智能聊天服务（支持自定义RAG配置）
+     * 
+     * <p>根据提供的RAG配置创建智能聊天服务实例。支持前端动态自定义各个RAG组件的参数，
+     * 以满足不同场景下的检索和生成需求。</p>
+     * 
+     * <h3>配置参数说明:</h3>
+     * <ul>
+     *   <li><strong>内容聚合器</strong>：控制最终返回给LLM的内容数量和质量阈值</li>
+     *   <li><strong>查询转换器</strong>：控制将用户查询扩展为多个变体的数量</li>
+     *   <li><strong>查询路由器</strong>：控制启用哪些检索器（知识库、Web搜索、SQL查询）</li>
+     *   <li><strong>Web搜索</strong>：控制Web搜索的结果数量和超时设置</li>
+     *   <li><strong>知识库搜索</strong>：控制向量搜索的topK和相关性阈值</li>
+     * </ul>
+     * 
+     * <h3>性能考虑:</h3>
+     * <ul>
+     *   <li>使用自定义配置的服务实例不会被缓存</li>
+     *   <li>每次调用都会创建新的RAG组件实例</li>
+     *   <li>建议在需要定制化配置时使用，否则使用默认配置版本</li>
+     * </ul>
+     * 
+     * @param modelId 模型ID，必须是有效的模型标识
+     * @param ragConfig RAG组件配置，如果为null则使用系统默认配置
+     * @return SmartChatService实例，包含根据配置定制的RAG能力
+     * @throws RuntimeException 当模型不存在或创建服务失败时
+     * @see RagComponentConfig
+     */
+    public SmartChatService createSmartChatService(Long modelId, RagComponentConfig ragConfig) {
+        log.info("创建SmartChatService: modelId={}, ragConfig={}", modelId, ragConfig);
         
         try {
             ChatModel chatModel = getChatModel(modelId);
             StreamingChatModel streamingChatModel = getStreamingChatModel(modelId);
-            RetrievalAugmentor retrievalAugmentor = createRetrievalAugmentor(modelId);
+            RetrievalAugmentor retrievalAugmentor = createRetrievalAugmentor(modelId, ragConfig);
             
             return AiServices.builder(SmartChatService.class)
                     .chatModel(chatModel)
@@ -397,7 +556,7 @@ public class DynamicModelManager {
                     .build();
             
         } catch (Exception e) {
-            log.error("创建SmartChatService失败: modelId={}", modelId, e);
+            log.error("创建SmartChatService失败: modelId={}, ragConfig={}", modelId, ragConfig, e);
             throw new RuntimeException("无法创建SmartChatService: " + e.getMessage(), e);
         }
     }
