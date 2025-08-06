@@ -5,6 +5,7 @@ import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class AiAppChatCmdExe {
 
-    private final SmartChatService smartChatService;
+    private final DynamicModelManager dynamicModelManager;
     private final IdGeneratorGateway idGeneratorGateway;
 
     /**
@@ -41,8 +42,9 @@ public class AiAppChatCmdExe {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
                 
-                // 直接使用SmartChatService的流式聊天
-                processChatStream(emitter, cmd, sessionId);
+                // 动态创建SmartChatService实例
+                SmartChatService smartChatService = dynamicModelManager.createSmartChatService(cmd.getModelId());
+                processChatStream(emitter, cmd, sessionId, smartChatService);
                 
             } catch (Exception e) {
                 handleError(emitter, cmd.getAppId(), sessionId, e);
@@ -57,7 +59,7 @@ public class AiAppChatCmdExe {
      * 处理流式聊天
      * 使用LangChain4j原生TokenStream，框架自动处理RAG和记忆
      */
-    private void processChatStream(SseEmitter emitter, AiAppChatCmd cmd, String sessionId) throws Exception {
+    private void processChatStream(SseEmitter emitter, AiAppChatCmd cmd, String sessionId, SmartChatService smartChatService) throws Exception {
         sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在生成AI回答..."));
         
         // 使用SmartChatService的流式聊天 - 框架自动处理RAG和记忆

@@ -390,9 +390,10 @@
             <snapshots>
                 <enabled>true</enabled>
             </snapshots>
-        </repository><repository>
-            <id>central-portal-snapshots</id>
-            <name>Central Portal Snapshots</name>
+        </repository>
+        <repository>
+            <id>mvnrepository</id>
+            <name>Maven Repository</name>
             <url>https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-community-bom</url>
             <releases>
                 <enabled>false</enabled>

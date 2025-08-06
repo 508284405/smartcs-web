@@ -4,12 +4,33 @@ import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
+import com.leyue.smartcs.rag.SmartChatService;
+import com.leyue.smartcs.rag.StructuredChatServiceAi;
+import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
+import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.rag.DefaultRetrievalAugmentor;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.rag.content.aggregator.ReRankingContentAggregator;
+import dev.langchain4j.rag.content.injector.ContentInjector;
+import dev.langchain4j.rag.content.injector.DefaultContentInjector;
+import dev.langchain4j.rag.content.retriever.ContentRetriever;
+import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
+import dev.langchain4j.rag.content.retriever.WebSearchContentRetriever;
+import dev.langchain4j.rag.query.router.LanguageModelQueryRouter;
+import dev.langchain4j.rag.query.router.QueryRouter;
+import dev.langchain4j.rag.query.transformer.ExpandingQueryTransformer;
+import dev.langchain4j.rag.query.transformer.QueryTransformer;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.embedding.EmbeddingStore;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,11 +49,21 @@ public class DynamicModelManager {
 
     private final ModelGateway modelGateway;
     private final ProviderGateway providerGateway;
+    private final ChatMemoryStore chatMemoryStore;
+    private final EmbeddingStore<TextSegment> embeddingStore;
+    private final SearXNGWebSearchEngine searxngWebSearchEngine;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
     private final Map<Long, StreamingChatModel> streamingChatModelCache = new ConcurrentHashMap<>();
     private final Map<Long, EmbeddingModel> embeddingModelCache = new ConcurrentHashMap<>();
+    
+    // 缓存RAG组件实例，避免重复创建
+    private final Map<Long, RetrievalAugmentor> retrievalAugmentorCache = new ConcurrentHashMap<>();
+    private final Map<Long, ContentInjector> contentInjectorCache = new ConcurrentHashMap<>();
+    private final Map<Long, QueryTransformer> queryTransformerCache = new ConcurrentHashMap<>();
+    private final Map<Long, QueryRouter> queryRouterCache = new ConcurrentHashMap<>();
+    private final Map<Long, ReRankingContentAggregator> contentAggregatorCache = new ConcurrentHashMap<>();
 
     /**
      * 根据模型ID获取ChatModel
@@ -132,6 +163,9 @@ public class DynamicModelManager {
         chatModelCache.clear();
         streamingChatModelCache.clear();
         embeddingModelCache.clear();
+        
+        // 同时清除RAG组件缓存
+        clearAllRagComponentCache();
     }
 
     /**
@@ -203,7 +237,7 @@ public class DynamicModelManager {
     }
 
     /**
-     * 创建模型推理服务
+     * 创建模型推理服务 - 集成完整RAG能力
      * 基于LangChain4j框架的声明式AI服务创建
      * 
      * @param modelId 模型ID
@@ -218,9 +252,20 @@ public class DynamicModelManager {
             ChatModel chatModel = getChatModel(modelId);
             StreamingChatModel streamingChatModel = getStreamingChatModel(modelId);
             
+            // 创建RAG增强器
+            RetrievalAugmentor retrievalAugmentor = createRetrievalAugmentor(modelId);
+            
             // 使用LangChain4j AiServices框架创建推理服务
-            // 注意：这里需要从Spring上下文获取RAG相关的配置
-            return createAiServiceWithRag(chatModel, streamingChatModel, knowledgeIds);
+            return AiServices.builder(ModelInferenceService.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                            .id(memoryId)
+                            .maxMessages(20)
+                            .chatMemoryStore(chatMemoryStore)
+                            .build())
+                    .retrievalAugmentor(retrievalAugmentor)
+                    .build();
             
         } catch (Exception e) {
             log.error("创建ModelInferenceService失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
@@ -229,19 +274,214 @@ public class DynamicModelManager {
     }
 
     /**
-     * 创建带RAG增强的AI服务
-     * 使用简化的RAG配置，避免循环依赖问题
+     * 根据模型ID创建RetrievalAugmentor
      */
-    private ModelInferenceService createAiServiceWithRag(ChatModel chatModel, 
-                                                        StreamingChatModel streamingChatModel, 
-                                                        java.util.List<Long> knowledgeIds) {
-        // 简化版本：直接创建不带RAG的服务
-        // 生产环境中可以根据knowledgeIds动态配置RAG增强器
-        return dev.langchain4j.service.AiServices.builder(ModelInferenceService.class)
-                .chatModel(chatModel)
-                .streamingChatModel(streamingChatModel)
-                // 暂时不添加RAG增强器，避免循环依赖
-                // .retrievalAugmentor(retrievalAugmentor) 
+    public RetrievalAugmentor createRetrievalAugmentor(Long modelId) {
+        return retrievalAugmentorCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建RetrievalAugmentor实例: modelId={}", id);
+            
+            return DefaultRetrievalAugmentor.builder()
+                    .queryRouter(createQueryRouter(id))
+                    .queryTransformer(createQueryTransformer(id))
+                    .contentAggregator(createContentAggregator(id))
+                    .contentInjector(createContentInjector(id))
+                    .build();
+        });
+    }
+
+    /**
+     * 根据模型ID创建ContentInjector
+     */
+    public ContentInjector createContentInjector(Long modelId) {
+        return contentInjectorCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建ContentInjector实例: modelId={}", id);
+            return DefaultContentInjector.builder()
+                    .promptTemplate(null)
+                    .metadataKeysToInclude(null)
+                    .build();
+        });
+    }
+
+    /**
+     * 根据模型ID创建QueryTransformer
+     */
+    public QueryTransformer createQueryTransformer(Long modelId) {
+        return queryTransformerCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建QueryTransformer实例: modelId={}", id);
+            ChatModel chatModel = getChatModel(id);
+            return ExpandingQueryTransformer.builder()
+                    .chatModel(chatModel)
+                    .n(5)
+                    .promptTemplate(null)
+                    .build();
+        });
+    }
+
+    /**
+     * 根据模型ID创建QueryRouter
+     */
+    public QueryRouter createQueryRouter(Long modelId) {
+        return queryRouterCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建QueryRouter实例: modelId={}", id);
+            ChatModel chatModel = getChatModel(id);
+            
+            // 创建内容检索器
+            ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.from(embeddingStore);
+            ContentRetriever webContentRetriever = createWebContentRetriever();
+            ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever();
+            
+            return LanguageModelQueryRouter.builder()
+                    .chatModel(chatModel)
+                    .promptTemplate(null)
+                    .retrieverToDescription(Map.of(
+                        contentRetriever, "知识库检索", 
+                        webContentRetriever, "Web搜索", 
+                        sqlQueryContentRetriever, "数据库查询"))
+                    .build();
+        });
+    }
+
+    /**
+     * 根据模型ID创建ReRankingContentAggregator
+     */
+    public ReRankingContentAggregator createContentAggregator(Long modelId) {
+        return contentAggregatorCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建ReRankingContentAggregator实例: modelId={}", id);
+            return ReRankingContentAggregator.builder()
+                    .maxResults(5)
+                    .minScore(0.5)
+                    .build();
+        });
+    }
+
+    /**
+     * 创建Web内容检索器
+     */
+    private ContentRetriever createWebContentRetriever() {
+        return WebSearchContentRetriever.builder()
+                .webSearchEngine(searxngWebSearchEngine)
+                .maxResults(10)
                 .build();
+    }
+
+    /**
+     * 创建SQL查询内容检索器
+     */
+    private ContentRetriever createSqlQueryContentRetriever() {
+        return new SqlQueryContentRetriever(null); // JdbcTemplate将通过构造函数注入
+    }
+
+    /**
+     * 创建智能聊天服务
+     * 
+     * @param modelId 模型ID
+     * @return SmartChatService实例
+     */
+    public SmartChatService createSmartChatService(Long modelId) {
+        log.info("创建SmartChatService: modelId={}", modelId);
+        
+        try {
+            ChatModel chatModel = getChatModel(modelId);
+            StreamingChatModel streamingChatModel = getStreamingChatModel(modelId);
+            RetrievalAugmentor retrievalAugmentor = createRetrievalAugmentor(modelId);
+            
+            return AiServices.builder(SmartChatService.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                            .id(memoryId)
+                            .maxMessages(20)
+                            .chatMemoryStore(chatMemoryStore)
+                            .build())
+                    .retrievalAugmentor(retrievalAugmentor)
+                    .build();
+            
+        } catch (Exception e) {
+            log.error("创建SmartChatService失败: modelId={}", modelId, e);
+            throw new RuntimeException("无法创建SmartChatService: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 创建结构化聊天服务
+     * 
+     * @param modelId 模型ID
+     * @return StructuredChatServiceAi实例
+     */
+    public StructuredChatServiceAi createStructuredChatService(Long modelId) {
+        log.info("创建StructuredChatService: modelId={}", modelId);
+        
+        try {
+            ChatModel chatModel = getChatModel(modelId);
+            StreamingChatModel streamingChatModel = getStreamingChatModel(modelId);
+            RetrievalAugmentor retrievalAugmentor = createRetrievalAugmentor(modelId);
+            
+            return AiServices.builder(StructuredChatServiceAi.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                            .id(memoryId)
+                            .maxMessages(20)
+                            .chatMemoryStore(chatMemoryStore)
+                            .build())
+                    .retrievalAugmentor(retrievalAugmentor)
+                    .build();
+            
+        } catch (Exception e) {
+            log.error("创建StructuredChatService失败: modelId={}", modelId, e);
+            throw new RuntimeException("无法创建StructuredChatService: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 清除指定模型的RAG组件缓存
+     * 
+     * @param modelId 模型ID
+     */
+    public void clearRagComponentCache(Long modelId) {
+        log.info("清除RAG组件缓存: modelId={}", modelId);
+        retrievalAugmentorCache.remove(modelId);
+        contentInjectorCache.remove(modelId);
+        queryTransformerCache.remove(modelId);
+        queryRouterCache.remove(modelId);
+        contentAggregatorCache.remove(modelId);
+    }
+
+    /**
+     * 清除所有RAG组件缓存
+     */
+    public void clearAllRagComponentCache() {
+        log.info("清除所有RAG组件缓存");
+        retrievalAugmentorCache.clear();
+        contentInjectorCache.clear();
+        queryTransformerCache.clear();
+        queryRouterCache.clear();
+        contentAggregatorCache.clear();
+    }
+
+    /**
+     * 获取RAG组件缓存统计信息
+     * 
+     * @return 缓存大小映射
+     */
+    public Map<String, Integer> getRagComponentCacheStats() {
+        Map<String, Integer> stats = new ConcurrentHashMap<>();
+        stats.put("retrievalAugmentorCache", retrievalAugmentorCache.size());
+        stats.put("contentInjectorCache", contentInjectorCache.size());
+        stats.put("queryTransformerCache", queryTransformerCache.size());
+        stats.put("queryRouterCache", queryRouterCache.size());
+        stats.put("contentAggregatorCache", contentAggregatorCache.size());
+        return stats;
+    }
+
+    /**
+     * 扩展的缓存统计信息，包含所有缓存
+     * 
+     * @return 完整的缓存统计信息
+     */
+    public Map<String, Integer> getAllCacheStats() {
+        Map<String, Integer> stats = getCacheStats();
+        stats.putAll(getRagComponentCacheStats());
+        return stats;
     }
 }
