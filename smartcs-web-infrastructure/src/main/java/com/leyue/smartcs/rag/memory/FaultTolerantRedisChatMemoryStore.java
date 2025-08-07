@@ -1,29 +1,28 @@
 package com.leyue.smartcs.rag.memory;
 
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.redisson.api.RedissonClient;
-import org.springframework.stereotype.Component;
-import org.springframework.context.annotation.Primary;
-
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 容错的Redis聊天记忆存储
  * 使用Resilience4j框架提供熔断器、重试、限流、超时保护
  */
 @Component
-@Primary
 @RequiredArgsConstructor
 @Slf4j
 public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {

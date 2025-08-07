@@ -11,13 +11,13 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class ChatMemoryStoreConfig {
     @Bean
-    public ChatMemoryStore chatMemoryStore(RedisProperties redisProperties){
+    public ChatMemoryStore redisChatMemoryStore(RedisProperties redisProperties){
         return new RedisChatMemoryStore(redisProperties.getHost(), redisProperties.getPort(),redisProperties.getUsername(),redisProperties.getPassword());
     }
 
     @Bean
     @Primary
-    public ChatMemoryStore chatMemoryStore(ChatMemoryStore chatMemoryStore, RedissonClient redissonClient){
-        return new FaultTolerantRedisChatMemoryStore(chatMemoryStore, redissonClient);
+    public ChatMemoryStore chatMemoryStore(ChatMemoryStore redisChatMemoryStore, RedissonClient redissonClient){
+        return new FaultTolerantRedisChatMemoryStore(redisChatMemoryStore, redissonClient);
     }
 }
