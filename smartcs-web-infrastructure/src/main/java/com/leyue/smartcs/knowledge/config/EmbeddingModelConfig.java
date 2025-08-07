@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 嵌入模型配置-使用LangChain4j的OpenAI嵌入模型
  */
-@Configuration
+// @Configuration
 public class EmbeddingModelConfig {
     @Bean
     public EmbeddingModel embeddingModel(OpenAiEmbeddingModelProperties embeddingModelProperties) {
