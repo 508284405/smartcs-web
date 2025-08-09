@@ -14,7 +14,6 @@ import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,7 +40,6 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
     @Retry(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
     @Bulkhead(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
-    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
     public List<ChatMessage> getMessages(Object memoryId) {
         log.debug("从Redis获取消息: memoryId={}", memoryId);
         
@@ -71,7 +69,6 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
     @Retry(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
     @Bulkhead(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
-    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         log.debug("更新Redis消息: memoryId={}", memoryId);
         chatMemoryStore.updateMessages(memoryId, messages);
@@ -93,7 +90,6 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
     @Retry(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
     @Bulkhead(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
-    @TimeLimiter(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
     public void deleteMessages(Object memoryId) {
         log.debug("删除Redis消息: memoryId={}", memoryId);
         chatMemoryStore.deleteMessages(memoryId);

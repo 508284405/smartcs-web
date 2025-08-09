@@ -1,15 +1,12 @@
 package com.leyue.smartcs.common.feign;
 
 import com.leyue.smartcs.config.feign.FeignConfig;
-import com.leyue.smartcs.dto.common.ApiResponse;
 import com.leyue.smartcs.common.dao.UserCenterCustomerServiceDTO;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -25,7 +22,6 @@ public interface UserCenterClient {
     @CircuitBreaker(name = "user-center-feign", fallbackMethod = "validateUserTokenFallback")
     @Retry(name = "user-center-feign", fallbackMethod = "validateUserTokenFallback")
     @Bulkhead(name = "user-center-feign", fallbackMethod = "validateUserTokenFallback")
-    @TimeLimiter(name = "user-center-feign", fallbackMethod = "validateUserTokenFallback")
     String validateUserToken(@RequestHeader("Authorization") String token);
 
     /**
@@ -45,7 +41,6 @@ public interface UserCenterClient {
     @CircuitBreaker(name = "user-center-feign", fallbackMethod = "getCustomerServiceByIdsFallback")
     @Retry(name = "user-center-feign", fallbackMethod = "getCustomerServiceByIdsFallback")
     @Bulkhead(name = "user-center-feign", fallbackMethod = "getCustomerServiceByIdsFallback")
-    @TimeLimiter(name = "user-center-feign", fallbackMethod = "getCustomerServiceByIdsFallback")
     List<UserCenterCustomerServiceDTO> getCustomerServiceByIds(@RequestParam("serviceIds") List<String> serviceIds);
 
     /**
@@ -64,7 +59,6 @@ public interface UserCenterClient {
     @CircuitBreaker(name = "user-center-feign", fallbackMethod = "getAllCustomerServiceIdsFallback")
     @Retry(name = "user-center-feign", fallbackMethod = "getAllCustomerServiceIdsFallback")
     @Bulkhead(name = "user-center-feign", fallbackMethod = "getAllCustomerServiceIdsFallback")
-    @TimeLimiter(name = "user-center-feign", fallbackMethod = "getAllCustomerServiceIdsFallback")
     List<String> getAllCustomerServiceIds();
 
     /**

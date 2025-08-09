@@ -108,8 +108,13 @@ public class AiAppChatCmdExe {
                             .timestamp(System.currentTimeMillis())
                             .build();
                     sendSSEMessage(emitter, AiAppChatSSEMessage.data(sessionId, dataResponse));
-                } catch (IOException e) {
-                    log.error("发送流式消息失败: sessionId={}", sessionId, e);
+                } catch (Exception e) {
+                    // 检查是否为客户端断开，如果是则只记录warning
+                    if (isClientDisconnectException(e)) {
+                        log.warn("发送流式消息时检测到客户端断开: sessionId={}", sessionId);
+                    } else {
+                        log.error("发送流式消息失败: sessionId={}", sessionId, e);
+                    }
                 }
             })
             .onCompleteResponse(response -> {
@@ -123,21 +128,31 @@ public class AiAppChatCmdExe {
                             .timestamp(System.currentTimeMillis())
                             .build();
                     sendSSEMessage(emitter, AiAppChatSSEMessage.complete(sessionId, completeResponse));
-                    emitter.complete();
-                } catch (IOException e) {
-                    log.error("发送完成消息失败: sessionId={}", sessionId, e);
-                    emitter.completeWithError(e);
+                } catch (Exception e) {
+                    // 检查是否为客户端断开，如果是则只记录warning
+                    if (isClientDisconnectException(e)) {
+                        log.warn("发送完成消息时检测到客户端断开: sessionId={}", sessionId);
+                    } else {
+                        log.error("发送完成消息失败: sessionId={}", sessionId, e);
+                    }
+                } finally {
+                    // 无论如何都要完成emitter
+                    try {
+                        emitter.complete();
+                    } catch (Exception completeException) {
+                        log.debug("完成emitter时出现异常: sessionId={}, error={}", sessionId, completeException.getMessage());
+                    }
                 }
             })
             .onError(throwable -> {
-                log.error("AI聊天流式处理出错: sessionId={}", sessionId, throwable);
-                try {
-                    sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, 
-                        "聊天处理失败: " + throwable.getMessage()));
-                } catch (IOException e) {
-                    log.error("发送错误消息失败", e);
+                // 使用统一的错误处理逻辑
+                if (throwable instanceof Exception) {
+                    handleError(emitter, cmd.getAppId(), sessionId, (Exception) throwable);
+                } else {
+                    // 对于非Exception的Throwable，包装为RuntimeException
+                    RuntimeException wrappedException = new RuntimeException("TokenStream处理异常", throwable);
+                    handleError(emitter, cmd.getAppId(), sessionId, wrappedException);
                 }
-                emitter.completeWithError(throwable);
             })
             .start();
     }
@@ -249,17 +264,71 @@ public class AiAppChatCmdExe {
     }
 
     /**
-     * 处理错误
+     * 处理错误 - 增强版本，支持客户端断开识别
      */
     private void handleError(SseEmitter emitter, Long appId, String sessionId, Exception e) {
-        log.error("AI应用聊天处理失败: appId={}, sessionId={}, error={}", 
-                 appId, sessionId, e.getMessage(), e);
-        try {
-            sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, "聊天处理失败: " + e.getMessage()));
-        } catch (IOException ioException) {
-            log.error("发送错误消息失败", ioException);
+        // 检查是否为客户端断开相关异常
+        if (isClientDisconnectException(e)) {
+            log.warn("客户端断开连接: appId={}, sessionId={}, error={}", 
+                     appId, sessionId, e.getMessage());
+        } else {
+            log.error("AI应用聊天处理失败: appId={}, sessionId={}, error={}", 
+                     appId, sessionId, e.getMessage(), e);
         }
-        emitter.completeWithError(e);
+        
+        try {
+            // 只有在非客户端断开的情况下才尝试发送错误消息
+            if (!isClientDisconnectException(e)) {
+                sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, "聊天处理失败: " + e.getMessage()));
+            }
+        } catch (Exception ioException) {
+            // 发送错误消息失败，可能也是客户端断开
+            if (isClientDisconnectException(ioException)) {
+                log.warn("发送错误消息时检测到客户端断开: sessionId={}", sessionId);
+            } else {
+                log.error("发送错误消息失败: sessionId={}", sessionId, ioException);
+            }
+        } finally {
+            // 确保始终完成emitter
+            try {
+                emitter.complete();
+            } catch (Exception completeException) {
+                log.debug("完成emitter时出现异常: sessionId={}, error={}", sessionId, completeException.getMessage());
+            }
+        }
+    }
+    
+    /**
+     * 判断是否为客户端断开相关异常
+     */
+    private boolean isClientDisconnectException(Exception e) {
+        if (e == null) return false;
+        
+        String message = e.getMessage();
+        String className = e.getClass().getSimpleName();
+        
+        // 检查异常类型
+        if (e instanceof java.io.IOException || 
+            e instanceof java.net.SocketException ||
+            e instanceof org.springframework.web.context.request.async.AsyncRequestNotUsableException ||
+            className.contains("ClientAbort")) {
+            return true;
+        }
+        
+        // 检查异常消息中的关键词
+        if (message != null) {
+            String lowerMessage = message.toLowerCase();
+            return lowerMessage.contains("broken pipe") ||
+                   lowerMessage.contains("connection reset") ||
+                   lowerMessage.contains("client abort") ||
+                   lowerMessage.contains("connection closed") ||
+                   lowerMessage.contains("connection was closed") ||
+                   lowerMessage.contains("socket closed") ||
+                   lowerMessage.contains("stream closed") ||
+                   lowerMessage.contains("response already committed");
+        }
+        
+        return false;
     }
 
     /**

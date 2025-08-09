@@ -251,6 +251,12 @@ public class RagComponentConfig {
         @DecimalMax(value = "1.0", message = "相关性分数阈值不能大于1.0")
         @Builder.Default
         private Double scoreThreshold = 0.7;
+
+        /**
+         * 模型ID
+         * 用于知识库检索的语言模型，未指定时回退到会话级 modelId
+         */
+        private Long modelId;
     }
 
     /**

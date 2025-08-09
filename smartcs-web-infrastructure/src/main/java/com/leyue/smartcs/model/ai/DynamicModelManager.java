@@ -7,6 +7,7 @@ import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
+import com.leyue.smartcs.rag.config.WebSearchProperties;
 import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
 import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
 import dev.langchain4j.data.segment.TextSegment;
@@ -56,6 +57,7 @@ public class DynamicModelManager {
     private final ChatMemoryStore chatMemoryStore;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final SearXNGWebSearchEngine searxngWebSearchEngine;
+    private final WebSearchProperties webSearchProperties;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
@@ -81,7 +83,7 @@ public class DynamicModelManager {
             log.debug("创建ChatModel实例: modelId={}", id);
             Model model = getModel(id);
             Provider provider = getProvider(model.getProviderId());
-            return buildChatModel(provider);
+            return buildChatModel(provider, model);
         });
     }
 
@@ -96,7 +98,7 @@ public class DynamicModelManager {
             log.debug("创建StreamingChatModel实例: modelId={}", id);
             Model model = getModel(id);
             Provider provider = getProvider(model.getProviderId());
-            return buildStreamingChatModel(provider);
+            return buildStreamingChatModel(provider, model);
         });
     }
 
@@ -111,7 +113,7 @@ public class DynamicModelManager {
             log.debug("创建EmbeddingModel实例: modelId={}", id);
             Model model = getModel(id);
             Provider provider = getProvider(model.getProviderId());
-            return buildEmbeddingModel(provider);
+            return buildEmbeddingModel(provider, model);
         });
     }
 
@@ -126,7 +128,7 @@ public class DynamicModelManager {
             log.debug("创建ScoringModel实例: modelId={}", id);
             Model model = getModel(id);
             Provider provider = getProvider(model.getProviderId());
-            return buildScoringModel(provider);
+            return buildScoringModel(provider, model);
         });
     }
 
@@ -223,11 +225,12 @@ public class DynamicModelManager {
     /**
      * 构建ChatModel实例
      */
-    private ChatModel buildChatModel(Provider provider) {
+    private ChatModel buildChatModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
             return OpenAiChatModel.builder()
                     .baseUrl(provider.getEndpoint())
                     .apiKey(provider.getApiKey())
+                    .modelName(model.getLabel())
                     .build();
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
@@ -236,11 +239,12 @@ public class DynamicModelManager {
     /**
      * 构建StreamingChatModel实例
      */
-    private StreamingChatModel buildStreamingChatModel(Provider provider) {
+    private StreamingChatModel buildStreamingChatModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
             return OpenAiStreamingChatModel.builder()
                     .baseUrl(provider.getEndpoint())
                     .apiKey(provider.getApiKey())
+                    .modelName(model.getLabel())
                     .build();
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
@@ -249,11 +253,12 @@ public class DynamicModelManager {
     /**
      * 构建EmbeddingModel实例
      */
-    private EmbeddingModel buildEmbeddingModel(Provider provider) {
+    private EmbeddingModel buildEmbeddingModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
             return OpenAiEmbeddingModel.builder()
                     .baseUrl(provider.getEndpoint())
                     .apiKey(provider.getApiKey())
+                    .modelName(model.getLabel())
                     .build();
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
@@ -263,10 +268,10 @@ public class DynamicModelManager {
      * 构建ScoringModel实例
      * 使用基于LLM的自定义ScoringModel实现，通过ChatModel进行相关性打分
      */
-    private ScoringModel buildScoringModel(Provider provider) {
+    private ScoringModel buildScoringModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
             try {
-                ChatModel chatModel = buildChatModel(provider);
+                ChatModel chatModel = buildChatModel(provider, model);
                 return new LlmBasedScoringModel(chatModel);
             } catch (Exception e) {
                 log.warn("创建LlmBasedScoringModel失败，返回null: {}", e.getMessage());
@@ -333,7 +338,7 @@ public class DynamicModelManager {
             log.debug("创建自定义配置的RetrievalAugmentor实例: modelId={}, ragConfig={}", modelId, ragConfig);
             
             return DefaultRetrievalAugmentor.builder()
-                    .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault()))
+                    .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault(),ragConfig.getKnowledgeSearchOrDefault(),ragConfig.getWebSearchOrDefault(),ragConfig.getSqlQueryOrDefault()))
                     .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault()))
                     .contentAggregator(createContentAggregator(modelId, ragConfig.getContentAggregatorOrDefault()))
                     .contentInjector(createContentInjector(modelId, ragConfig.getContentInjectorOrDefault()))
@@ -425,7 +430,7 @@ public class DynamicModelManager {
      * 根据模型ID创建QueryRouter（使用默认配置）
      */
     public QueryRouter createQueryRouter(Long modelId) {
-        return createQueryRouter(modelId, null);
+        return createQueryRouter(modelId, null, null, null, null);
     }
 
     /**
@@ -434,7 +439,7 @@ public class DynamicModelManager {
      * @param modelId 模型ID
      * @param config 查询路由器配置，如果为null则使用默认配置
      */
-    public QueryRouter createQueryRouter(Long modelId, RagComponentConfig.QueryRouterConfig config) {
+    public QueryRouter createQueryRouter(Long modelId, RagComponentConfig.QueryRouterConfig config, RagComponentConfig.KnowledgeSearchConfig knowledgeSearchConfig, RagComponentConfig.WebSearchConfig webSearchConfig, RagComponentConfig.SqlQueryConfig sqlQueryConfig) {
         if (config != null) {
             log.debug("创建自定义配置的QueryRouter实例: modelId={}, config={}", modelId, config);
             // 使用组件级模型ID，未指定时回退到会话级 modelId
@@ -445,24 +450,45 @@ public class DynamicModelManager {
             Map<ContentRetriever, String> retrievers = new java.util.HashMap<>();
             
             if (config.getEnableKnowledgeRetrieval()) {
-                ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.from(embeddingStore);
+                // 知识库检索
+                // 使用知识库检索配置的模型ID，未指定时回退到会话级 modelId
+                Long knowledgeModelId = knowledgeSearchConfig.getModelId() != null ? 
+                    knowledgeSearchConfig.getModelId() : modelId;
+                ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.builder()
+                        .embeddingStore(embeddingStore)
+                        .displayName("知识库检索")
+                        .dynamicFilter(null)
+                        .dynamicMaxResults(null)
+                        .dynamicMinScore(null)
+                        .embeddingModel(getEmbeddingModel(knowledgeModelId))
+                        .filter(null)
+                        .maxResults(knowledgeSearchConfig.getTopK()) 
+                        .minScore(knowledgeSearchConfig.getScoreThreshold()) // 0.0-1.0
+                        .build();
                 retrievers.put(contentRetriever, "知识库检索");
             }
             
             if (config.getEnableWebSearch()) {
-                ContentRetriever webContentRetriever = createWebContentRetriever();
-                retrievers.put(webContentRetriever, "Web搜索");
+                // 检查全局Web搜索开关
+                if (webSearchProperties.isEnabled()) {
+                    ContentRetriever webContentRetriever = createWebContentRetriever(webSearchConfig);
+                    if (webContentRetriever != null) {
+                        retrievers.put(webContentRetriever, "Web搜索");
+                    }
+                } else {
+                    log.info("配置启用Web搜索但全局开关已禁用，跳过Web搜索检索器注册 - modelId: {}", modelId);
+                }
             }
             
             if (config.getEnableSqlQuery()) {
-                ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever();
+                // 数据库检索
+                ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(sqlQueryConfig);
                 retrievers.put(sqlQueryContentRetriever, "数据库查询");
             }
             
-            // 暂时使用null作为promptTemplate，TODO: 实现PromptTemplate转换
             return LanguageModelQueryRouter.builder()
                     .chatModel(chatModel)
-                    .promptTemplate(null) // TODO: 支持自定义模板
+                    .promptTemplate(config.getPromptTemplate() != null ? PromptTemplate.from(config.getPromptTemplate()) : null)
                     .retrieverToDescription(retrievers)
                     .build();
         }
@@ -472,17 +498,30 @@ public class DynamicModelManager {
             ChatModel chatModel = getChatModel(id);
             
             // 创建内容检索器
+            Map<ContentRetriever, String> retrievers = new java.util.HashMap<>();
+            
+            // 知识库检索始终启用
             ContentRetriever contentRetriever = EmbeddingStoreContentRetriever.from(embeddingStore);
-            ContentRetriever webContentRetriever = createWebContentRetriever();
-            ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever();
+            retrievers.put(contentRetriever, "知识库检索");
+            
+            // 根据全局开关决定是否启用Web搜索
+            if (webSearchProperties.isEnabled()) {
+                ContentRetriever webContentRetriever = createWebContentRetriever();
+                if (webContentRetriever != null) {
+                    retrievers.put(webContentRetriever, "Web搜索");
+                }
+            } else {
+                log.info("Web搜索已被全局开关禁用，跳过Web搜索检索器注册");
+            }
+            
+            // SQL查询检索器始终启用
+            ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(null);
+            retrievers.put(sqlQueryContentRetriever, "数据库查询");
             
             return LanguageModelQueryRouter.builder()
                     .chatModel(chatModel)
                     .promptTemplate(null)
-                    .retrieverToDescription(Map.of(
-                        contentRetriever, "知识库检索", 
-                        webContentRetriever, "Web搜索", 
-                        sqlQueryContentRetriever, "数据库查询"))
+                    .retrieverToDescription(retrievers)
                     .build();
         });
     }
@@ -555,25 +594,37 @@ public class DynamicModelManager {
      * 创建Web内容检索器
      * 
      * @param config Web搜索配置，如果为null则使用默认配置
+     * @return ContentRetriever实例，如果全局开关禁用则返回null
      */
     private ContentRetriever createWebContentRetriever(RagComponentConfig.WebSearchConfig config) {
-        if (config != null) {
-            return WebSearchContentRetriever.builder()
-                    .webSearchEngine(searxngWebSearchEngine)
-                    .maxResults(config.getMaxResults())
-                    .build();
+        // 防御性检查：全局开关禁用时直接返回null
+        if (!webSearchProperties.isEnabled()) {
+            log.debug("Web搜索全局开关已禁用，返回null ContentRetriever");
+            return null;
         }
         
-        return WebSearchContentRetriever.builder()
-                .webSearchEngine(searxngWebSearchEngine)
-                .maxResults(10)
-                .build();
+        try {
+            if (config != null) {
+                return WebSearchContentRetriever.builder()
+                        .webSearchEngine(searxngWebSearchEngine)
+                        .maxResults(config.getMaxResults())
+                        .build();
+            }
+            
+            return WebSearchContentRetriever.builder()
+                    .webSearchEngine(searxngWebSearchEngine)
+                    .maxResults(10)
+                    .build();
+        } catch (Exception e) {
+            log.warn("创建Web内容检索器失败: {}", e.getMessage());
+            return null;
+        }
     }
 
     /**
      * 创建SQL查询内容检索器
      */
-    private ContentRetriever createSqlQueryContentRetriever() {
+    private ContentRetriever createSqlQueryContentRetriever(RagComponentConfig.SqlQueryConfig config) {
         return new SqlQueryContentRetriever(null); // JdbcTemplate将通过构造函数注入
     }
 

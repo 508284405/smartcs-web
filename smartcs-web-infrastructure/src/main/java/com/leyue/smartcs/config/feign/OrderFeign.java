@@ -8,7 +8,7 @@ import com.leyue.smartcs.dto.sse.OrderAddressUpdateDTO;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
+
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.cloud.openfeign.SpringQueryMap;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +23,6 @@ public interface OrderFeign {
     @CircuitBreaker(name = "order-feign", fallbackMethod = "listOrdersFallback")
     @Retry(name = "order-feign", fallbackMethod = "listOrdersFallback")
     @Bulkhead(name = "order-feign", fallbackMethod = "listOrdersFallback")
-    @TimeLimiter(name = "order-feign", fallbackMethod = "listOrdersFallback")
     ApiResponse<OrderDTO> listOrders(@SpringQueryMap OrderQueryDTO qry);
 
     /**
@@ -38,7 +37,6 @@ public interface OrderFeign {
     @CircuitBreaker(name = "order-feign", fallbackMethod = "getOrderFallback")
     @Retry(name = "order-feign", fallbackMethod = "getOrderFallback")
     @Bulkhead(name = "order-feign", fallbackMethod = "getOrderFallback")
-    @TimeLimiter(name = "order-feign", fallbackMethod = "getOrderFallback")
     ApiResponse<OrderDTO> getOrder(@PathVariable("orderNumber") String orderNumber);
 
     /**
@@ -56,7 +54,6 @@ public interface OrderFeign {
     @CircuitBreaker(name = "order-feign", fallbackMethod = "confirmReceiptFallback")
     @Retry(name = "order-feign", fallbackMethod = "confirmReceiptFallback")
     @Bulkhead(name = "order-feign", fallbackMethod = "confirmReceiptFallback")
-    @TimeLimiter(name = "order-feign", fallbackMethod = "confirmReceiptFallback")
     ApiResponse<OrderDTO> confirmReceipt(@PathVariable("orderNumber") String orderNumber);
 
     /**
@@ -74,7 +71,6 @@ public interface OrderFeign {
     @CircuitBreaker(name = "order-feign", fallbackMethod = "cancelOrderFallback")
     @Retry(name = "order-feign", fallbackMethod = "cancelOrderFallback")
     @Bulkhead(name = "order-feign", fallbackMethod = "cancelOrderFallback")
-    @TimeLimiter(name = "order-feign", fallbackMethod = "cancelOrderFallback")
     ApiResponse<OrderDTO> cancelOrder(@PathVariable("orderNumber") String orderNumber, @RequestBody OrderCancelRequestDTO dto);
 
     /**
@@ -92,7 +88,6 @@ public interface OrderFeign {
     @CircuitBreaker(name = "order-feign", fallbackMethod = "updateOrderAddressFallback")
     @Retry(name = "order-feign", fallbackMethod = "updateOrderAddressFallback")
     @Bulkhead(name = "order-feign", fallbackMethod = "updateOrderAddressFallback")
-    @TimeLimiter(name = "order-feign", fallbackMethod = "updateOrderAddressFallback")
     ApiResponse<OrderDTO> updateOrderAddress(@PathVariable("orderNumber") String orderNumber, @RequestBody OrderAddressUpdateDTO dto);
 
     /**

@@ -18,6 +18,7 @@ import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -118,7 +119,7 @@ public class AdminAiAppController {
     /**
      * AI应用聊天（SSE流式响应）
      */
-    @PostMapping("/chat")
+    @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chatWithApp(@RequestBody @Valid AiAppChatCmd cmd) {
         log.info("AI应用聊天请求: appId={}, message length={}, sessionId={}", 
                 cmd.getAppId(), 

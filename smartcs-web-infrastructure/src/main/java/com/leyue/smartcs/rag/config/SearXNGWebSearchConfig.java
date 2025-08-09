@@ -29,10 +29,24 @@ public class SearXNGWebSearchConfig {
     public SearXNGWebSearchEngine searxngWebSearchEngine() {
         log.info("初始化 SearxNG 搜索引擎，配置: {}", searxngProperties);
         
-        return SearXNGWebSearchEngine.builder()
+        // 注意：LangChain4j 1.1.0 版本的 SearXNGWebSearchEngine 仅支持 baseUrl 和 duration 配置
+        // 其他配置（userAgent、language、safesearch、maxResults）需要在未来版本或通过其他方式支持
+        SearXNGWebSearchEngine engine = SearXNGWebSearchEngine.builder()
                 .baseUrl(searxngProperties.getBaseUrl())
                 .duration(Duration.ofSeconds(searxngProperties.getTimeout()))
                 .build();
+                
+        // 记录最终生效的参数和预期配置
+        log.info("SearxNG 搜索引擎初始化完成 - baseUrl: {}, timeout: {}s", 
+                searxngProperties.getBaseUrl(), 
+                searxngProperties.getTimeout());
+        log.info("预期配置（待未来版本支持）- userAgent: {}, language: {}, safeContent: {}, maxResults: {}",
+                searxngProperties.getUserAgent(),
+                searxngProperties.getResultLanguage(),
+                searxngProperties.isSafeContent(),
+                searxngProperties.getMaxResults());
+                
+        return engine;
     }
 
     /**
