@@ -111,6 +111,12 @@ public class RagComponentConfig {
         @DecimalMax(value = "1.0", message = "最小相关性分数不能大于1.0")
         @Builder.Default
         private Double minScore = 0.5;
+
+        /**
+         * 评分模型ID
+         * 用于重排序打分的模型，未指定时回退到会话级 modelId
+         */
+        private Long scoringModelId;
     }
 
     /**
@@ -137,6 +143,12 @@ public class RagComponentConfig {
          * 用于查询转换的提示模板
          */
         private String promptTemplate;
+
+        /**
+         * 模型ID
+         * 用于查询转换的语言模型，未指定时回退到会话级 modelId
+         */
+        private Long modelId;
     }
 
     /**
@@ -178,6 +190,12 @@ public class RagComponentConfig {
          * 每个检索器的描述信息，用于路由决策
          */
         private Map<String, String> retrieverToDescription;
+
+        /**
+         * 模型ID
+         * 用于路由决策的语言模型，未指定时回退到会话级 modelId
+         */
+        private Long modelId;
     }
 
     /**

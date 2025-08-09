@@ -212,6 +212,26 @@ public class AiAppChatCmdExe {
                 knowledgeConfig.setScoreThreshold(0.7);
             }
             
+            // 验证组件级模型ID配置
+            // 验证内容聚合器的评分模型ID
+            if (contentConfig.getScoringModelId() != null && contentConfig.getScoringModelId() <= 0) {
+                log.warn("内容聚合器scoringModelId必须为正数，当前值: {}", contentConfig.getScoringModelId());
+                contentConfig.setScoringModelId(null);
+            }
+            
+            // 验证查询转换器的模型ID
+            if (transformerConfig.getModelId() != null && transformerConfig.getModelId() <= 0) {
+                log.warn("查询转换器modelId必须为正数，当前值: {}", transformerConfig.getModelId());
+                transformerConfig.setModelId(null);
+            }
+            
+            // 验证查询路由器的模型ID
+            RagComponentConfig.QueryRouterConfig routerConfig = ragConfig.getQueryRouterOrDefault();
+            if (routerConfig.getModelId() != null && routerConfig.getModelId() <= 0) {
+                log.warn("查询路由器modelId必须为正数，当前值: {}", routerConfig.getModelId());
+                routerConfig.setModelId(null);
+            }
+            
             log.debug("RAG配置验证完成: ragConfig={}", ragConfig);
             return ragConfig;
             

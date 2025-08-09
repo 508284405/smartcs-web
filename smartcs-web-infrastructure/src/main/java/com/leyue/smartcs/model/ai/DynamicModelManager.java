@@ -14,12 +14,15 @@ import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.scoring.ScoringModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+// import dev.langchain4j.model.openai.OpenAiScoringModel; // 1.1.0版本暂未提供
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.rag.content.aggregator.ReRankingContentAggregator;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.rag.content.injector.ContentInjector;
 import dev.langchain4j.rag.content.injector.DefaultContentInjector;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
@@ -58,6 +61,7 @@ public class DynamicModelManager {
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
     private final Map<Long, StreamingChatModel> streamingChatModelCache = new ConcurrentHashMap<>();
     private final Map<Long, EmbeddingModel> embeddingModelCache = new ConcurrentHashMap<>();
+    private final Map<Long, ScoringModel> scoringModelCache = new ConcurrentHashMap<>();
     
     // 缓存RAG组件实例，避免重复创建
     private final Map<Long, RetrievalAugmentor> retrievalAugmentorCache = new ConcurrentHashMap<>();
@@ -112,6 +116,21 @@ public class DynamicModelManager {
     }
 
     /**
+     * 根据模型ID获取ScoringModel
+     * 
+     * @param modelId 模型ID
+     * @return ScoringModel实例
+     */
+    public ScoringModel getScoringModel(Long modelId) {
+        return scoringModelCache.computeIfAbsent(modelId, id -> {
+            log.debug("创建ScoringModel实例: modelId={}", id);
+            Model model = getModel(id);
+            Provider provider = getProvider(model.getProviderId());
+            return buildScoringModel(provider);
+        });
+    }
+
+    /**
      * 检查模型是否支持推理
      * 
      * @param modelId 模型ID
@@ -154,6 +173,7 @@ public class DynamicModelManager {
         chatModelCache.remove(modelId);
         streamingChatModelCache.remove(modelId);
         embeddingModelCache.remove(modelId);
+        scoringModelCache.remove(modelId);
     }
 
     /**
@@ -164,6 +184,7 @@ public class DynamicModelManager {
         chatModelCache.clear();
         streamingChatModelCache.clear();
         embeddingModelCache.clear();
+        scoringModelCache.clear();
         
         // 同时清除RAG组件缓存
         clearAllRagComponentCache();
@@ -179,6 +200,7 @@ public class DynamicModelManager {
         stats.put("chatModelCache", chatModelCache.size());
         stats.put("streamingChatModelCache", streamingChatModelCache.size());
         stats.put("embeddingModelCache", embeddingModelCache.size());
+        stats.put("scoringModelCache", scoringModelCache.size());
         return stats;
     }
 
@@ -235,6 +257,24 @@ public class DynamicModelManager {
                     .build();
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
+    }
+
+    /**
+     * 构建ScoringModel实例
+     * 使用基于LLM的自定义ScoringModel实现，通过ChatModel进行相关性打分
+     */
+    private ScoringModel buildScoringModel(Provider provider) {
+        if (provider.getProviderType().isOpenAiCompatible()) {
+            try {
+                ChatModel chatModel = buildChatModel(provider);
+                return new LlmBasedScoringModel(chatModel);
+            } catch (Exception e) {
+                log.warn("创建LlmBasedScoringModel失败，返回null: {}", e.getMessage());
+                return null;
+            }
+        }
+        log.warn("不支持的提供商类型用于ScoringModel: {}", provider.getProviderType().getKey());
+        return null;
     }
 
     /**
@@ -296,7 +336,7 @@ public class DynamicModelManager {
                     .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault()))
                     .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault()))
                     .contentAggregator(createContentAggregator(modelId, ragConfig.getContentAggregatorOrDefault()))
-                    .contentInjector(createContentInjector(modelId))
+                    .contentInjector(createContentInjector(modelId, ragConfig.getContentInjectorOrDefault()))
                     .build();
         }
         
@@ -313,15 +353,33 @@ public class DynamicModelManager {
     }
 
     /**
-     * 根据模型ID创建ContentInjector
+     * 根据模型ID创建ContentInjector（使用默认配置）
      */
     public ContentInjector createContentInjector(Long modelId) {
+        return createContentInjector(modelId, null);
+    }
+
+    /**
+     * 根据模型ID和配置创建ContentInjector
+     * 
+     * @param modelId 模型ID
+     * @param config 内容注入器配置，如果为null则使用默认配置
+     */
+    public ContentInjector createContentInjector(Long modelId, RagComponentConfig.ContentInjectorConfig config) {
+        if (config != null) {
+            log.debug("创建自定义配置的ContentInjector实例: modelId={}, config={}", modelId, config);
+            
+            PromptTemplate promptTemplate = null;
+            if (config.getPromptTemplate() != null && !config.getPromptTemplate().trim().isEmpty()) {
+                promptTemplate = PromptTemplate.from(config.getPromptTemplate());
+            }
+            
+            return new DefaultContentInjector(promptTemplate, config.getMetadataKeysToInclude());
+        }
+        
         return contentInjectorCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建ContentInjector实例: modelId={}", id);
-            return DefaultContentInjector.builder()
-                    .promptTemplate(null)
-                    .metadataKeysToInclude(null)
-                    .build();
+            log.debug("创建默认配置的ContentInjector实例: modelId={}", id);
+            return new DefaultContentInjector();
         });
     }
 
@@ -341,11 +399,14 @@ public class DynamicModelManager {
     public QueryTransformer createQueryTransformer(Long modelId, RagComponentConfig.QueryTransformerConfig config) {
         if (config != null) {
             log.debug("创建自定义配置的QueryTransformer实例: modelId={}, config={}", modelId, config);
-            ChatModel chatModel = getChatModel(modelId);
+            // 使用组件级模型ID，未指定时回退到会话级 modelId
+            Long actualModelId = config.getModelId() != null ? config.getModelId() : modelId;
+            ChatModel chatModel = getChatModel(actualModelId);
+            // 暂时使用null作为promptTemplate，TODO: 实现PromptTemplate转换
             return ExpandingQueryTransformer.builder()
                     .chatModel(chatModel)
                     .n(config.getN())
-                    .promptTemplate(null)
+                    .promptTemplate(null) // TODO: 支持自定义模板
                     .build();
         }
         
@@ -376,7 +437,9 @@ public class DynamicModelManager {
     public QueryRouter createQueryRouter(Long modelId, RagComponentConfig.QueryRouterConfig config) {
         if (config != null) {
             log.debug("创建自定义配置的QueryRouter实例: modelId={}, config={}", modelId, config);
-            ChatModel chatModel = getChatModel(modelId);
+            // 使用组件级模型ID，未指定时回退到会话级 modelId
+            Long actualModelId = config.getModelId() != null ? config.getModelId() : modelId;
+            ChatModel chatModel = getChatModel(actualModelId);
             
             // 根据配置创建内容检索器
             Map<ContentRetriever, String> retrievers = new java.util.HashMap<>();
@@ -396,9 +459,10 @@ public class DynamicModelManager {
                 retrievers.put(sqlQueryContentRetriever, "数据库查询");
             }
             
+            // 暂时使用null作为promptTemplate，TODO: 实现PromptTemplate转换
             return LanguageModelQueryRouter.builder()
                     .chatModel(chatModel)
-                    .promptTemplate(null)
+                    .promptTemplate(null) // TODO: 支持自定义模板
                     .retrieverToDescription(retrievers)
                     .build();
         }
@@ -439,10 +503,36 @@ public class DynamicModelManager {
     public ReRankingContentAggregator createContentAggregator(Long modelId, RagComponentConfig.ContentAggregatorConfig config) {
         if (config != null) {
             log.debug("创建自定义配置的ReRankingContentAggregator实例: modelId={}, config={}", modelId, config);
-            return ReRankingContentAggregator.builder()
-                    .maxResults(config.getMaxResults())
-                    .minScore(config.getMinScore())
-                    .build();
+            
+            // 尝试设置评分模型，如果获取失败则使用无评分模型的配置
+            try {
+                ScoringModel scoringModel = null;
+                if (config.getScoringModelId() != null) {
+                    scoringModel = getScoringModel(config.getScoringModelId());
+                } else {
+                    scoringModel = getScoringModel(modelId);
+                }
+                
+                if (scoringModel != null) {
+                    return ReRankingContentAggregator.builder()
+                            .maxResults(config.getMaxResults())
+                            .minScore(config.getMinScore())
+                            .scoringModel(scoringModel)
+                            .build();
+                } else {
+                    log.warn("ScoringModel不可用，将使用基础的ContentAggregator");
+                    return ReRankingContentAggregator.builder()
+                            .maxResults(config.getMaxResults())
+                            .minScore(config.getMinScore())
+                            .build();
+                }
+            } catch (Exception e) {
+                log.warn("获取ScoringModel失败，将使用基础的ContentAggregator: {}", e.getMessage());
+                return ReRankingContentAggregator.builder()
+                        .maxResults(config.getMaxResults())
+                        .minScore(config.getMinScore())
+                        .build();
+            }
         }
         
         return contentAggregatorCache.computeIfAbsent(modelId, id -> {

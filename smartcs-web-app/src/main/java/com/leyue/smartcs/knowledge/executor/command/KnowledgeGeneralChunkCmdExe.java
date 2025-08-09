@@ -22,7 +22,6 @@ import com.leyue.smartcs.knowledge.util.ChunkingParameterConverter;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 
 import dev.langchain4j.data.document.Document;
-import dev.langchain4j.data.document.splitter.DocumentSplitters;
 import dev.langchain4j.data.segment.TextSegment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
