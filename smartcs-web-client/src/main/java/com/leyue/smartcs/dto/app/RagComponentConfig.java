@@ -78,11 +78,7 @@ public class RagComponentConfig {
     @Valid
     private MemoryConfig memory;
 
-    /**
-     * 系统提示配置
-     */
-    @Valid
-    private SystemPromptConfig systemPrompt;
+
 
     /**
      * 内容聚合器配置
@@ -443,28 +439,7 @@ public class RagComponentConfig {
         private String memoryType = "sliding_window";
     }
 
-    /**
-     * 系统提示配置
-     * 用于配置系统提示的参数
-     */
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class SystemPromptConfig {
-        
-        /**
-         * 系统提示内容
-         */
-        @NotBlank(message = "系统提示不能为空")
-        private String systemPrompt;
 
-        /**
-         * 提示模板
-         * 用于格式化系统提示的模板
-         */
-        private String promptTemplate;
-    }
 
     /**
      * 获取内容注入器配置，如果为null则返回默认配置
@@ -494,10 +469,5 @@ public class RagComponentConfig {
         return memory != null ? memory : MemoryConfig.builder().build();
     }
 
-    /**
-     * 获取系统提示配置，如果为null则返回默认配置
-     */
-    public SystemPromptConfig getSystemPromptOrDefault() {
-        return systemPrompt != null ? systemPrompt : SystemPromptConfig.builder().build();
-    }
+
 }
