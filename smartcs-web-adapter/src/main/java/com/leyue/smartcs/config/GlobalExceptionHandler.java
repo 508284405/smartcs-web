@@ -1,6 +1,7 @@
 package com.leyue.smartcs.config;
 
 import com.alibaba.cola.dto.Response;
+import com.leyue.smartcs.common.secret.LogDesensitizationUtil;
 import com.alibaba.cola.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -35,7 +36,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public Response handleBizException(BizException e) {
-        log.error("业务异常: ", e);
+        // 脱敏异常信息
+        String desensitizedMessage = LogDesensitizationUtil.desensitizeThrowable(e);
+        log.error("业务异常: {}", desensitizedMessage);
         return Response.buildFailure(e.getErrCode(), e.getMessage());
     }
     
@@ -295,7 +298,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Object handleException(Exception e, HttpServletRequest request) {
-        log.error("系统异常", e);
+        // 脱敏异常信息
+        String desensitizedMessage = LogDesensitizationUtil.desensitizeThrowable(e);
+        log.error("系统异常: {}", desensitizedMessage);
         
         // 检查是否为SSE请求，避免转换器冲突
         String acceptHeader = request.getHeader("Accept");

@@ -303,6 +303,11 @@ resilience4j:
         max-concurrent-calls: 10
         max-wait-duration: 3s
 
-#server:
+# 权限白名单配置
+permission:
+  white-list:
+    - "/smartcs/api/app/**"
+
+# server:
 #  servlet:
 #    context-path: /smartcs

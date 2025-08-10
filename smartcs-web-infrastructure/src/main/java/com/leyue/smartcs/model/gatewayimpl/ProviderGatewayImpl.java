@@ -30,14 +30,20 @@ public class ProviderGatewayImpl implements ProviderGateway {
     
     @Override
     public Long createProvider(Provider provider) {
-        ProviderDO providerDO = providerConvertor.toDO(provider);
+        ProviderDO providerDO = providerConvertor.toDOWithEncryption(provider, null);
         providerMapper.insert(providerDO);
         return providerDO.getId();
     }
     
     @Override
     public boolean updateProvider(Provider provider) {
-        ProviderDO providerDO = providerConvertor.toDO(provider);
+        // 获取现有数据以保留未更改的加密字段
+        ProviderDO existingDO = null;
+        if (provider.getId() != null) {
+            existingDO = providerMapper.selectById(provider.getId());
+        }
+        
+        ProviderDO providerDO = providerConvertor.toDOWithEncryption(provider, existingDO);
         int result = providerMapper.updateById(providerDO);
         return result > 0;
     }

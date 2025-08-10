@@ -1,5 +1,6 @@
 package com.leyue.smartcs.config;
 
+import com.leyue.smartcs.common.secret.LogDesensitizationUtil;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -53,9 +54,12 @@ public class RequestLogInterceptor implements HandlerInterceptor {
         // 打印body（如果是可读类型）
         if (request instanceof CachedBodyHttpServletRequest) {
             String body = ((CachedBodyHttpServletRequest) request).getBody();
-            sb.append("\nBody: ").append(body);
+            sb.append("\nBody: ").append(LogDesensitizationUtil.desensitizeString(body));
         }
-        log.info(sb.toString());
+        
+        // 脱敏整个日志信息
+        String logMessage = LogDesensitizationUtil.desensitizeString(sb.toString());
+        log.info(logMessage);
         return true;
     }
 

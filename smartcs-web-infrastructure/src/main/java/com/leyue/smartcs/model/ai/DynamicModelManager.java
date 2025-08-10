@@ -4,6 +4,9 @@ import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
+import com.leyue.smartcs.model.convertor.ProviderConvertor;
+import com.leyue.smartcs.model.dataobject.ProviderDO;
+import com.leyue.smartcs.model.mapper.ProviderMapper;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
@@ -54,6 +57,8 @@ public class DynamicModelManager {
 
     private final ModelGateway modelGateway;
     private final ProviderGateway providerGateway;
+    private final ProviderMapper providerMapper;
+    private final ProviderConvertor providerConvertor;
     private final ChatMemoryStore chatMemoryStore;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final SearXNGWebSearchEngine searxngWebSearchEngine;
@@ -224,42 +229,111 @@ public class DynamicModelManager {
 
     /**
      * 构建ChatModel实例
+     * 使用即时解密获取API Key，使用后立即释放引用
      */
     private ChatModel buildChatModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
-            return OpenAiChatModel.builder()
-                    .baseUrl(provider.getEndpoint())
-                    .apiKey(provider.getApiKey())
-                    .modelName(model.getLabel())
-                    .build();
+            // 获取Provider DO用于解密
+            ProviderDO providerDO = providerMapper.selectById(provider.getId());
+            if (providerDO == null) {
+                throw new IllegalStateException("提供商数据不存在: " + provider.getId());
+            }
+            
+            // 即时解密API Key
+            String apiKey = providerConvertor.decryptApiKey(providerDO);
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                throw new IllegalStateException("API Key未设置或解密失败: " + provider.getId());
+            }
+            
+            try {
+                // 构建模型实例
+                ChatModel chatModel = OpenAiChatModel.builder()
+                        .baseUrl(provider.getEndpoint())
+                        .apiKey(apiKey)
+                        .modelName(model.getLabel())
+                        .build();
+                
+                log.debug("ChatModel构建完成，Provider ID: {}, Model: {}", provider.getId(), model.getLabel());
+                return chatModel;
+                
+            } finally {
+                // 立即清空明文API Key引用
+                apiKey = null;
+            }
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
 
     /**
      * 构建StreamingChatModel实例
+     * 使用即时解密获取API Key，使用后立即释放引用
      */
     private StreamingChatModel buildStreamingChatModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
-            return OpenAiStreamingChatModel.builder()
-                    .baseUrl(provider.getEndpoint())
-                    .apiKey(provider.getApiKey())
-                    .modelName(model.getLabel())
-                    .build();
+            // 获取Provider DO用于解密
+            ProviderDO providerDO = providerMapper.selectById(provider.getId());
+            if (providerDO == null) {
+                throw new IllegalStateException("提供商数据不存在: " + provider.getId());
+            }
+            
+            // 即时解密API Key
+            String apiKey = providerConvertor.decryptApiKey(providerDO);
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                throw new IllegalStateException("API Key未设置或解密失败: " + provider.getId());
+            }
+            
+            try {
+                // 构建模型实例
+                StreamingChatModel streamingChatModel = OpenAiStreamingChatModel.builder()
+                        .baseUrl(provider.getEndpoint())
+                        .apiKey(apiKey)
+                        .modelName(model.getLabel())
+                        .build();
+                
+                log.debug("StreamingChatModel构建完成，Provider ID: {}, Model: {}", provider.getId(), model.getLabel());
+                return streamingChatModel;
+                
+            } finally {
+                // 立即清空明文API Key引用
+                apiKey = null;
+            }
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
 
     /**
      * 构建EmbeddingModel实例
+     * 使用即时解密获取API Key，使用后立即释放引用
      */
     private EmbeddingModel buildEmbeddingModel(Provider provider, Model model) {
         if (provider.getProviderType().isOpenAiCompatible()) {
-            return OpenAiEmbeddingModel.builder()
-                    .baseUrl(provider.getEndpoint())
-                    .apiKey(provider.getApiKey())
-                    .modelName(model.getLabel())
-                    .build();
+            // 获取Provider DO用于解密
+            ProviderDO providerDO = providerMapper.selectById(provider.getId());
+            if (providerDO == null) {
+                throw new IllegalStateException("提供商数据不存在: " + provider.getId());
+            }
+            
+            // 即时解密API Key
+            String apiKey = providerConvertor.decryptApiKey(providerDO);
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                throw new IllegalStateException("API Key未设置或解密失败: " + provider.getId());
+            }
+            
+            try {
+                // 构建模型实例
+                EmbeddingModel embeddingModel = OpenAiEmbeddingModel.builder()
+                        .baseUrl(provider.getEndpoint())
+                        .apiKey(apiKey)
+                        .modelName(model.getLabel())
+                        .build();
+                
+                log.debug("EmbeddingModel构建完成，Provider ID: {}, Model: {}", provider.getId(), model.getLabel());
+                return embeddingModel;
+                
+            } finally {
+                // 立即清空明文API Key引用
+                apiKey = null;
+            }
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
