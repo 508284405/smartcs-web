@@ -1,0 +1,30 @@
+-- RAG评估测试用例表
+-- 用于存储具体的测试用例，包含问题、期望答案和标准证据
+CREATE TABLE `t_rag_eval_case` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '测试用例ID',
+  `case_id` VARCHAR(64) NOT NULL COMMENT '测试用例唯一标识符',
+  `dataset_id` VARCHAR(64) NOT NULL COMMENT '所属数据集ID',
+  `question` TEXT NOT NULL COMMENT '测试问题',
+  `expected_summary` TEXT COMMENT '期望的回答摘要',
+  `gold_evidence_refs` JSON COMMENT '标准证据引用（包含文档片段、FAQ等）',
+  `ground_truth_contexts` JSON COMMENT '标准上下文（用于Context Precision/Recall计算）',
+  `difficulty_tag` VARCHAR(32) COMMENT '难度标签：easy, medium, hard',
+  `category` VARCHAR(64) COMMENT '类别标签（如：factual, reasoning, multi-hop等）',
+  `query_type` VARCHAR(32) COMMENT '查询类型：simple, complex, ambiguous',
+  `expected_retrieval_count` INT COMMENT '期望检索到的相关文档数量',
+  `evaluation_notes` TEXT COMMENT '评估备注',
+  `metadata` JSON COMMENT '扩展元数据（如原始数据源信息）',
+  `status` TINYINT DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '是否删除：0-否，1-是',
+  `created_by` BIGINT COMMENT '创建人',
+  `updated_by` BIGINT COMMENT '更新人',
+  `created_at` BIGINT NOT NULL COMMENT '创建时间（毫秒时间戳）',
+  `updated_at` BIGINT NOT NULL COMMENT '更新时间（毫秒时间戳）',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_case_id` (`case_id`),
+  KEY `idx_dataset_id` (`dataset_id`),
+  KEY `idx_difficulty_tag` (`difficulty_tag`),
+  KEY `idx_category` (`category`),
+  KEY `idx_status_created` (`status`, `created_at`),
+  CONSTRAINT `fk_eval_case_dataset` FOREIGN KEY (`dataset_id`) REFERENCES `t_rag_eval_dataset` (`dataset_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='RAG评估测试用例表';

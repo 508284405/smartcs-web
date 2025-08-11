@@ -67,4 +67,25 @@ public interface KnowledgeBaseService {
      * @return 分块结果
      */
     MultiResponse<ChunkDTO> parentChildChunk(KnowledgeParentChildChunkCmd cmd);
+
+    /**
+     * 获取知识库设置
+     * @param id 知识库ID
+     * @return 知识库设置信息
+     */
+    SingleResponse<KnowledgeBaseSettingsDTO> getKnowledgeBaseSettings(Long id);
+
+    /**
+     * 更新知识库设置
+     * @param cmd 更新命令
+     * @return 更新结果
+     */
+    Response updateKnowledgeBaseSettings(KnowledgeBaseSettingsUpdateCmd cmd);
+
+    /**
+     * 召回测试
+     * @param qry 查询参数
+     * @return 结果列表
+     */
+    MultiResponse<RecallTestResultDTO> recallTest(RecallTestQry qry);
 } 

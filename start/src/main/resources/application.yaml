@@ -93,6 +93,127 @@ smartcs:
         enabled: true
         level: info
 
+# RAG评估系统配置
+eval:
+  # RAGAS服务配置
+  ragas:
+    enabled: true
+    base-url: "http://localhost:8088"
+    api-key: "${RAGAS_API_KEY:}"
+    timeout-ms: 120000
+    max-retries: 3
+    retry-interval-ms: 2000
+    connection-pool:
+      max-total: 20
+      max-idle: 5
+      min-idle: 2
+  
+  # 评估执行配置
+  execution:
+    # 并发控制
+    concurrency:
+      max-concurrent-runs: 3
+      max-concurrent-cases: 10
+      default-batch-size: 20
+      task-timeout-ms: 300000
+    
+    # 重试策略
+    retry:
+      max-attempts: 3
+      backoff-delay-ms: 5000
+      exponential-multiplier: 2.0
+    
+    # 缓存配置
+    cache:
+      enabled: true
+      ttl-minutes: 60
+      max-size: 1000
+  
+  # 默认评估配置
+  default:
+    # RAG配置
+    rag:
+      retrieval-top-k: 10
+      similarity-threshold: 0.7
+      enable-rerank: false
+      rerank-top-k: 5
+      max-context-length: 4000
+      retrieval-strategy: "vector"
+    
+    # 模型配置
+    model:
+      temperature: 0.7
+      top-p: 0.9
+      max-tokens: 2000
+      
+    # 选择的指标
+    metrics:
+      retrieval:
+        - "precision_at_1"
+        - "precision_at_3"
+        - "precision_at_5"
+        - "recall_at_1"
+        - "recall_at_3"
+        - "recall_at_5"
+        - "mrr"
+        - "context_precision"
+        - "context_recall"
+      generation:
+        - "faithfulness"
+        - "answer_relevancy"
+        - "citation_consistency"
+        - "completeness"
+        - "conciseness"
+      efficiency:
+        - "avg_retrieval_latency_ms"
+        - "avg_generation_latency_ms"
+        - "avg_e2e_latency_ms"
+        - "avg_cost_usd"
+  
+  # 数据管理配置
+  data:
+    # 导出配置
+    export:
+      max-rows: 10000
+      supported-formats: ["csv", "excel", "json"]
+      temp-dir: "/tmp/smartcs-eval-exports"
+      retention-days: 7
+    
+    # 清理配置
+    cleanup:
+      enabled: true
+      run-details-retention-days: 90
+      temp-files-retention-hours: 24
+      failed-runs-retention-days: 30
+  
+  # 统计分析配置
+  analytics:
+    # 趋势分析
+    trend:
+      default-time-range-days: 30
+      max-time-range-days: 365
+      aggregation-intervals: ["hour", "day", "week", "month"]
+    
+    # 异常检测
+    anomaly:
+      enabled: true
+      sensitivity: 0.8
+      min-samples: 10
+  
+  # 通知配置
+  notification:
+    enabled: true
+    channels: ["webhook", "email"]
+    webhook:
+      url: "${EVAL_WEBHOOK_URL:}"
+      timeout-ms: 10000
+    email:
+      enabled: false
+      smtp-host: "${SMTP_HOST:}"
+      smtp-port: 587
+      username: "${SMTP_USERNAME:}"
+      password: "${SMTP_PASSWORD:}"
+
 # PDF解析器优化配置 - 框架代替自定义解析
 pdf:
   # 解析器配置
