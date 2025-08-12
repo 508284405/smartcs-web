@@ -26,6 +26,27 @@ spring:
       cache-null-values: false
       use-key-prefix: true
       key-prefix: "smartcs:cache:"
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+      linger-ms: 5
+      batch-size: 32768
+      buffer-memory: 67108864
+      enable-idempotence: true
+    consumer:
+      group-id: smartcs-eval
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: true
+    admin:
+      close-timeout: 10s
 
 # MCP (Model Context Protocol) 配置
 mcp:
@@ -95,7 +116,36 @@ smartcs:
 
 # RAG评估系统配置
 eval:
-  # RAGAS服务配置
+  # 评估系统总开关
+  enabled: true
+  
+  # 采样配置
+  sampling:
+    rate: 0.05                    # 默认5%采样率
+    header: "X-RAG-EVAL"          # 强制采样请求头
+  
+  # Kafka配置
+  kafka:
+    enabled: true
+    topics:
+      rag-events: "rag.events"         # RAG事件主题
+      rag-eval-in: "rag.eval.in"      # 评估输入主题
+      partitions: 3                    # 分区数
+      replicas: 1                      # 副本数
+    producer:
+      acks: 1                          # 确认级别
+      linger-ms: 5                     # 批处理延迟
+      batch-size: 32768                # 批处理大小(32KB)
+      buffer-memory: 67108864          # 缓冲区大小(64MB)
+  
+  # 简化评估服务配置
+  simple-eval:
+    base-url: "http://localhost:8088"
+    timeout-ms: 120000
+    max-retries: 3
+    retry-interval-ms: 2000
+  
+  # RAGAS服务配置(保持向后兼容)
   ragas:
     enabled: true
     base-url: "http://localhost:8088"

@@ -6,58 +6,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.eval.RagEvalService;
-import com.leyue.smartcs.dto.eval.RagEvalAbTestQry;
-import com.leyue.smartcs.dto.eval.RagEvalAbTestResultDTO;
-import com.leyue.smartcs.dto.eval.RagEvalCaseBatchDeleteCmd;
-import com.leyue.smartcs.dto.eval.RagEvalCaseBatchImportCmd;
-import com.leyue.smartcs.dto.eval.RagEvalCaseBatchImportResultDTO;
-import com.leyue.smartcs.dto.eval.RagEvalCaseCreateCmd;
-import com.leyue.smartcs.dto.eval.RagEvalCaseDTO;
-import com.leyue.smartcs.dto.eval.RagEvalCaseDeleteCmd;
-import com.leyue.smartcs.dto.eval.RagEvalCaseGetQry;
-import com.leyue.smartcs.dto.eval.RagEvalCaseListQry;
-import com.leyue.smartcs.dto.eval.RagEvalCaseUpdateCmd;
-import com.leyue.smartcs.dto.eval.RagEvalCompareQry;
-import com.leyue.smartcs.dto.eval.RagEvalCompareResultDTO;
-import com.leyue.smartcs.dto.eval.RagEvalConfigDTO;
-import com.leyue.smartcs.dto.eval.RagEvalConfigGetQry;
-import com.leyue.smartcs.dto.eval.RagEvalConfigUpdateCmd;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetCreateCmd;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetDTO;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetDeleteCmd;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetGetQry;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetListQry;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetStatsDTO;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetStatsQry;
-import com.leyue.smartcs.dto.eval.RagEvalDatasetUpdateCmd;
-import com.leyue.smartcs.dto.eval.RagEvalExportCmd;
-import com.leyue.smartcs.dto.eval.RagEvalExportResultDTO;
-import com.leyue.smartcs.dto.eval.RagEvalGenerationDetailDTO;
-import com.leyue.smartcs.dto.eval.RagEvalGenerationDetailListQry;
-import com.leyue.smartcs.dto.eval.RagEvalMetricsDTO;
-import com.leyue.smartcs.dto.eval.RagEvalMetricsGetQry;
-import com.leyue.smartcs.dto.eval.RagEvalModelStatsDTO;
-import com.leyue.smartcs.dto.eval.RagEvalModelStatsQry;
-import com.leyue.smartcs.dto.eval.RagEvalRetrievalDetailDTO;
-import com.leyue.smartcs.dto.eval.RagEvalRetrievalDetailListQry;
-import com.leyue.smartcs.dto.eval.RagEvalRunDTO;
-import com.leyue.smartcs.dto.eval.RagEvalRunDeleteCmd;
-import com.leyue.smartcs.dto.eval.RagEvalRunDetailDTO;
-import com.leyue.smartcs.dto.eval.RagEvalRunGetQry;
-import com.leyue.smartcs.dto.eval.RagEvalRunListQry;
-import com.leyue.smartcs.dto.eval.RagEvalRunRerunCmd;
-import com.leyue.smartcs.dto.eval.RagEvalRunStartCmd;
-import com.leyue.smartcs.dto.eval.RagEvalRunStatusDTO;
-import com.leyue.smartcs.dto.eval.RagEvalRunStatusQry;
-import com.leyue.smartcs.dto.eval.RagEvalRunStopCmd;
-import com.leyue.smartcs.dto.eval.RagEvalStatisticsDTO;
-import com.leyue.smartcs.dto.eval.RagEvalStatisticsQry;
-import com.leyue.smartcs.dto.eval.RagEvalTrendAnalysisDTO;
-import com.leyue.smartcs.dto.eval.RagEvalTrendAnalysisQry;
-import com.leyue.smartcs.dto.eval.RagasConnectionTestCmd;
-import com.leyue.smartcs.dto.eval.RagasConnectionTestResultDTO;
-import com.leyue.smartcs.dto.eval.RagasServiceStatusDTO;
-import com.leyue.smartcs.eval.executor.RagEvalAbTestQryExe;
+import com.leyue.smartcs.dto.eval.*;
 import com.leyue.smartcs.eval.executor.RagEvalCaseBatchDeleteCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalCaseBatchImportCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalCaseCreateCmdExe;
@@ -65,29 +14,15 @@ import com.leyue.smartcs.eval.executor.RagEvalCaseDeleteCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalCaseGetQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalCaseListQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalCaseUpdateCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalCompareQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalConfigGetQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalConfigUpdateCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalDatasetCreateCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalDatasetDeleteCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalDatasetGetQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalDatasetListQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalDatasetStatsQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalDatasetUpdateCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalExportCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalGenerationDetailListQryExe;
 import com.leyue.smartcs.eval.executor.RagEvalMetricsGetQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalModelStatsQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalRetrievalDetailListQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunDeleteCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunGetQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunListQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunRerunCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunStartCmdExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunStatusQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalRunStopCmdExe;
 import com.leyue.smartcs.eval.executor.RagEvalStatisticsQryExe;
-import com.leyue.smartcs.eval.executor.RagEvalTrendAnalysisQryExe;
 import com.leyue.smartcs.eval.executor.RagasConnectionTestCmdExe;
 import com.leyue.smartcs.eval.executor.RagasServiceStatusQryExe;
 
@@ -105,16 +40,16 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class RagEvalServiceImpl implements RagEvalService {
     
-    // ====== 注入Executor依赖 ======
+    // ====== 注入现有Executor依赖 ======
     
-    // 数据集管理Executor
+    // 数据集管理
     private final RagEvalDatasetCreateCmdExe ragEvalDatasetCreateCmdExe;
     private final RagEvalDatasetUpdateCmdExe ragEvalDatasetUpdateCmdExe;
     private final RagEvalDatasetGetQryExe ragEvalDatasetGetQryExe;
     private final RagEvalDatasetListQryExe ragEvalDatasetListQryExe;
     private final RagEvalDatasetDeleteCmdExe ragEvalDatasetDeleteCmdExe;
     
-    // 测试用例管理Executor
+    // 测试用例管理
     private final RagEvalCaseCreateCmdExe ragEvalCaseCreateCmdExe;
     private final RagEvalCaseBatchImportCmdExe ragEvalCaseBatchImportCmdExe;
     private final RagEvalCaseUpdateCmdExe ragEvalCaseUpdateCmdExe;
@@ -123,36 +58,15 @@ public class RagEvalServiceImpl implements RagEvalService {
     private final RagEvalCaseDeleteCmdExe ragEvalCaseDeleteCmdExe;
     private final RagEvalCaseBatchDeleteCmdExe ragEvalCaseBatchDeleteCmdExe;
     
-    // 评估运行管理Executor
-    private final RagEvalRunStartCmdExe ragEvalRunStartCmdExe;
-    private final RagEvalRunStopCmdExe ragEvalRunStopCmdExe;
-    private final RagEvalRunGetQryExe ragEvalRunGetQryExe;
-    private final RagEvalRunListQryExe ragEvalRunListQryExe;
-    private final RagEvalRunStatusQryExe ragEvalRunStatusQryExe;
-    private final RagEvalRunRerunCmdExe ragEvalRunRerunCmdExe;
-    private final RagEvalRunDeleteCmdExe ragEvalRunDeleteCmdExe;
-    
-    // 评估结果查询Executor
+    // 评估相关
     private final RagEvalMetricsGetQryExe ragEvalMetricsGetQryExe;
-    private final RagEvalRetrievalDetailListQryExe ragEvalRetrievalDetailListQryExe;
-    private final RagEvalGenerationDetailListQryExe ragEvalGenerationDetailListQryExe;
-    private final RagEvalExportCmdExe ragEvalExportCmdExe;
-    
-    // 比较分析Executor
-    private final RagEvalCompareQryExe ragEvalCompareQryExe;
-    private final RagEvalAbTestQryExe ragEvalAbTestQryExe;
-    private final RagEvalTrendAnalysisQryExe ragEvalTrendAnalysisQryExe;
-    
-    // 统计分析Executor
     private final RagEvalStatisticsQryExe ragEvalStatisticsQryExe;
-    private final RagEvalDatasetStatsQryExe ragEvalDatasetStatsQryExe;
-    private final RagEvalModelStatsQryExe ragEvalModelStatsQryExe;
     
-    // 配置管理Executor
+    // 配置管理
     private final RagEvalConfigGetQryExe ragEvalConfigGetQryExe;
     private final RagEvalConfigUpdateCmdExe ragEvalConfigUpdateCmdExe;
     
-    // RAGAS服务Executor
+    // RAGAS服务
     private final RagasServiceStatusQryExe ragasServiceStatusQryExe;
     private final RagasConnectionTestCmdExe ragasConnectionTestCmdExe;
     
@@ -220,43 +134,6 @@ public class RagEvalServiceImpl implements RagEvalService {
         return ragEvalCaseBatchDeleteCmdExe.execute(cmd);
     }
     
-    // ====== 评估运行管理 ======
-    
-    @Override
-    public SingleResponse<RagEvalRunDTO> startEvaluation(RagEvalRunStartCmd cmd) {
-        return ragEvalRunStartCmdExe.execute(cmd);
-    }
-    
-    @Override
-    public Response stopEvaluation(RagEvalRunStopCmd cmd) {
-        return ragEvalRunStopCmdExe.execute(cmd);
-    }
-    
-    @Override
-    public SingleResponse<RagEvalRunDetailDTO> getRunDetail(RagEvalRunGetQry qry) {
-        return ragEvalRunGetQryExe.execute(qry);
-    }
-    
-    @Override
-    public PageResponse<RagEvalRunDTO> listRuns(RagEvalRunListQry qry) {
-        return ragEvalRunListQryExe.execute(qry);
-    }
-    
-    @Override
-    public SingleResponse<RagEvalRunStatusDTO> getRunStatus(RagEvalRunStatusQry qry) {
-        return ragEvalRunStatusQryExe.execute(qry);
-    }
-    
-    @Override
-    public SingleResponse<RagEvalRunDTO> rerunEvaluation(RagEvalRunRerunCmd cmd) {
-        return ragEvalRunRerunCmdExe.execute(cmd);
-    }
-    
-    @Override
-    public Response deleteRun(RagEvalRunDeleteCmd cmd) {
-        return ragEvalRunDeleteCmdExe.execute(cmd);
-    }
-    
     // ====== 评估结果查询 ======
     
     @Override
@@ -265,35 +142,83 @@ public class RagEvalServiceImpl implements RagEvalService {
     }
     
     @Override
+    public SingleResponse<RagEvalRunDTO> startEvaluation(RagEvalRunStartCmd cmd) {
+        log.warn("评估运行功能已迁移到新的事件驱动架构，请使用RAGAS服务");
+        return SingleResponse.<RagEvalRunDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public Response stopEvaluation(RagEvalRunStopCmd cmd) {
+        log.warn("评估停止功能已迁移到新的事件驱动架构");
+        return Response.buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public SingleResponse<RagEvalRunDetailDTO> getRunDetail(RagEvalRunGetQry qry) {
+        log.warn("评估运行详情查询功能已迁移");
+        return SingleResponse.<RagEvalRunDetailDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public PageResponse<RagEvalRunDTO> listRuns(RagEvalRunListQry qry) {
+        log.warn("评估运行列表功能已迁移");
+        return PageResponse.buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public SingleResponse<RagEvalRunStatusDTO> getRunStatus(RagEvalRunStatusQry qry) {
+        log.warn("评估运行状态查询功能已迁移");
+        return SingleResponse.<RagEvalRunStatusDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public SingleResponse<RagEvalRunDTO> rerunEvaluation(RagEvalRunRerunCmd cmd) {
+        log.warn("重新评估功能已迁移");
+        return SingleResponse.<RagEvalRunDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
+    public Response deleteRun(RagEvalRunDeleteCmd cmd) {
+        log.warn("删除评估运行功能已迁移");
+        return Response.buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
+    }
+    
+    @Override
     public PageResponse<RagEvalRetrievalDetailDTO> listRetrievalDetails(RagEvalRetrievalDetailListQry qry) {
-        return ragEvalRetrievalDetailListQryExe.execute(qry);
+        log.warn("检索详情查询功能已迁移到新的事件驱动架构");
+        return PageResponse.buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     @Override
     public PageResponse<RagEvalGenerationDetailDTO> listGenerationDetails(RagEvalGenerationDetailListQry qry) {
-        return ragEvalGenerationDetailListQryExe.execute(qry);
+        log.warn("生成详情查询功能已迁移到新的事件驱动架构");
+        return PageResponse.buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     @Override
     public SingleResponse<RagEvalExportResultDTO> exportResults(RagEvalExportCmd cmd) {
-        return ragEvalExportCmdExe.execute(cmd);
+        log.warn("导出功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalExportResultDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     // ====== 比较分析 ======
     
     @Override
     public SingleResponse<RagEvalCompareResultDTO> compareRuns(RagEvalCompareQry qry) {
-        return ragEvalCompareQryExe.execute(qry);
+        log.warn("比较分析功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalCompareResultDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     @Override
     public SingleResponse<RagEvalAbTestResultDTO> analyzeAbTest(RagEvalAbTestQry qry) {
-        return ragEvalAbTestQryExe.execute(qry);
+        log.warn("A/B测试分析功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalAbTestResultDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     @Override
     public SingleResponse<RagEvalTrendAnalysisDTO> getTrendAnalysis(RagEvalTrendAnalysisQry qry) {
-        return ragEvalTrendAnalysisQryExe.execute(qry);
+        log.warn("趋势分析功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalTrendAnalysisDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     // ====== 统计分析 ======
@@ -305,12 +230,14 @@ public class RagEvalServiceImpl implements RagEvalService {
     
     @Override
     public SingleResponse<RagEvalDatasetStatsDTO> getDatasetStats(RagEvalDatasetStatsQry qry) {
-        return ragEvalDatasetStatsQryExe.execute(qry);
+        log.warn("数据集统计功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalDatasetStatsDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     @Override
     public SingleResponse<RagEvalModelStatsDTO> getModelStats(RagEvalModelStatsQry qry) {
-        return ragEvalModelStatsQryExe.execute(qry);
+        log.warn("模型统计功能已迁移到新的事件驱动架构");
+        return SingleResponse.<RagEvalModelStatsDTO>buildFailure("UNSUPPORTED", "功能已迁移，请使用新的评估服务");
     }
     
     // ====== 配置管理 ======

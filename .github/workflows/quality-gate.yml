@@ -1,0 +1,337 @@
+name: RAG Quality Gate
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '18'
+  EVAL_SERVICE_URL: ${{ vars.EVAL_SERVICE_URL || 'http://localhost:8088' }}
+
+jobs:
+  # 构建和测试阶段
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+          
+    - name: Build with Maven
+      run: mvn clean compile -DskipTests
+      
+    - name: Run unit tests
+      run: mvn test
+      
+    - name: Generate test reports
+      run: mvn surefire-report:report
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-results
+        path: target/surefire-reports/
+        
+  # RAG评估质量闸门
+  rag-quality-gate:
+    name: RAG Quality Gate
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'pull_request' || contains(github.ref, 'main')
+    
+    services:
+      # 启动评估服务
+      ragas-eval:
+        image: ragas-eval-service:latest
+        ports:
+          - 8088:8088
+        env:
+          MYSQL_HOST: mysql
+          MYSQL_USER: ragas_user
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          KAFKA_SERVERS: kafka:9092
+        options: >-
+          --health-cmd "curl -f http://localhost:8088/health"
+          --health-interval 30s
+          --health-timeout 10s
+          --health-retries 5
+          
+      # MySQL数据库
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ragas_eval
+          MYSQL_USER: ragas_user
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+          
+      # Kafka
+      kafka:
+        image: confluentinc/cp-kafka:latest
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          
+      # Zookeeper
+      zookeeper:
+        image: confluentinc/cp-zookeeper:latest
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Wait for services to be ready
+      run: |
+        echo "等待服务启动..."
+        sleep 30
+        
+        # 检查评估服务健康状态
+        for i in {1..10}; do
+          if curl -f http://localhost:8088/health; then
+            echo "评估服务已就绪"
+            break
+          fi
+          echo "等待评估服务启动... ($i/10)"
+          sleep 10
+        done
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq bc curl
+        
+    - name: Make scripts executable
+      run: chmod +x scripts/baseline-eval.sh
+      
+    - name: Run RAG baseline evaluation
+      id: baseline_eval
+      env:
+        EVAL_SERVICE_URL: http://localhost:8088
+        BASELINE_FILE: scripts/baseline-dataset.json
+        OUTPUT_FILE: target/baseline-eval-result.json
+        CONFIG_FILE: scripts/eval-thresholds.yaml
+      run: |
+        echo "开始RAG基准集评估..."
+        
+        # 创建目标目录
+        mkdir -p target
+        
+        # 执行评估脚本
+        if ./scripts/baseline-eval.sh; then
+          echo "quality_gate_passed=true" >> $GITHUB_OUTPUT
+          echo "评估通过质量闸门"
+        else
+          echo "quality_gate_passed=false" >> $GITHUB_OUTPUT
+          echo "评估未通过质量闸门"
+          exit 1
+        fi
+        
+    - name: Parse evaluation results
+      if: always()
+      run: |
+        if [ -f target/baseline-eval-result.json ]; then
+          echo "=== 评估结果摘要 ==="
+          
+          total_items=$(jq -r '.aggregate.total_items // 0' target/baseline-eval-result.json)
+          pass_threshold=$(jq -r '.aggregate.pass_threshold // false' target/baseline-eval-result.json)
+          
+          avg_faithfulness=$(jq -r '.aggregate.avg_faithfulness // 0' target/baseline-eval-result.json)
+          avg_answer_relevancy=$(jq -r '.aggregate.avg_answer_relevancy // 0' target/baseline-eval-result.json)
+          avg_context_precision=$(jq -r '.aggregate.avg_context_precision // 0' target/baseline-eval-result.json)
+          avg_context_recall=$(jq -r '.aggregate.avg_context_recall // 0' target/baseline-eval-result.json)
+          
+          echo "总评估项数: $total_items"
+          echo "整体通过状态: $pass_threshold"
+          echo "平均忠实度: $avg_faithfulness"
+          echo "平均答案相关性: $avg_answer_relevancy"
+          echo "平均上下文精确度: $avg_context_precision"
+          echo "平均上下文召回度: $avg_context_recall"
+          
+          # 设置输出变量供后续步骤使用
+          echo "total_items=$total_items" >> $GITHUB_ENV
+          echo "pass_threshold=$pass_threshold" >> $GITHUB_ENV
+          echo "avg_faithfulness=$avg_faithfulness" >> $GITHUB_ENV
+          echo "avg_answer_relevancy=$avg_answer_relevancy" >> $GITHUB_ENV
+        else
+          echo "评估结果文件不存在"
+        fi
+        
+    - name: Upload evaluation results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: rag-evaluation-results
+        path: |
+          target/baseline-eval-result.json
+          target/baseline-eval-*.log
+        retention-days: 30
+        
+    - name: Generate evaluation report
+      if: always()
+      run: |
+        # 生成HTML报告
+        cat > target/evaluation-report.html << EOF
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>RAG评估报告</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
+                .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+                .metric-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+                .success { background-color: #d4edda; border-color: #c3e6cb; }
+                .failure { background-color: #f8d7da; border-color: #f5c6cb; }
+                .metric-value { font-size: 2em; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>RAG系统评估报告</h1>
+                <p>构建: ${{ github.run_number }} | 分支: ${{ github.ref_name }} | 提交: ${{ github.sha }}</p>
+                <p>时间: $(date)</p>
+            </div>
+            
+            <div class="summary $(if [ "$pass_threshold" = "true" ]; then echo "success"; else echo "failure"; fi)">
+                <h2>总体结果</h2>
+                <p>评估项目数: ${total_items:-0}</p>
+                <p>质量闸门: $(if [ "$pass_threshold" = "true" ]; then echo "✅ 通过"; else echo "❌ 失败"; fi)</p>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric-card">
+                    <h3>忠实度 (Faithfulness)</h3>
+                    <div class="metric-value">${avg_faithfulness:-0.000}</div>
+                    <p>阈值: ≥ 0.85</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>答案相关性 (Answer Relevancy)</h3>
+                    <div class="metric-value">${avg_answer_relevancy:-0.000}</div>
+                    <p>阈值: ≥ 0.80</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>上下文精确度 (Context Precision)</h3>
+                    <div class="metric-value">${avg_context_precision:-0.000}</div>
+                    <p>阈值: ≥ 0.70</p>
+                </div>
+                
+                <div class="metric-card">
+                    <h3>上下文召回度 (Context Recall)</h3>
+                    <div class="metric-value">${avg_context_recall:-0.000}</div>
+                    <p>阈值: ≥ 0.75</p>
+                </div>
+            </div>
+            
+            <div class="details">
+                <h2>详细结果</h2>
+                <pre id="raw-results"></pre>
+            </div>
+            
+            <script>
+                // 如果有原始JSON结果，显示在页面上
+                fetch('./baseline-eval-result.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('raw-results').textContent = JSON.stringify(data, null, 2);
+                    })
+                    .catch(() => {
+                        document.getElementById('raw-results').textContent = '原始结果文件不可用';
+                    });
+            </script>
+        </body>
+        </html>
+        EOF
+        
+    - name: Upload evaluation report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: rag-evaluation-report
+        path: target/evaluation-report.html
+        
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let comment = `## 🤖 RAG质量闸门报告\n\n`;
+          
+          if (process.env.pass_threshold === 'true') {
+            comment += `✅ **质量闸门通过**\n\n`;
+          } else {
+            comment += `❌ **质量闸门失败**\n\n`;
+          }
+          
+          comment += `### 📊 评估指标\n\n`;
+          comment += `| 指标 | 值 | 阈值 | 状态 |\n`;
+          comment += `|------|----|----- |------|\n`;
+          
+          const faithfulness = parseFloat(process.env.avg_faithfulness || 0);
+          const relevancy = parseFloat(process.env.avg_answer_relevancy || 0);
+          const precision = parseFloat(process.env.avg_context_precision || 0);
+          const recall = parseFloat(process.env.avg_context_recall || 0);
+          
+          comment += `| 忠实度 | ${faithfulness.toFixed(3)} | ≥ 0.85 | ${faithfulness >= 0.85 ? '✅' : '❌'} |\n`;
+          comment += `| 答案相关性 | ${relevancy.toFixed(3)} | ≥ 0.80 | ${relevancy >= 0.80 ? '✅' : '❌'} |\n`;
+          comment += `| 上下文精确度 | ${precision.toFixed(3)} | ≥ 0.70 | ${precision >= 0.70 ? '✅' : '❌'} |\n`;
+          comment += `| 上下文召回度 | ${recall.toFixed(3)} | ≥ 0.75 | ${recall >= 0.75 ? '✅' : '❌'} |\n`;
+          
+          comment += `\n### 📈 总体统计\n\n`;
+          comment += `- **评估项目数**: ${process.env.total_items || 0}\n`;
+          comment += `- **构建编号**: ${{ github.run_number }}\n`;
+          comment += `- **提交哈希**: \`${{ github.sha }}\`\n`;
+          
+          if (process.env.pass_threshold !== 'true') {
+            comment += `\n### ⚠️ 改进建议\n\n`;
+            comment += `质量闸门未通过，建议：\n`;
+            comment += `1. 检查RAG系统配置和算法\n`;
+            comment += `2. 分析评估结果找出问题根因\n`;
+            comment += `3. 优化检索和生成策略\n`;
+            comment += `4. 考虑更新基准数据集\n`;
+          }
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+          
+    - name: Fail if quality gate failed
+      if: steps.baseline_eval.outputs.quality_gate_passed == 'false'
+      run: |
+        echo "❌ RAG质量闸门失败，阻断流水线"
+        exit 1
