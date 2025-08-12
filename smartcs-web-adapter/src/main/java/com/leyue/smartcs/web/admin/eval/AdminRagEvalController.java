@@ -4,7 +4,7 @@ import com.alibaba.cola.dto.PageResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
 import com.leyue.smartcs.api.eval.RagEvalService;
-import com.leyue.smartcs.domain.eval.gateway.SimpleEvalGateway;
+import com.leyue.smartcs.api.eval.SimpleEvalService;
 import com.leyue.smartcs.dto.eval.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*;
 public class AdminRagEvalController {
     
     private final RagEvalService ragEvalService;
-    private final SimpleEvalGateway simpleEvalGateway;
+    private final SimpleEvalService simpleEvalService;
     
     // ====== 数据集管理 ======
     
@@ -322,21 +322,17 @@ public class AdminRagEvalController {
         log.info("管理端查询RAGAS服务状态");
         
         try {
-            // 优先使用新的简化评估网关获取健康状态
-            SimpleEvalGateway.HealthStatus healthStatus = simpleEvalGateway.getHealthStatus();
+            // 使用新的简化评估服务获取健康状态
+            SingleResponse<RagasServiceStatusDTO> response = simpleEvalService.getServiceStatus();
+            if (response.isSuccess()) {
+                return response;
+            }
             
-            // 转换为旧的DTO格式以保持兼容性
-            RagasServiceStatusDTO statusDTO = new RagasServiceStatusDTO();
-            statusDTO.setStatus("healthy".equals(healthStatus.status()) ? "运行中" : "异常");
-            statusDTO.setVersion(healthStatus.version());
-            statusDTO.setHealthStatus(healthStatus.status());
-            statusDTO.setLastHealthCheck(java.time.LocalDateTime.now());
-            
-            return SingleResponse.of(statusDTO);
+            log.warn("简化评估服务获取状态失败，回退到原有实现");
+            return ragEvalService.getRagasServiceStatus();
             
         } catch (Exception e) {
-            log.warn("使用新网关获取服务状态失败，回退到原有实现: {}", e.getMessage());
-            // 回退到原有实现
+            log.warn("使用简化评估服务获取服务状态失败，回退到原有实现: {}", e.getMessage());
             return ragEvalService.getRagasServiceStatus();
         }
     }
@@ -349,21 +345,17 @@ public class AdminRagEvalController {
         log.info("管理端测试RAGAS服务连接");
         
         try {
-            // 优先使用新的简化评估网关进行连接测试
-            SimpleEvalGateway.HealthStatus healthStatus = simpleEvalGateway.getHealthStatus();
+            // 使用新的简化评估服务进行连接测试
+            SingleResponse<RagasConnectionTestResultDTO> response = simpleEvalService.testConnection(cmd);
+            if (response.isSuccess()) {
+                return response;
+            }
             
-            // 转换为旧的DTO格式
-            RagasConnectionTestResultDTO resultDTO = new RagasConnectionTestResultDTO();
-            resultDTO.setConnectionStatus("healthy".equals(healthStatus.status()) ? "SUCCESS" : "FAILED");
-            resultDTO.setErrorMessage("unhealthy".equals(healthStatus.status()) ? "服务不健康" : null);
-            resultDTO.setResponseTime(100L); // 简化实现，实际应该测量响应时间
-            resultDTO.setTestTime(java.time.LocalDateTime.now());
-            
-            return SingleResponse.of(resultDTO);
+            log.warn("简化评估服务连接测试失败，回退到原有实现");
+            return ragEvalService.testRagasConnection(cmd);
             
         } catch (Exception e) {
-            log.warn("使用新网关测试连接失败，回退到原有实现: {}", e.getMessage());
-            // 回退到原有实现
+            log.warn("使用简化评估服务测试连接失败，回退到原有实现: {}", e.getMessage());
             return ragEvalService.testRagasConnection(cmd);
         }
     }
@@ -376,19 +368,6 @@ public class AdminRagEvalController {
     public SingleResponse<SimpleEvalResponse> runBaselineEvaluation(@Valid @RequestBody SimpleEvalRequest request) {
         log.info("管理端运行基准集评估: itemCount={}", request.getItems() != null ? request.getItems().size() : 0);
         
-        try {
-            SimpleEvalResponse response = simpleEvalGateway.evaluate(request);
-            
-            log.info("基准集评估完成: itemCount={}, passThreshold={}, avgFaithfulness={}", 
-                    response.getResults() != null ? response.getResults().size() : 0,
-                    response.getAggregate() != null ? response.getAggregate().getPassThreshold() : null,
-                    response.getAggregate() != null ? response.getAggregate().getAvgFaithfulness() : null);
-            
-            return SingleResponse.of(response);
-            
-        } catch (Exception e) {
-            log.error("基准集评估失败: {}", e.getMessage(), e);
-            throw new RuntimeException("基准集评估失败: " + e.getMessage(), e);
-        }
+        return simpleEvalService.runBaselineEvaluation(request);
     }
 }
