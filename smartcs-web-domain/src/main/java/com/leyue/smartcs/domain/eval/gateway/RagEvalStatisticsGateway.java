@@ -23,20 +23,4 @@ public interface RagEvalStatisticsGateway {
      * @return 统计概览
      */
     RagEvalStatisticsDTO getStatistics(RagEvalStatisticsQry qry);
-    
-    /**
-     * 获取数据集使用统计
-     * 
-     * @param qry 数据集统计查询
-     * @return 数据集统计
-     */
-    RagEvalDatasetStatsDTO getDatasetStats(RagEvalDatasetStatsQry qry);
-    
-    /**
-     * 获取模型性能统计
-     * 
-     * @param qry 模型统计查询
-     * @return 模型统计
-     */
-    RagEvalModelStatsDTO getModelStats(RagEvalModelStatsQry qry);
 }

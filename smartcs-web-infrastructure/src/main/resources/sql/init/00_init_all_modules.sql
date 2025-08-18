@@ -627,3 +627,209 @@ VALUES
 ('chat_assistant', '聊天助手模板', '你是一个友好的聊天助手。请用自然、亲切的语调与用户对话，理解用户的需求并提供有用的建议。', '用于日常聊天的助手模板', 'LLM', TRUE, 'ACTIVE', 'system', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000),
 ('code_assistant', '代码助手模板', '你是一个专业的编程助手。请帮助用户解决编程问题，提供清晰的代码示例和详细的解释。', '用于编程和代码相关问题的模板', 'LLM', TRUE, 'ACTIVE', 'system', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000),
 ('knowledge_qa', '知识问答模板', '基于提供的知识库内容，请准确回答用户的问题。如果知识库中没有相关信息，请诚实地说明。\n\n知识库内容：{{knowledge}}\n\n用户问题：{{question}}', '用于知识库问答的RAG模板', 'LLM', TRUE, 'ACTIVE', 'system', UNIX_TIMESTAMP()*1000, UNIX_TIMESTAMP()*1000);
+
+-- ================================================================
+-- 意图模块 - Intent Management Module
+-- ================================================================
+
+-- 意图目录表
+CREATE TABLE IF NOT EXISTS `t_intent_catalog` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `name` VARCHAR(128) NOT NULL COMMENT '目录名称',
+  `code` VARCHAR(64) UNIQUE NOT NULL COMMENT '目录编码',
+  `description` TEXT COMMENT '描述',
+  `parent_id` BIGINT COMMENT '父目录ID',
+  `sort_order` INT DEFAULT 0 COMMENT '排序',
+  `creator_id` BIGINT NOT NULL COMMENT '创建者ID',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  INDEX idx_parent_id (`parent_id`),
+  INDEX idx_creator_id (`creator_id`),
+  INDEX idx_code (`code`),
+  INDEX idx_sort_order (`sort_order`)
+) COMMENT '意图目录表';
+
+-- 意图表
+CREATE TABLE IF NOT EXISTS `t_intent` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `catalog_id` BIGINT NOT NULL COMMENT '目录ID',
+  `name` VARCHAR(128) NOT NULL COMMENT '意图名称',
+  `code` VARCHAR(64) UNIQUE NOT NULL COMMENT '意图编码',
+  `description` TEXT COMMENT '意图描述',
+  `labels` JSON COMMENT '标签数组',
+  `boundaries` JSON COMMENT '边界定义',
+  `current_version_id` BIGINT COMMENT '当前活跃版本ID',
+  `status` VARCHAR(32) DEFAULT 'DRAFT' COMMENT 'DRAFT/ACTIVE/DEPRECATED',
+  `creator_id` BIGINT NOT NULL COMMENT '创建者ID',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  INDEX idx_catalog_id (`catalog_id`),
+  INDEX idx_status (`status`),
+  INDEX idx_creator_id (`creator_id`),
+  INDEX idx_code (`code`),
+  INDEX idx_current_version_id (`current_version_id`),
+  CONSTRAINT fk_intent_catalog FOREIGN KEY (`catalog_id`) REFERENCES `t_intent_catalog`(`id`)
+) COMMENT '意图表';
+
+-- 意图版本表
+CREATE TABLE IF NOT EXISTS `t_intent_version` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `intent_id` BIGINT NOT NULL COMMENT '意图ID',
+  `version_number` VARCHAR(32) NOT NULL COMMENT '版本号',
+  `version_name` VARCHAR(128) COMMENT '版本名称',
+  `config_snapshot` JSON COMMENT '配置快照',
+  `status` VARCHAR(32) DEFAULT 'DRAFT' COMMENT 'DRAFT/REVIEW/ACTIVE/DEPRECATED',
+  `sample_count` INT DEFAULT 0 COMMENT '样本数量',
+  `accuracy_score` DECIMAL(5,4) COMMENT '准确率',
+  `change_note` TEXT COMMENT '变更说明',
+  `created_by_id` BIGINT COMMENT '创建者ID',
+  `approved_by_id` BIGINT COMMENT '审批者ID',
+  `approved_at` BIGINT COMMENT '审批时间',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  UNIQUE KEY uk_intent_version (`intent_id`, `version_number`),
+  INDEX idx_intent_id (`intent_id`),
+  INDEX idx_status (`status`),
+  INDEX idx_created_by_id (`created_by_id`),
+  INDEX idx_approved_by_id (`approved_by_id`),
+  CONSTRAINT fk_version_intent FOREIGN KEY (`intent_id`) REFERENCES `t_intent`(`id`)
+) COMMENT '意图版本表';
+
+-- 意图策略表
+CREATE TABLE IF NOT EXISTS `t_intent_policy` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `version_id` BIGINT NOT NULL COMMENT '版本ID',
+  `threshold_tau` DECIMAL(5,4) COMMENT '阈值 tau',
+  `margin_delta` DECIMAL(5,4) COMMENT '边际 delta',
+  `temp_t` DECIMAL(5,4) COMMENT '温度 T',
+  `unknown_label` VARCHAR(128) COMMENT '未知标签',
+  `channel_overrides` JSON COMMENT '渠道覆盖配置',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  UNIQUE KEY uk_version_policy (`version_id`),
+  CONSTRAINT fk_policy_version FOREIGN KEY (`version_id`) REFERENCES `t_intent_version`(`id`) ON DELETE CASCADE
+) COMMENT '意图策略表';
+
+-- 意图路由表
+CREATE TABLE IF NOT EXISTS `t_intent_route` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `version_id` BIGINT NOT NULL COMMENT '版本ID',
+  `route_type` VARCHAR(32) NOT NULL COMMENT '路由类型: SMALL_MODEL/RULE/LLM/HYBRID',
+  `route_conf` JSON COMMENT '路由配置',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  UNIQUE KEY uk_version_route (`version_id`),
+  INDEX idx_route_type (`route_type`),
+  CONSTRAINT fk_route_version FOREIGN KEY (`version_id`) REFERENCES `t_intent_version`(`id`) ON DELETE CASCADE
+) COMMENT '意图路由表';
+
+-- 意图样本表
+CREATE TABLE IF NOT EXISTS `t_intent_sample` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `version_id` BIGINT NOT NULL COMMENT '版本ID',
+  `type` VARCHAR(32) NOT NULL COMMENT '样本类型: TRAIN/DEV/TEST/ONLINE_HARD_NEG/UNKNOWN',
+  `text` TEXT NOT NULL COMMENT '文本内容',
+  `slots` JSON COMMENT '插槽信息',
+  `source` VARCHAR(64) DEFAULT 'manual' COMMENT '数据来源: manual/online/augment',
+  `confidence_score` DOUBLE COMMENT '置信度分数',
+  `annotator_id` BIGINT COMMENT '标注者ID',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  INDEX idx_version_id (`version_id`),
+  INDEX idx_type (`type`),
+  INDEX idx_source (`source`),
+  INDEX idx_annotator_id (`annotator_id`),
+  INDEX idx_version_type (`version_id`, `type`),
+  CONSTRAINT fk_sample_version FOREIGN KEY (`version_id`) REFERENCES `t_intent_version`(`id`) ON DELETE CASCADE
+) COMMENT '意图样本表';
+
+-- 意图快照表
+CREATE TABLE IF NOT EXISTS `t_intent_snapshot` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `name` VARCHAR(128) NOT NULL COMMENT '快照名称',
+  `code` VARCHAR(64) UNIQUE NOT NULL COMMENT '快照编码',
+  `scope` VARCHAR(64) DEFAULT 'global' COMMENT '作用域',
+  `scope_selector` JSON COMMENT '作用域选择器',
+  `status` VARCHAR(32) DEFAULT 'DRAFT' COMMENT 'DRAFT/PUBLISHED/ACTIVE/ROLLBACK/ARCHIVED',
+  `etag` VARCHAR(128) COMMENT 'ETag',
+  `created_by_id` BIGINT COMMENT '创建者ID',
+  `published_by_id` BIGINT COMMENT '发布者ID',
+  `published_at` BIGINT COMMENT '发布时间',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  INDEX idx_status (`status`),
+  INDEX idx_scope (`scope`),
+  INDEX idx_created_by_id (`created_by_id`),
+  INDEX idx_published_by_id (`published_by_id`),
+  INDEX idx_code (`code`),
+  INDEX idx_etag (`etag`)
+) COMMENT '意图快照表';
+
+-- 意图快照项表
+CREATE TABLE IF NOT EXISTS `t_intent_snapshot_item` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `snapshot_id` BIGINT NOT NULL COMMENT '快照ID',
+  `version_id` BIGINT NOT NULL COMMENT '版本ID',
+  `created_at` BIGINT COMMENT '创建时间',
+  UNIQUE KEY uk_snapshot_version (`snapshot_id`, `version_id`),
+  INDEX idx_snapshot_id (`snapshot_id`),
+  INDEX idx_version_id (`version_id`),
+  CONSTRAINT fk_snapshot_item_snapshot FOREIGN KEY (`snapshot_id`) REFERENCES `t_intent_snapshot`(`id`) ON DELETE CASCADE,
+  CONSTRAINT fk_snapshot_item_version FOREIGN KEY (`version_id`) REFERENCES `t_intent_version`(`id`)
+) COMMENT '意图快照项表';
+
+-- 意图分类日志表
+CREATE TABLE IF NOT EXISTS `t_intent_classification_log` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `session_id` VARCHAR(128) COMMENT '会话ID',
+  `snapshot_id` VARCHAR(64) NOT NULL COMMENT '快照ID',
+  `input_text` TEXT NOT NULL COMMENT '输入文本',
+  `intent_code` VARCHAR(64) COMMENT '识别的意图编码',
+  `confidence_score` DOUBLE COMMENT '置信度分数',
+  `channel` VARCHAR(32) COMMENT '渠道',
+  `tenant` VARCHAR(64) COMMENT '租户',
+  `user_id` BIGINT COMMENT '用户ID',
+  `classification_time` BIGINT COMMENT '分类时间',
+  `processing_time_ms` INT COMMENT '处理时间毫秒',
+  `result_data` JSON COMMENT '完整结果数据',
+  `created_at` BIGINT COMMENT '创建时间',
+  INDEX idx_session_id (`session_id`),
+  INDEX idx_snapshot_id (`snapshot_id`),
+  INDEX idx_intent_code (`intent_code`),
+  INDEX idx_channel (`channel`),
+  INDEX idx_tenant (`tenant`),
+  INDEX idx_user_id (`user_id`),
+  INDEX idx_classification_time (`classification_time`)
+) COMMENT '意图分类日志表';
+
+-- 意图模块初始化数据
+INSERT INTO `t_intent_catalog` (`name`, `code`, `description`, `parent_id`, `sort_order`, `creator_id`, `is_deleted`, `created_by`, `created_at`, `updated_at`) VALUES
+('默认目录', 'default', '系统默认意图目录', NULL, 0, 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000),
+('智慧农业', 'smart_agriculture', '智慧农业相关意图', NULL, 1, 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000),
+('智慧畜牧', 'smart_livestock', '智慧畜牧相关意图', NULL, 2, 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000);
+
+-- 插入示例意图
+INSERT INTO `t_intent` (`catalog_id`, `name`, `code`, `description`, `status`, `creator_id`, `is_deleted`, `created_by`, `created_at`, `updated_at`) VALUES
+(1, '问候', 'greeting', '用户问候相关意图', 'DRAFT', 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000),
+(1, '告别', 'goodbye', '用户告别相关意图', 'DRAFT', 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000),
+(2, '病虫害识别', 'pest_identification', '农作物病虫害识别', 'DRAFT', 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000),
+(3, '健康异常告警', 'health_alert', '牲畜健康异常告警', 'DRAFT', 1, 0, 'system', UNIX_TIMESTAMP(NOW()) * 1000, UNIX_TIMESTAMP(NOW()) * 1000);

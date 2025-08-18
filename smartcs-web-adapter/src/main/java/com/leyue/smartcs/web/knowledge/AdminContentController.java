@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 import com.leyue.smartcs.dto.knowledge.DocumentProcessCmd;
 import com.leyue.smartcs.dto.knowledge.DocumentProcessResultDTO;
+import com.leyue.smartcs.dto.knowledge.UrlDocumentImportCmd;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -101,5 +102,13 @@ public class AdminContentController {
     @PostMapping("/process")
     public SingleResponse<DocumentProcessResultDTO> processDocument(@RequestBody @Valid DocumentProcessCmd cmd) {
         return contentService.processDocument(cmd);
+    }
+
+    /**
+     * 通过URL导入文档
+     */
+    @PostMapping("/import-url")
+    public SingleResponse<DocumentProcessResultDTO> importByUrl(@RequestBody @Valid UrlDocumentImportCmd cmd) {
+        return contentService.importByUrl(cmd);
     }
 } 

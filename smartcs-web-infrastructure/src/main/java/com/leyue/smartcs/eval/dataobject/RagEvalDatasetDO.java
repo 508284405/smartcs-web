@@ -1,6 +1,7 @@
 package com.leyue.smartcs.eval.dataobject;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
@@ -76,11 +77,13 @@ public class RagEvalDatasetDO extends BaseDO {
     /**
      * 标签信息
      */
+    @TableField(value = "tags", typeHandler = JacksonTypeHandler.class)
     private List<String> tags;
     
     /**
      * 扩展元数据
      */
+    @TableField(value = "metadata", typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> metadata;
     
     /**

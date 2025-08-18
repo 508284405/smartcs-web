@@ -555,7 +555,6 @@ public class RagEvalGatewayImpl implements RagEvalGateway {
         RagEvalGenerationDetailDO detailDO = convertToGenerationDetailDO(detail);
         long currentTime = Instant.now().toEpochMilli();
         detailDO.setCreatedAt(currentTime);
-        detailDO.setUpdatedAt(currentTime);
         
         generationDetailMapper.insert(detailDO);
         
@@ -572,7 +571,6 @@ public class RagEvalGatewayImpl implements RagEvalGateway {
                 .map(detail -> {
                     RagEvalGenerationDetailDO detailDO = convertToGenerationDetailDO(detail);
                     detailDO.setCreatedAt(currentTime);
-                    detailDO.setUpdatedAt(currentTime);
                     return detailDO;
                 })
                 .collect(Collectors.toList());

@@ -3,7 +3,7 @@ package com.leyue.smartcs.eval.gatewayimpl;
 import com.leyue.smartcs.domain.eval.gateway.SimpleEvalGateway;
 import com.leyue.smartcs.dto.eval.SimpleEvalRequest;
 import com.leyue.smartcs.dto.eval.SimpleEvalResponse;
-import com.leyue.smartcs.eval.client.SimpleEvalClient;
+import com.leyue.smartcs.config.feign.SimpleEvalClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

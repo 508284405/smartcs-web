@@ -41,5 +41,6 @@ public interface RagEvalDatasetMapper extends BaseMapper<RagEvalDatasetDO> {
      */
     int updateCaseCounts(@Param("datasetId") String datasetId, 
                         @Param("totalCases") Integer totalCases, 
-                        @Param("activeCases") Integer activeCases);
+                        @Param("activeCases") Integer activeCases,
+                        @Param("updatedAt") Long updatedAt);
 }

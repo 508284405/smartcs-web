@@ -7,15 +7,6 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
   mvc:
-    cors:
-      enabled: true
-    mapping:
-      /**:
-        allowed-origins: "*"
-        allowed-methods: "*"
-        allowed-headers: "*"
-        allow-credentials: true
-        max-age: 3600
   reactor:
     context-propagation: auto # Boot 3.2+ 原生支持
   # Spring Cache配置
@@ -113,6 +104,19 @@ smartcs:
       logging:
         enabled: true
         level: info
+
+  # 文档导入与下载相关配置
+import:
+  download:
+    # 允许的主机白名单（留空表示不启用白名单，仅按私网/回环限制）
+    allowed-hosts: []
+    # 禁止的主机黑名单
+    blocked-hosts: []
+    # 最大允许下载文件大小（字节），例如 52428800 = 50MB
+    max-file-size: 52428800
+    # 连接与读取超时（毫秒）
+    connect-timeout-ms: 5000
+    read-timeout-ms: 15000
 
 # RAG评估系统配置
 eval:

@@ -1,8 +1,10 @@
 package com.leyue.smartcs.eval.dataobject;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.leyue.smartcs.common.dao.BaseDO;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -149,5 +151,6 @@ public class RagEvalRunDO extends BaseDO {
     /**
      * 扩展元数据
      */
+    @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> metadata;
 }

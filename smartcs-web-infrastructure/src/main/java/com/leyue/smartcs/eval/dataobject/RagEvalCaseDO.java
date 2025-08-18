@@ -1,11 +1,12 @@
 package com.leyue.smartcs.eval.dataobject;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.leyue.smartcs.common.dao.BaseDO;
+import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import org.apache.ibatis.type.JdbcType;
 
 import java.util.Map;
 
@@ -16,9 +17,11 @@ import java.util.Map;
  * @since 1.0.0
  */
 @Data
-@EqualsAndHashCode(callSuper = true)
-@TableName(value = "t_rag_eval_case", autoResultMap = true)
-public class RagEvalCaseDO extends BaseDO {
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@TableName(value = "t_rag_eval_case", autoResultMap = false)
+public class RagEvalCaseDO {
     
     /**
      * 主键ID
@@ -84,10 +87,40 @@ public class RagEvalCaseDO extends BaseDO {
     /**
      * 扩展元数据（如原始数据源信息）
      */
+    @TableField(typeHandler = JacksonTypeHandler.class, jdbcType = JdbcType.LONGVARCHAR)
     private Map<String, Object> metadata;
     
     /**
      * 状态：0-禁用，1-启用
      */
     private Integer status;
+    
+    /**
+     * 是否删除：0-未删除，1-已删除
+     */
+    @TableLogic
+    @Builder.Default
+    private Integer isDeleted = 0;
+    
+    /**
+     * 创建者
+     */
+    private Long createdBy;
+    
+    /**
+     * 更新者
+     */
+    private Long updatedBy;
+    
+    /**
+     * 创建时间（毫秒时间戳）
+     */
+    @TableField(fill = FieldFill.INSERT)
+    private Long createdAt;
+    
+    /**
+     * 更新时间（毫秒时间戳）
+     */
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Long updatedAt;
 }

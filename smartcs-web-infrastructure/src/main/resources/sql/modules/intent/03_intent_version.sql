@@ -1,0 +1,26 @@
+-- 意图模块 - 意图版本表
+CREATE TABLE IF NOT EXISTS `t_intent_version` (
+  `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
+  `intent_id` BIGINT NOT NULL COMMENT '意图ID',
+  `version_number` VARCHAR(32) NOT NULL COMMENT '版本号',
+  `version_name` VARCHAR(128) COMMENT '版本名称',
+  `config_snapshot` JSON COMMENT '配置快照',
+  `status` VARCHAR(32) DEFAULT 'DRAFT' COMMENT 'DRAFT/REVIEW/ACTIVE/DEPRECATED',
+  `sample_count` INT DEFAULT 0 COMMENT '样本数量',
+  `accuracy_score` DECIMAL(5,4) COMMENT '准确率',
+  `change_note` TEXT COMMENT '变更说明',
+  `created_by_id` BIGINT COMMENT '创建者ID',
+  `approved_by_id` BIGINT COMMENT '审批者ID',
+  `approved_at` BIGINT COMMENT '审批时间',
+  `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+  `created_by` VARCHAR(64) COMMENT '创建者',
+  `updated_by` VARCHAR(64) COMMENT '更新者',
+  `created_at` BIGINT COMMENT '创建时间',
+  `updated_at` BIGINT COMMENT '更新时间',
+  UNIQUE KEY uk_intent_version (`intent_id`, `version_number`),
+  INDEX idx_intent_id (`intent_id`),
+  INDEX idx_status (`status`),
+  INDEX idx_created_by_id (`created_by_id`),
+  INDEX idx_approved_by_id (`approved_by_id`),
+  CONSTRAINT fk_version_intent FOREIGN KEY (`intent_id`) REFERENCES `t_intent`(`id`)
+) COMMENT '意图版本表';

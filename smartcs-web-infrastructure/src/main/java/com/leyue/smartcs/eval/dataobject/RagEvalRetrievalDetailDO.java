@@ -1,8 +1,10 @@
 package com.leyue.smartcs.eval.dataobject;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -193,11 +195,13 @@ public class RagEvalRetrievalDetailDO {
     /**
      * 调试信息
      */
+    @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> debugInfo;
     
     /**
      * 扩展元数据
      */
+    @TableField(typeHandler = JacksonTypeHandler.class)
     private Map<String, Object> metadata;
     
     /**

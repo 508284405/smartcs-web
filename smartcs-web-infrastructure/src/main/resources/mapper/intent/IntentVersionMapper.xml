@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.intent.mapper.IntentVersionMapper">
+
+    <!-- 获取意图的下一个版本号 -->
+    <select id="getNextVersionNumber" parameterType="long" resultType="string">
+        SELECT CONCAT('v', LPAD(IFNULL(MAX(CAST(SUBSTRING(version_number, 2) AS UNSIGNED)), 0) + 1, 3, '0'))
+        FROM t_intent_version
+        WHERE intent_id = #{intentId}
+          AND is_deleted = 0
+          AND version_number REGEXP '^v[0-9]+$'
+    </select>
+
+</mapper>

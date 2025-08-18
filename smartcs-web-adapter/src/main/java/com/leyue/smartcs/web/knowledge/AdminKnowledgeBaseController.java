@@ -113,9 +113,6 @@ public class AdminKnowledgeBaseController {
     @PostMapping("/{id}/recall-test")
     public MultiResponse<RecallTestResultDTO> recallTest(@PathVariable Long id, 
                                                           @RequestBody @Valid RecallTestQry qry) {
-        if (!id.equals(qry.getKnowledgeBaseId())) {
-            return MultiResponse.<RecallTestResultDTO>buildFailure("PARAMETER_MISMATCH", "路径参数ID与请求体ID不匹配");
-        }
         return knowledgeBaseService.recallTest(qry);
     }
 } 
