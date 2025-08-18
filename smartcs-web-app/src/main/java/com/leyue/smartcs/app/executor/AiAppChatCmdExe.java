@@ -7,6 +7,7 @@ import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,23 +50,30 @@ public class AiAppChatCmdExe {
 
     private final DynamicModelManager dynamicModelManager;
     private final IdGeneratorGateway idGeneratorGateway;
+    private final LangChain4jModerationService langChain4jModerationService;
 
     /**
      * 执行SSE聊天
-     * 简化版本：直接使用SmartChatService的流式能力
+     * 简化版本：支持内容审核和RAG增强，意图识别集成在RAG QueryTransformer中
      */
     public SseEmitter execute(AiAppChatCmd cmd) {
         SseEmitter emitter = new SseEmitter(cmd.getTimeout() != null ? cmd.getTimeout() : 30000L);
         String sessionId = generateSessionId(cmd);
-        
-        log.info("开始执行AI应用聊天: appId={}, sessionId={}, message length={}",
-                cmd.getAppId(), sessionId, cmd.getMessage().length());
 
         CompletableFuture.runAsync(() -> {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
                 
-                // 验证和处理RAG配置
+                // 1. 内容审核预检（输入阶段）
+                sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在进行内容安全检查..."));
+                boolean inputSafe = performInputModeration(cmd.getMessage(), cmd.getModelId(), sessionId);
+                if (!inputSafe) {
+                    sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, "输入内容包含不当信息，请修改后重试"));
+                    emitter.complete();
+                    return;
+                }
+                
+                // 2. 验证和处理RAG配置
                 RagComponentConfig ragConfig = validateAndProcessRagConfig(cmd.getRagConfig());
                 if (ragConfig != null) {
                     log.info("使用自定义RAG配置: sessionId={}, ragConfig={}", sessionId, ragConfig);
@@ -73,7 +81,7 @@ public class AiAppChatCmdExe {
                     log.info("使用默认RAG配置: sessionId={}", sessionId);
                 }
                 
-                // 动态创建SmartChatService实例
+                // 3. 动态创建SmartChatService实例并执行对话
                 SmartChatService smartChatService = dynamicModelManager.createSmartChatService(cmd.getModelId(), ragConfig);
                 processChatStream(emitter, cmd, sessionId, smartChatService);
                 
@@ -88,7 +96,7 @@ public class AiAppChatCmdExe {
 
     /**
      * 处理流式聊天
-     * 使用LangChain4j原生TokenStream，框架自动处理RAG和记忆
+     * 使用LangChain4j原生TokenStream，框架自动处理RAG和记忆，支持输出审核
      */
     private void processChatStream(SseEmitter emitter, AiAppChatCmd cmd, String sessionId, SmartChatService smartChatService) throws Exception {
         sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在生成AI回答..."));
@@ -99,6 +107,7 @@ public class AiAppChatCmdExe {
         
         tokenStream
             .onPartialResponse(partialResponse -> {
+                // 部分消息
                 try {
                     fullResponse.append(partialResponse);
                     AiAppChatResponse dataResponse = AiAppChatResponse.builder()
@@ -118,12 +127,20 @@ public class AiAppChatCmdExe {
                 }
             })
             .onCompleteResponse(response -> {
+                // AI聊天完成 - 增加输出审核
                 try {
                     log.info("AI聊天完成: sessionId={}, responseLength={}", 
                             sessionId, fullResponse.length());
+                    
+                    // 5. 输出内容审核（异步）
+                    String finalContent = fullResponse.toString();
+                    CompletableFuture.runAsync(() -> {
+                        performOutputModeration(finalContent, cmd.getModelId(), sessionId);
+                    });
+                    
                     AiAppChatResponse completeResponse = AiAppChatResponse.builder()
                             .sessionId(sessionId)
-                            .content(fullResponse.toString())
+                            .content(finalContent)
                             .finished(true)
                             .timestamp(System.currentTimeMillis())
                             .build();
@@ -363,5 +380,68 @@ public class AiAppChatCmdExe {
                 .id(message.getId())
                 .name(message.getType().getValue())
                 .data(message));
+    }
+    
+    /**
+     * 执行输入内容审核
+     * 使用AI模型进行快速内容预检
+     */
+    private boolean performInputModeration(String content, Long modelId, String sessionId) {
+        try {
+            log.debug("开始输入内容审核: sessionId={}, contentLength={}", sessionId, content.length());
+            
+            // 使用LangChain4j审核服务进行快速审核
+            var moderationResult = langChain4jModerationService.quickModerate(content, modelId);
+            var quickResult = moderationResult.get(5, java.util.concurrent.TimeUnit.SECONDS);
+            
+            // 检查审核结果，如果不安全则阻断
+            boolean isBlocked = quickResult.isBlocked() || quickResult.requiresReview();
+            if (isBlocked) {
+                log.warn("输入内容被阻断: sessionId={}, result={}", sessionId, quickResult.getResult());
+                return false;
+            }
+            
+            log.debug("输入内容审核通过: sessionId={}, result={}", sessionId, quickResult.getResult());
+            return true;
+            
+        } catch (Exception e) {
+            // 审核失败时采用宽松策略，允许通过但记录日志
+            log.warn("输入内容审核失败，采用宽松策略允许通过: sessionId={}", sessionId, e);
+            return true;
+        }
+    }
+    
+    
+    /**
+     * 执行输出内容审核（异步）
+     * 对AI生成的回答进行内容安全检查
+     */
+    private void performOutputModeration(String content, Long modelId, String sessionId) {
+        try {
+            log.debug("开始输出内容审核: sessionId={}, contentLength={}", sessionId, content.length());
+            
+            // 异步执行详细审核，不阻塞响应
+            langChain4jModerationService.moderateContent(content, modelId)
+                .thenAccept(moderationResult -> {
+                    log.info("输出内容审核完成: sessionId={}, result={}", 
+                            sessionId, moderationResult.getResult());
+                    
+                    // 如果检测到违规内容，记录日志并可能触发后续处理
+                    var result = moderationResult.getResult();
+                    if (result != null && (result.name().equals("REJECTED") || result.name().equals("NEEDS_REVIEW"))) {
+                        log.warn("检测到输出违规内容: sessionId={}, result={}, violations={}", 
+                                sessionId, result, moderationResult.getViolations());
+                        // 这里可以添加违规内容的后续处理逻辑
+                        // 例如：通知管理员、记录违规记录等
+                    }
+                })
+                .exceptionally(throwable -> {
+                    log.warn("输出内容审核失败: sessionId={}", sessionId, throwable);
+                    return null;
+                });
+                
+        } catch (Exception e) {
+            log.warn("启动输出内容审核失败: sessionId={}", sessionId, e);
+        }
     }
 }

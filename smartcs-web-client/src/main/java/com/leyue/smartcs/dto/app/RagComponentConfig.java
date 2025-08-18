@@ -145,6 +145,48 @@ public class RagComponentConfig {
          * 用于查询转换的语言模型，未指定时回退到会话级 modelId
          */
         private Long modelId;
+
+        /**
+         * 是否启用意图识别
+         * 控制是否在查询转换过程中集成意图识别功能
+         */
+        @Builder.Default
+        private Boolean intentRecognitionEnabled = false;
+
+        /**
+         * 默认渠道
+         * 意图识别使用的默认渠道标识
+         */
+        @Builder.Default
+        private String defaultChannel = "web";
+
+        /**
+         * 默认租户
+         * 意图识别使用的默认租户标识
+         */
+        @Builder.Default
+        private String defaultTenant = "default";
+
+        /**
+         * 是否启用意图识别
+         */
+        public boolean isIntentRecognitionEnabled() {
+            return intentRecognitionEnabled != null && intentRecognitionEnabled;
+        }
+
+        /**
+         * 获取默认渠道
+         */
+        public String getDefaultChannel() {
+            return defaultChannel != null ? defaultChannel : "web";
+        }
+
+        /**
+         * 获取默认租户
+         */
+        public String getDefaultTenant() {
+            return defaultTenant != null ? defaultTenant : "default";
+        }
     }
 
     /**

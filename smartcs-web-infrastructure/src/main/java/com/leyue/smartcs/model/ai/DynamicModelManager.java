@@ -36,6 +36,8 @@ import dev.langchain4j.rag.query.router.LanguageModelQueryRouter;
 import dev.langchain4j.rag.query.router.QueryRouter;
 import dev.langchain4j.rag.query.transformer.ExpandingQueryTransformer;
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
+import com.leyue.smartcs.rag.query.IntentAwareQueryTransformer;
+import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
@@ -63,6 +65,7 @@ public class DynamicModelManager {
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final SearXNGWebSearchEngine searxngWebSearchEngine;
     private final WebSearchProperties webSearchProperties;
+    private final ClassificationDomainService classificationDomainService;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
@@ -481,22 +484,40 @@ public class DynamicModelManager {
             // 使用组件级模型ID，未指定时回退到会话级 modelId
             Long actualModelId = config.getModelId() != null ? config.getModelId() : modelId;
             ChatModel chatModel = getChatModel(actualModelId);
-            // 暂时使用null作为promptTemplate，TODO: 实现PromptTemplate转换
-            return ExpandingQueryTransformer.builder()
-                    .chatModel(chatModel)
-                    .n(config.getN())
-                    .promptTemplate(null) // TODO: 支持自定义模板
-                    .build();
+            
+            // 检查是否启用意图识别
+            if (config.isIntentRecognitionEnabled()) {
+                log.debug("创建IntentAwareQueryTransformer: modelId={}, intentEnabled=true", actualModelId);
+                return new IntentAwareQueryTransformer(
+                    classificationDomainService,
+                    chatModel,
+                    config.getN(),
+                    true,
+                    config.getDefaultChannel(),
+                    config.getDefaultTenant()
+                );
+            } else {
+                // 使用标准的查询扩展器
+                return ExpandingQueryTransformer.builder()
+                        .chatModel(chatModel)
+                        .n(config.getN())
+                        .promptTemplate(null) // TODO: 支持自定义模板
+                        .build();
+            }
         }
         
         return queryTransformerCache.computeIfAbsent(modelId, id -> {
-            log.debug("创建默认配置的QueryTransformer实例: modelId={}", id);
+            log.debug("创建默认配置的QueryTransformer实例（启用意图识别）: modelId={}", id);
             ChatModel chatModel = getChatModel(id);
-            return ExpandingQueryTransformer.builder()
-                    .chatModel(chatModel)
-                    .n(5)
-                    .promptTemplate(null)
-                    .build();
+            // 默认启用意图识别
+            return new IntentAwareQueryTransformer(
+                classificationDomainService,
+                chatModel,
+                5, // 默认扩展数量
+                true, // 默认启用意图识别
+                "web", // 默认渠道
+                "default" // 默认租户
+            );
         });
     }
 
