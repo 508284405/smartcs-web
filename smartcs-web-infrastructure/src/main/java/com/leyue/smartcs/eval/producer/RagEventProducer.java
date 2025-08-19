@@ -1,11 +1,11 @@
 package com.leyue.smartcs.eval.producer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson2.JSON;
 import com.leyue.smartcs.dto.eval.event.RagEvent;
-import com.leyue.smartcs.eval.config.RagKafkaConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
@@ -13,147 +13,108 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * RAG评估事件生产者
- * 负责异步发送评估事件到Kafka
+ * RAG事件Kafka生产者
+ * 负责将RAG评估事件发送到Kafka消息队列
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "eval.enabled", havingValue = "true", matchIfMissing = true)
 public class RagEventProducer {
     
-    private final KafkaTemplate<String, String> ragEventKafkaTemplate;
-    private final RagKafkaConfig ragKafkaConfig;
-    private final ObjectMapper objectMapper;
+    private final KafkaTemplate<String, String> kafkaTemplate;
+    
+    // Kafka主题名称，从配置中获取，默认为rag.events
+    @Value("${eval.kafka.topics.rag-events:rag.events}")
+    private String topicRagEvents;
     
     /**
-     * 异步发送RAG评估事件
+     * 异步发送RAG事件
      * 
-     * @param event RAG事件
+     * @param event RAG事件对象
      */
     public void sendAsync(RagEvent event) {
         if (event == null) {
-            log.warn("尝试发送空的RAG事件，已忽略");
+            log.warn("RAG事件为空，跳过发送");
             return;
         }
         
         try {
             // 序列化事件为JSON
-            String eventJson = objectMapper.writeValueAsString(event);
-            String key = determineKey(event);
-            String topic = ragKafkaConfig.getRagEventsTopic();
+            String eventJson = JSON.toJSONString(event);
             
-            // 异步发送
-            CompletableFuture<SendResult<String, String>> future = 
-                ragEventKafkaTemplate.send(topic, key, eventJson);
+            // 使用事件ID作为消息key，确保同一事件的消息有序
+            String messageKey = event.getEventId();
             
-            // 设置成功回调
+            // 异步发送到Kafka
+            CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topicRagEvents, messageKey, eventJson);
+            
+            // 添加回调处理
             future.whenComplete((result, ex) -> {
                 if (ex != null) {
-                    handleSendFailure(event, key, topic, ex);
+                    log.error("发送RAG事件到Kafka失败: eventId={}, topic={}, error={}", 
+                            event.getEventId(), topicRagEvents, ex.getMessage(), ex);
                 } else {
-                    handleSendSuccess(event, key, result);
+                    log.debug("成功发送RAG事件到Kafka: eventId={}, topic={}, partition={}, offset={}", 
+                            event.getEventId(), topicRagEvents, 
+                            result.getRecordMetadata().partition(), 
+                            result.getRecordMetadata().offset());
                 }
             });
             
-        } catch (JsonProcessingException e) {
-            log.error("RAG事件JSON序列化失败: eventId={}, error={}", 
-                    event.getEventId(), e.getMessage(), e);
-            // 发送到死信队列
-            sendToDlq(event, "序列化失败: " + e.getMessage());
         } catch (Exception e) {
-            log.error("发送RAG事件时发生异常: eventId={}, error={}", 
-                    event.getEventId(), e.getMessage(), e);
+            log.error("发送RAG事件异常: eventId={}, error={}", event.getEventId(), e.getMessage(), e);
         }
     }
     
     /**
-     * 确定消息的分区键
-     * 优先使用traceId，其次使用eventId
+     * 同步发送RAG事件（用于重要场景）
+     * 
+     * @param event RAG事件对象
+     * @return 是否发送成功
      */
-    private String determineKey(RagEvent event) {
-        if (event.getTraceId() != null && !event.getTraceId().isEmpty()) {
-            return event.getTraceId();
+    public boolean sendSync(RagEvent event) {
+        if (event == null) {
+            log.warn("RAG事件为空，跳过发送");
+            return false;
         }
-        return event.getEventId();
-    }
-    
-    /**
-     * 处理发送成功
-     */
-    private void handleSendSuccess(RagEvent event, String key, SendResult<String, String> result) {
-        if (log.isDebugEnabled()) {
-            log.debug("RAG事件发送成功: eventId={}, key={}, partition={}, offset={}", 
-                    event.getEventId(), key, 
-                    result.getRecordMetadata().partition(),
-                    result.getRecordMetadata().offset());
-        }
-    }
-    
-    /**
-     * 处理发送失败
-     * 失败的事件会被发送到死信队列
-     */
-    private void handleSendFailure(RagEvent event, String key, String topic, Throwable ex) {
-        log.error("RAG事件发送失败: eventId={}, key={}, topic={}, error={}", 
-                event.getEventId(), key, topic, ex.getMessage(), ex);
         
-        // 发送到死信队列
-        sendToDlq(event, "发送失败: " + ex.getMessage());
-    }
-    
-    /**
-     * 发送事件到死信队列
-     */
-    private void sendToDlq(RagEvent event, String reason) {
         try {
-            String dlqTopic = ragKafkaConfig.getRagEventsDlqTopic();
-            String eventJson = objectMapper.writeValueAsString(event);
-            String key = determineKey(event);
+            // 序列化事件为JSON
+            String eventJson = JSON.toJSONString(event);
+            String messageKey = event.getEventId();
             
-            // 添加失败原因到JSON中
-            String dlqJson = addFailureReason(eventJson, reason);
+            // 同步发送到Kafka
+            SendResult<String, String> result = kafkaTemplate.send(topicRagEvents, messageKey, eventJson).get();
             
-            // 同步发送到DLQ，确保不丢失
-            ragEventKafkaTemplate.send(dlqTopic, key, dlqJson).get();
+            log.debug("同步发送RAG事件成功: eventId={}, partition={}, offset={}", 
+                    event.getEventId(), result.getRecordMetadata().partition(), result.getRecordMetadata().offset());
             
-            log.warn("RAG事件已发送到死信队列: eventId={}, reason={}, dlqTopic={}", 
-                    event.getEventId(), reason, dlqTopic);
+            return true;
             
         } catch (Exception e) {
-            log.error("发送RAG事件到死信队列失败: eventId={}, reason={}, error={}", 
-                    event.getEventId(), reason, e.getMessage(), e);
+            log.error("同步发送RAG事件失败: eventId={}, error={}", event.getEventId(), e.getMessage(), e);
+            return false;
         }
     }
     
     /**
-     * 在JSON中添加失败原因
+     * 批量异步发送RAG事件
+     * 
+     * @param events RAG事件列表
      */
-    private String addFailureReason(String originalJson, String reason) {
-        try {
-            // 简单的JSON添加失败原因字段
-            if (originalJson.endsWith("}")) {
-                int insertPos = originalJson.lastIndexOf("}");
-                return originalJson.substring(0, insertPos) + 
-                       ",\"dlqReason\":\"" + escapeJson(reason) + "\"," +
-                       "\"dlqTimestamp\":" + System.currentTimeMillis() + 
-                       originalJson.substring(insertPos);
-            }
-        } catch (Exception e) {
-            log.debug("添加DLQ信息失败，使用原始JSON", e);
+    public void sendBatchAsync(java.util.List<RagEvent> events) {
+        if (events == null || events.isEmpty()) {
+            log.debug("RAG事件列表为空，跳过批量发送");
+            return;
         }
-        return originalJson;
-    }
-    
-    /**
-     * 转义JSON字符串
-     */
-    private String escapeJson(String str) {
-        if (str == null) {
-            return "";
+        
+        log.debug("开始批量发送RAG事件: count={}", events.size());
+        
+        for (RagEvent event : events) {
+            sendAsync(event);
         }
-        return str.replace("\"", "\\\"")
-                  .replace("\n", "\\n")
-                  .replace("\r", "\\r")
-                  .replace("\t", "\\t");
+        
+        log.debug("批量发送RAG事件完成: count={}", events.size());
     }
 }

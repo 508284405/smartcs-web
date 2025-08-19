@@ -1,7 +1,7 @@
 package com.leyue.smartcs.eval.aop;
 
 import com.leyue.smartcs.dto.eval.event.RagEvent;
-import com.leyue.smartcs.eval.producer.RagEventProducer;
+import com.leyue.smartcs.domain.eval.gateway.RagEventGateway;
 import com.leyue.smartcs.eval.sampling.SamplingDecider;
 import com.leyue.smartcs.eval.trace.SkyWalkingTraceContext;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 public class RagEventCollectorAspect {
     
     private final SamplingDecider samplingDecider;
-    private final RagEventProducer ragEventProducer;
+    private final RagEventGateway ragEventGateway;
     private final SkyWalkingTraceContext traceContext;
     
     // 存储正在进行的RAG事件上下文
@@ -142,7 +142,7 @@ public class RagEventCollectorAspect {
             RagEvent event = context.buildEvent(answer, duration, error);
             
             // 异步发送事件
-            ragEventProducer.sendAsync(event);
+            ragEventGateway.sendAsync(event);
             
             log.debug("RAG事件采集完成: eventId={}, duration={}ms, hasError={}", 
                     eventId, duration, error != null);
