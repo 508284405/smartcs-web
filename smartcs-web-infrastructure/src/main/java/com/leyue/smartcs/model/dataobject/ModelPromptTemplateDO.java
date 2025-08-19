@@ -2,6 +2,7 @@ package com.leyue.smartcs.model.dataobject;
 
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.leyue.smartcs.common.dao.BaseDO;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

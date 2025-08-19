@@ -117,7 +117,7 @@ public class RagComponentConfig {
 
     /**
      * 查询转换器配置
-     * 用于配置查询扩展转换器的参数
+     * 用于配置查询扩展转换器的参数，支持管线化处理
      */
     @Data
     @Builder
@@ -166,6 +166,87 @@ public class RagComponentConfig {
          */
         @Builder.Default
         private String defaultTenant = "default";
+        
+        // ========== 管线化配置项 ==========
+        
+        /**
+         * 是否启用管线化处理
+         * 启用后使用QueryTransformerPipeline，否则回退到传统的IntentAwareQueryTransformer
+         */
+        @Builder.Default
+        private Boolean enablePipeline = false;
+        
+        /**
+         * 是否启用标准化阶段
+         */
+        @Builder.Default
+        private Boolean enableNormalization = true;
+        
+        /**
+         * 是否启用扩展阶段
+         */
+        @Builder.Default
+        private Boolean enableExpanding = true;
+        
+        /**
+         * 最大查询数量
+         * 管线处理后返回的最大查询数量
+         */
+        @Min(value = 1, message = "最大查询数量不能少于1")
+        @Max(value = 20, message = "最大查询数量不能超过20")
+        @Builder.Default
+        private Integer maxQueries = 10;
+        
+        /**
+         * 是否保留原始查询
+         * 确保原始查询始终包含在结果中
+         */
+        @Builder.Default
+        private Boolean keepOriginal = true;
+        
+        /**
+         * 去重阈值
+         * 用于语义去重的相似度阈值，0.0-1.0之间
+         */
+        @DecimalMin(value = "0.0", message = "去重阈值不能小于0.0")
+        @DecimalMax(value = "1.0", message = "去重阈值不能大于1.0")
+        @Builder.Default
+        private Double dedupThreshold = 0.85;
+        
+        /**
+         * 最大延迟时间（毫秒）
+         * 管线处理的最大超时时间
+         */
+        @Min(value = 1000, message = "最大延迟时间不能少于1000毫秒")
+        @Max(value = 60000, message = "最大延迟时间不能超过60000毫秒")
+        @Builder.Default
+        private Long maxLatencyMs = 30000L;
+        
+        /**
+         * 最大token预算
+         * 限制管线处理过程中的token消耗
+         */
+        @Min(value = 100, message = "最大token预算不能少于100")
+        @Max(value = 10000, message = "最大token预算不能超过10000")
+        @Builder.Default
+        private Integer maxTokens = 2000;
+        
+        /**
+         * 降级策略
+         * 当阶段失败时的处理策略
+         */
+        @Builder.Default
+        private String fallbackPolicy = "SKIP_STAGE";
+        
+        /**
+         * 标准化配置
+         */
+        private NormalizationConfig normalizationConfig;
+        
+        /**
+         * 扩展配置
+         */
+        private ExpandingConfig expandingConfig;
 
         /**
          * 是否启用意图识别
@@ -186,6 +267,140 @@ public class RagComponentConfig {
          */
         public String getDefaultTenant() {
             return defaultTenant != null ? defaultTenant : "default";
+        }
+        
+        /**
+         * 是否启用管线化处理
+         */
+        public boolean isEnablePipeline() {
+            return enablePipeline != null && enablePipeline;
+        }
+        
+        /**
+         * 是否启用标准化
+         */
+        public boolean isEnableNormalization() {
+            return enableNormalization != null && enableNormalization;
+        }
+        
+        /**
+         * 是否启用扩展
+         */
+        public boolean isEnableExpanding() {
+            return enableExpanding != null && enableExpanding;
+        }
+        
+        /**
+         * 是否保留原始查询
+         */
+        public boolean isKeepOriginal() {
+            return keepOriginal != null && keepOriginal;
+        }
+        
+        /**
+         * 获取标准化配置或默认值
+         */
+        public NormalizationConfig getNormalizationConfigOrDefault() {
+            return normalizationConfig != null ? normalizationConfig : NormalizationConfig.builder().build();
+        }
+        
+        /**
+         * 获取扩展配置或默认值
+         */
+        public ExpandingConfig getExpandingConfigOrDefault() {
+            return expandingConfig != null ? expandingConfig : ExpandingConfig.builder().build();
+        }
+        
+        /**
+         * 标准化配置
+         */
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class NormalizationConfig {
+            /**
+             * 是否去除停用词
+             */
+            @Builder.Default
+            private Boolean removeStopwords = false;
+            
+            /**
+             * 最大查询长度
+             */
+            @Min(value = 10, message = "最大查询长度不能少于10")
+            @Max(value = 1000, message = "最大查询长度不能超过1000")
+            @Builder.Default
+            private Integer maxQueryLength = 512;
+            
+            /**
+             * 是否标准化大小写
+             */
+            @Builder.Default
+            private Boolean normalizeCase = true;
+            
+            /**
+             * 是否清理多余空白
+             */
+            @Builder.Default
+            private Boolean cleanWhitespace = true;
+            
+            public boolean isRemoveStopwords() {
+                return removeStopwords != null && removeStopwords;
+            }
+            
+            public boolean isNormalizeCase() {
+                return normalizeCase != null && normalizeCase;
+            }
+            
+            public boolean isCleanWhitespace() {
+                return cleanWhitespace != null && cleanWhitespace;
+            }
+        }
+        
+        /**
+         * 扩展配置
+         */
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class ExpandingConfig {
+            /**
+             * 扩展数量（覆盖父级n配置）
+             */
+            @Min(value = 1, message = "扩展数量不能少于1")
+            @Max(value = 10, message = "扩展数量不能超过10")
+            private Integer n;
+            
+            /**
+             * 提示模板（覆盖父级promptTemplate配置）
+             */
+            private String promptTemplate;
+            
+            /**
+             * 温度参数
+             * 控制生成结果的随机性，0.0-2.0之间
+             */
+            @DecimalMin(value = "0.0", message = "温度参数不能小于0.0")
+            @DecimalMax(value = "2.0", message = "温度参数不能大于2.0")
+            @Builder.Default
+            private Double temperature = 0.7;
+            
+            /**
+             * 获取实际的扩展数量，如果未设置则使用父级配置
+             */
+            public int getActualN(int parentN) {
+                return n != null ? n : parentN;
+            }
+            
+            /**
+             * 获取实际的提示模板，如果未设置则使用父级配置
+             */
+            public String getActualPromptTemplate(String parentPromptTemplate) {
+                return promptTemplate != null && !promptTemplate.trim().isEmpty() 
+                    ? promptTemplate : parentPromptTemplate;
+            }
         }
     }
 

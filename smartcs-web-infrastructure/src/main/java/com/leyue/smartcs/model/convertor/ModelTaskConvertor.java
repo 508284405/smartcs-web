@@ -1,9 +1,10 @@
 package com.leyue.smartcs.model.convertor;
 
-import com.leyue.smartcs.domain.model.ModelTask;
-import com.leyue.smartcs.model.dataobject.ModelTaskDO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import com.leyue.smartcs.domain.model.ModelTask;
+import com.leyue.smartcs.model.dataobject.ModelTaskDO;
 
 /**
  * 模型任务转换器

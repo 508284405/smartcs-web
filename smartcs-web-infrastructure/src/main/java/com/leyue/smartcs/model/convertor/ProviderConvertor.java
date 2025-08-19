@@ -1,12 +1,14 @@
 package com.leyue.smartcs.model.convertor;
 
-import com.leyue.smartcs.common.secret.SecretCryptoService;
-import com.leyue.smartcs.domain.model.Provider;
-import com.leyue.smartcs.model.dataobject.ProviderDO;
-import lombok.extern.slf4j.Slf4j;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import com.leyue.smartcs.common.secret.SecretCryptoService;
+import com.leyue.smartcs.domain.model.Provider;
+import com.leyue.smartcs.model.dataobject.ProviderDO;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 模型提供商转换器

@@ -1,8 +1,9 @@
 package com.leyue.smartcs.model.convertor;
 
+import org.mapstruct.Mapper;
+
 import com.leyue.smartcs.domain.model.ModelPromptTemplate;
 import com.leyue.smartcs.model.dataobject.ModelPromptTemplateDO;
-import org.mapstruct.Mapper;
 
 /**
  * 模型Prompt模板转换器

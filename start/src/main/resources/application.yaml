@@ -104,6 +104,32 @@ smartcs:
       logging:
         enabled: true
         level: info
+  
+  # NLP到SQL转换配置
+  nlp2sql:
+    # 功能总开关
+    enable-nlp-mode: true
+    # 最小置信度阈值（低于此值将提醒用户）
+    min-confidence: 0.6
+    # 表结构相似度阈值
+    similarity-threshold: 0.6
+    # SQL生成最大使用表数量
+    max-tables-for-sql: 5
+    # 是否允许复杂查询（子查询、复杂聚合等）
+    enable-complex-queries: true
+    
+    # 模型配置已移除，现在通过方法参数传递
+    
+    # 向量存储配置
+    schema-index-prefix: "table_schema:"
+    schema-search-max-results: 10
+    
+    # SQL生成提示模板配置
+    prompt-template:
+      system-message: "你是一个专业的SQL生成助手"
+      include-table-relationships: true
+      include-column-descriptions: true
+      include-business-context: true
 
   # 文档导入与下载相关配置
 import:

@@ -1,32 +1,49 @@
 package com.leyue.smartcs.model.ai;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Component;
+
+import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
 import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
+import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.model.convertor.ProviderConvertor;
 import com.leyue.smartcs.model.dataobject.ProviderDO;
 import com.leyue.smartcs.model.mapper.ProviderMapper;
-import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.StructuredChatServiceAi;
 import com.leyue.smartcs.rag.config.WebSearchProperties;
 import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
+import com.leyue.smartcs.rag.database.service.NlpToSqlService;
+import com.leyue.smartcs.rag.query.IntentAwareQueryTransformer;
+import com.leyue.smartcs.rag.query.pipeline.QueryContext;
+import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
+import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.NormalizationStage;
+
 import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
-import dev.langchain4j.model.scoring.ScoringModel;
+import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.scoring.ScoringModel;
 // import dev.langchain4j.model.openai.OpenAiScoringModel; // 1.1.0版本暂未提供
 import dev.langchain4j.rag.DefaultRetrievalAugmentor;
 import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.rag.content.aggregator.ReRankingContentAggregator;
-import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.rag.content.injector.ContentInjector;
 import dev.langchain4j.rag.content.injector.DefaultContentInjector;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
@@ -36,17 +53,11 @@ import dev.langchain4j.rag.query.router.LanguageModelQueryRouter;
 import dev.langchain4j.rag.query.router.QueryRouter;
 import dev.langchain4j.rag.query.transformer.ExpandingQueryTransformer;
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
-import com.leyue.smartcs.rag.query.IntentAwareQueryTransformer;
-import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
 
 /**
  * 动态模型管理器
@@ -66,6 +77,8 @@ public class DynamicModelManager {
     private final SearXNGWebSearchEngine searxngWebSearchEngine;
     private final WebSearchProperties webSearchProperties;
     private final ClassificationDomainService classificationDomainService;
+    private final JdbcTemplate jdbcTemplate;
+    private final NlpToSqlService nlpToSqlService;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
@@ -485,12 +498,19 @@ public class DynamicModelManager {
             Long actualModelId = config.getModelId() != null ? config.getModelId() : modelId;
             ChatModel chatModel = getChatModel(actualModelId);
             
-            // 检查是否启用意图识别
+            // 检查是否启用管线化处理
+            if (config.isEnablePipeline()) {
+                log.debug("创建QueryTransformerPipeline: modelId={}, pipelineEnabled=true", actualModelId);
+                return createQueryTransformerPipeline(chatModel, config);
+            }
+            
+            // 传统模式：检查是否启用意图识别
             if (config.isIntentRecognitionEnabled()) {
                 log.debug("创建IntentAwareQueryTransformer: modelId={}, intentEnabled=true", actualModelId);
                 return new IntentAwareQueryTransformer(
                     classificationDomainService,
-                    chatModel,
+                    this,
+                    actualModelId,
                     config.getN(),
                     true,
                     config.getDefaultChannel(),
@@ -501,24 +521,173 @@ public class DynamicModelManager {
                 return ExpandingQueryTransformer.builder()
                         .chatModel(chatModel)
                         .n(config.getN())
-                        .promptTemplate(null) // TODO: 支持自定义模板
+                        .promptTemplate(config.getPromptTemplate() != null ? 
+                                PromptTemplate.from(config.getPromptTemplate()) : null)
                         .build();
             }
         }
         
         return queryTransformerCache.computeIfAbsent(modelId, id -> {
             log.debug("创建默认配置的QueryTransformer实例（启用意图识别）: modelId={}", id);
-            ChatModel chatModel = getChatModel(id);
             // 默认启用意图识别
             return new IntentAwareQueryTransformer(
                 classificationDomainService,
-                chatModel,
+                this,
+                id,
                 5, // 默认扩展数量
                 true, // 默认启用意图识别
                 "web", // 默认渠道
                 "default" // 默认租户
             );
         });
+    }
+    
+    /**
+     * 创建查询转换器管线
+     */
+    private QueryTransformerPipeline createQueryTransformerPipeline(ChatModel chatModel, 
+                                                                   RagComponentConfig.QueryTransformerConfig config) {
+        log.debug("构建查询转换器管线: config={}", config);
+        
+        // 创建管线配置
+        QueryContext.PipelineConfig.PipelineConfigBuilder pipelineConfigBuilder = QueryContext.PipelineConfig.builder()
+                .enableNormalization(config.isEnableNormalization())
+                .enableExpanding(config.isEnableExpanding())
+                .enableIntentRecognition(config.isIntentRecognitionEnabled())
+                .maxQueries(config.getMaxQueries())
+                .keepOriginal(config.isKeepOriginal())
+                .dedupThreshold(config.getDedupThreshold());
+                
+        // 设置降级策略
+        try {
+            if (config.getFallbackPolicy() != null) {
+                QueryContext.FallbackPolicy fallbackPolicy = 
+                    QueryContext.FallbackPolicy.valueOf(config.getFallbackPolicy());
+                pipelineConfigBuilder.fallbackPolicy(fallbackPolicy);
+            }
+        } catch (IllegalArgumentException e) {
+            log.warn("无效的降级策略，使用默认策略: {}", config.getFallbackPolicy());
+            pipelineConfigBuilder.fallbackPolicy(QueryContext.FallbackPolicy.SKIP_STAGE);
+        }
+        
+        // 设置标准化配置
+        if (config.getNormalizationConfig() != null) {
+            QueryContext.NormalizationConfig normalizationConfig = createNormalizationConfig(
+                    config.getNormalizationConfigOrDefault());
+            pipelineConfigBuilder.normalizationConfig(normalizationConfig);
+        }
+        
+        // 设置扩展配置
+        if (config.getExpandingConfig() != null) {
+            QueryContext.ExpandingConfig expandingConfig = createExpandingConfig(
+                    config.getExpandingConfigOrDefault(), config);
+            pipelineConfigBuilder.expandingConfig(expandingConfig);
+        }
+        
+        QueryContext.PipelineConfig pipelineConfig = pipelineConfigBuilder.build();
+        
+        // 创建处理阶段
+        List<QueryTransformerStage> stages = createPipelineStages(chatModel, pipelineConfig);
+        
+        // 创建指标收集器
+        QueryContext.MetricsCollector metricsCollector = createMetricsCollector();
+        
+        // 构建管线
+        return QueryTransformerPipeline.builder()
+                .stages(stages)
+                .pipelineConfig(pipelineConfig)
+                .metricsCollector(metricsCollector)
+                .defaultTenant(config.getDefaultTenant())
+                .defaultChannel(config.getDefaultChannel())
+                .build();
+    }
+    
+    /**
+     * 创建管线处理阶段
+     */
+    private List<QueryTransformerStage> createPipelineStages(ChatModel chatModel, 
+                                                           QueryContext.PipelineConfig config) {
+        List<QueryTransformerStage> stages = new ArrayList<>();
+        
+        // 添加标准化阶段
+        if (config.isEnableNormalization()) {
+            stages.add(new NormalizationStage());
+        }
+        
+        // 添加扩展阶段
+        if (config.isEnableExpanding()) {
+            stages.add(new ExpandingStage(chatModel));
+        }
+        
+        log.debug("创建管线处理阶段完成: stageCount={}", stages.size());
+        
+        return stages;
+    }
+    
+    /**
+     * 创建标准化配置
+     */
+    private QueryContext.NormalizationConfig createNormalizationConfig(
+            RagComponentConfig.QueryTransformerConfig.NormalizationConfig config) {
+        return QueryContext.NormalizationConfig.builder()
+                .removeStopwords(config.isRemoveStopwords())
+                .maxQueryLength(config.getMaxQueryLength())
+                .normalizeCase(config.isNormalizeCase())
+                .cleanWhitespace(config.isCleanWhitespace())
+                .build();
+    }
+    
+    /**
+     * 创建扩展配置
+     */
+    private QueryContext.ExpandingConfig createExpandingConfig(
+            RagComponentConfig.QueryTransformerConfig.ExpandingConfig expandingConfig,
+            RagComponentConfig.QueryTransformerConfig parentConfig) {
+        return QueryContext.ExpandingConfig.builder()
+                .n(expandingConfig.getActualN(parentConfig.getN()))
+                .promptTemplate(expandingConfig.getActualPromptTemplate(parentConfig.getPromptTemplate()))
+                .temperature(expandingConfig.getTemperature())
+                .build();
+    }
+    
+    /**
+     * 创建指标收集器
+     */
+    private QueryContext.MetricsCollector createMetricsCollector() {
+        return new QueryContext.MetricsCollector() {
+            @Override
+            public void recordStageStart(String stageName, int inputQueryCount) {
+                log.debug("阶段开始: stage={}, inputCount={}", stageName, inputQueryCount);
+            }
+            
+            @Override
+            public void recordStageComplete(String stageName, int outputQueryCount, long elapsedMs) {
+                log.debug("阶段完成: stage={}, outputCount={}, elapsedMs={}", 
+                        stageName, outputQueryCount, elapsedMs);
+            }
+            
+            @Override
+            public void recordStageFailure(String stageName, Throwable error, long elapsedMs) {
+                log.warn("阶段失败: stage={}, error={}, elapsedMs={}", 
+                        stageName, error.getMessage(), elapsedMs);
+            }
+            
+            @Override
+            public void recordStageSkipped(String stageName, String reason) {
+                log.debug("阶段跳过: stage={}, reason={}", stageName, reason);
+            }
+            
+            @Override
+            public void recordTokensConsumption(String stageName, int inputTokens, int outputTokens) {
+                log.debug("Token消耗: stage={}, inputTokens={}, outputTokens={}", 
+                        stageName, inputTokens, outputTokens);
+            }
+            
+            @Override
+            public void recordCostConsumption(String stageName, double cost) {
+                log.debug("成本消耗: stage={}, cost=${:.4f}", stageName, cost);
+            }
+        };
     }
 
     /**
@@ -577,7 +746,7 @@ public class DynamicModelManager {
             
             if (config.getEnableSqlQuery()) {
                 // 数据库检索
-                ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(sqlQueryConfig);
+                ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(modelId, modelId, sqlQueryConfig);
                 retrievers.put(sqlQueryContentRetriever, "数据库查询");
             }
             
@@ -610,7 +779,7 @@ public class DynamicModelManager {
             }
             
             // SQL查询检索器始终启用
-            ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(null);
+            ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(id, id, null);
             retrievers.put(sqlQueryContentRetriever, "数据库查询");
             
             return LanguageModelQueryRouter.builder()
@@ -719,8 +888,8 @@ public class DynamicModelManager {
     /**
      * 创建SQL查询内容检索器
      */
-    private ContentRetriever createSqlQueryContentRetriever(RagComponentConfig.SqlQueryConfig config) {
-        return new SqlQueryContentRetriever(null); // JdbcTemplate将通过构造函数注入
+    private ContentRetriever createSqlQueryContentRetriever(Long chatModelId, Long embeddingModelId, RagComponentConfig.SqlQueryConfig config) {
+        return new SqlQueryContentRetriever(jdbcTemplate, nlpToSqlService, chatModelId, embeddingModelId);
     }
 
     /**

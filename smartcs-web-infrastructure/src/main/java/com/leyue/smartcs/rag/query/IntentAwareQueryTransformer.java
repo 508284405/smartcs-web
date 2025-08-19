@@ -1,14 +1,13 @@
 package com.leyue.smartcs.rag.query;
 
 import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.input.PromptTemplate;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 意图感知的查询转换器
@@ -20,20 +19,23 @@ import java.util.concurrent.CompletableFuture;
 public class IntentAwareQueryTransformer implements QueryTransformer {
     
     private final ClassificationDomainService classificationDomainService;
-    private final ChatModel chatModel;
+    private final DynamicModelManager dynamicModelManager;
+    private final Long modelId;
     private final int queryExpansionCount;
     private final boolean intentRecognitionEnabled;
     private final String defaultChannel;
     private final String defaultTenant;
     
     public IntentAwareQueryTransformer(ClassificationDomainService classificationDomainService,
-                                     ChatModel chatModel,
-                                     int queryExpansionCount,
-                                     boolean intentRecognitionEnabled,
-                                     String defaultChannel,
-                                     String defaultTenant) {
+                                       DynamicModelManager dynamicModelManager,
+                                       Long modelId,
+                                       int queryExpansionCount,
+                                       boolean intentRecognitionEnabled,
+                                       String defaultChannel,
+                                       String defaultTenant) {
         this.classificationDomainService = classificationDomainService;
-        this.chatModel = chatModel;
+        this.dynamicModelManager = dynamicModelManager;
+        this.modelId = modelId;
         this.queryExpansionCount = queryExpansionCount;
         this.intentRecognitionEnabled = intentRecognitionEnabled;
         this.defaultChannel = defaultChannel != null ? defaultChannel : "web";
@@ -105,7 +107,10 @@ public class IntentAwareQueryTransformer implements QueryTransformer {
             
             // 使用LLM进行智能查询扩展
             String expansionPrompt = buildExpansionPrompt(originalQuery.text(), intentResult, strategy);
-            String expandedQueriesText = chatModel.generate(expansionPrompt).content();
+            String expandedQueriesText = dynamicModelManager
+                    .getChatModel(modelId)
+                    .chat(UserMessage.from(expansionPrompt))
+                    .aiMessage().text();
             
             // 解析扩展后的查询
             List<Query> expandedQueries = parseExpandedQueries(expandedQueriesText, strategy.getMaxQueries());
@@ -213,7 +218,10 @@ public class IntentAwareQueryTransformer implements QueryTransformer {
                 originalQuery.text()
             );
             
-            String expandedQueriesText = chatModel.generate(prompt).content();
+            String expandedQueriesText = dynamicModelManager
+                    .getChatModel(modelId)
+                    .chat(UserMessage.from(prompt))
+                    .aiMessage().text();
             List<Query> queries = parseExpandedQueries(expandedQueriesText, queryExpansionCount - 1);
             
             // 添加原始查询到开头

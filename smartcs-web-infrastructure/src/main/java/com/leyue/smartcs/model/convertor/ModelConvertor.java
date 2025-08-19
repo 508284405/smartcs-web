@@ -1,15 +1,17 @@
 package com.leyue.smartcs.model.convertor;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
 import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.enums.FetchFrom;
 import com.leyue.smartcs.domain.model.enums.ModelStatus;
 import com.leyue.smartcs.domain.model.enums.ModelType;
 import com.leyue.smartcs.model.dataobject.ModelDO;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 模型实例转换器
