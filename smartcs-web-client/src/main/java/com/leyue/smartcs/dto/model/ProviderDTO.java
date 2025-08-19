@@ -37,9 +37,14 @@ public class ProviderDTO extends DTO {
     private String iconLarge;
     
     /**
-     * API Key（敏感信息，返回时脱敏）
+     * 是否已设置API Key
      */
-    private String apiKey;
+    private Boolean hasApiKey;
+    
+    /**
+     * API Key脱敏显示（如: sk-****abc）
+     */
+    private String apiKeyMasked;
     
     /**
      * API Endpoint

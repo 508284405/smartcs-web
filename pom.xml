@@ -116,6 +116,13 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-community-bom -->
+            <dependency>
+                <groupId>dev.langchain4j</groupId>
+                <artifactId>langchain4j-community-bom</artifactId>
+                <version>1.1.0-beta7</version>
+                <type>pom</type>
+            </dependency>
 
             <dependency>
                 <groupId>dev.langchain4j</groupId>
@@ -377,6 +384,17 @@
             <id>central-portal-snapshots</id>
             <name>Central Portal Snapshots</name>
             <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>mvnrepository</id>
+            <name>Maven Repository</name>
+            <url>https://mvnrepository.com/artifact/dev.langchain4j/langchain4j-community-bom</url>
             <releases>
                 <enabled>false</enabled>
             </releases>

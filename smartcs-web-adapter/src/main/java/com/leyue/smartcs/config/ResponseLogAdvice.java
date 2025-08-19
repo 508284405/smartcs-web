@@ -1,5 +1,6 @@
 package com.leyue.smartcs.config;
 
+import com.leyue.smartcs.common.secret.LogDesensitizationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
@@ -26,7 +27,9 @@ public class ResponseLogAdvice implements ResponseBodyAdvice<Object> {
     @Override
     public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType,
                                   @NonNull Class selectedConverterType, @NonNull ServerHttpRequest request, @NonNull ServerHttpResponse response) {
-        log.info("[Response] {} {} body={}", request.getMethod(), request.getURI(), body);
+        // 脱敏响应体内容
+        Object desensitizedBody = LogDesensitizationUtil.desensitizeJsonObject(body);
+        log.info("[Response] {} {} body={}", request.getMethod(), request.getURI(), desensitizedBody);
         return body;
     }
 } 

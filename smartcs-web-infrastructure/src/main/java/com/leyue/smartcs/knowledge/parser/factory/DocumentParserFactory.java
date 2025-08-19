@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 文档解析器工厂
@@ -40,7 +41,7 @@ public class DocumentParserFactory {
         }
         
         log.info("文档解析器工厂初始化完成，支持的文档类型: {}", parserMap.keySet());
-        log.info("LangChain4j适配器已初始化，支持类型: {}", langChain4jAdapter.getSupportedTypes());
+        log.info("LangChain4j适配器已初始化，支持类型: {}", String.join(", ", langChain4jAdapter.getSupportedTypes()));
     }
     
     /**
@@ -202,7 +203,8 @@ public class DocumentParserFactory {
      * 获取所有支持的文档类型
      */
     public String[] getSupportedTypes() {
-        return parserMap.keySet().toArray(new String[0]);
+        Set<String> keySet = parserMap.keySet();
+        return keySet.toArray(new String[0]);
     }
     
     /**

@@ -1,18 +1,19 @@
 package com.leyue.smartcs.common.gateway;
 
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.common.feign.IdGeneratorFeignClient;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.common.ApiResponse;
 import com.leyue.smartcs.dto.common.IdGeneratorRequest;
 import com.leyue.smartcs.dto.common.IdGeneratorResponse;
+
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * 分布式ID生成器网关实现类
@@ -28,7 +29,6 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     @Retry(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
-    @TimeLimiter(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     public Long generateId() {
         try {
             ApiResponse<IdGeneratorResponse> response = idGeneratorFeignClient.generateId(new IdGeneratorRequest());
@@ -64,7 +64,6 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
     @Retry(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
     @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
-    @TimeLimiter(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
     public Long[] generateBatchIds(int batchSize) {
         if (batchSize <= 0) {
             batchSize = 1;
@@ -117,7 +116,6 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
     @Retry(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
     @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
-    @TimeLimiter(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
     public String generateIdStr() {
         Long id = generateId();
         return String.format("%019d", id);

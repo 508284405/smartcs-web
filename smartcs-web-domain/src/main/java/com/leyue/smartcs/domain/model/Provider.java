@@ -37,9 +37,14 @@ public class Provider {
     private String iconLarge;
     
     /**
-     * API Key（全局）
+     * API Key（全局，仅用于创建和更新输入）
      */
     private String apiKey;
+    
+    /**
+     * 是否已设置API Key（用于查询返回）
+     */
+    private Boolean hasApiKey;
     
     /**
      * API Endpoint
@@ -82,7 +87,7 @@ public class Provider {
     public boolean isValid() {
         return providerType != null
                 && endpoint != null && !endpoint.trim().isEmpty()
-                && apiKey != null && !apiKey.trim().isEmpty();
+                && (hasApiKey == Boolean.TRUE || (apiKey != null && !apiKey.trim().isEmpty()));
     }
     
     /**

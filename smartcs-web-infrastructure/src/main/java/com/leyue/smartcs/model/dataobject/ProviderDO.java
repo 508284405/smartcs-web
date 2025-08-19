@@ -35,9 +35,24 @@ public class ProviderDO extends BaseDO {
     private String iconLarge;
 
     /**
-     * API Key（全局）
+     * API Key（全局，待废弃）
      */
     private String apiKey;
+
+    /**
+     * API Key 密文（AES-GCM加密）
+     */
+    private byte[] apiKeyCipher;
+
+    /**
+     * API Key 加密初始化向量
+     */
+    private byte[] apiKeyIv;
+
+    /**
+     * API Key 加密密钥ID
+     */
+    private String apiKeyKid;
 
     /**
      * API Endpoint

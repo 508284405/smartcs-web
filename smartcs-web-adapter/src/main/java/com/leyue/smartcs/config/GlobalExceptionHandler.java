@@ -1,12 +1,14 @@
 package com.leyue.smartcs.config;
 
 import com.alibaba.cola.dto.Response;
+import com.leyue.smartcs.common.secret.LogDesensitizationUtil;
 import com.alibaba.cola.exception.BizException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.UncategorizedSQLException;
 import org.springframework.transaction.TransactionException;
@@ -17,6 +19,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+
+import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
+import java.net.SocketException;
 
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
@@ -29,7 +36,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public Response handleBizException(BizException e) {
-        log.error("业务异常: ", e);
+        // 脱敏异常信息
+        String desensitizedMessage = LogDesensitizationUtil.desensitizeThrowable(e);
+        log.error("业务异常: {}", desensitizedMessage);
         return Response.buildFailure(e.getErrCode(), e.getMessage());
     }
     
@@ -39,6 +48,52 @@ public class GlobalExceptionHandler {
 //        log.warn("权限不足: {}", e.getMessage());
 //        return Response.buildFailure("ACCESS_DENIED", "权限不足");
 //    }
+    
+    /**
+     * 处理SSE客户端异步请求不可用异常（客户端断开连接）
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> handleAsyncRequestNotUsableException(AsyncRequestNotUsableException e) {
+        log.warn("SSE客户端断开连接: {}", e.getMessage());
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * 处理客户端中止异常（SSE连接断开）
+     */
+    @ExceptionHandler(org.apache.catalina.connector.ClientAbortException.class)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> handleClientAbortException(org.apache.catalina.connector.ClientAbortException e) {
+        log.warn("客户端中止连接: {}", e.getMessage());
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * 处理Socket异常（网络连接中断）
+     */
+    @ExceptionHandler(SocketException.class)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> handleSocketException(SocketException e) {
+        log.warn("网络连接异常: {}", e.getMessage());
+        return ResponseEntity.noContent().build();
+    }
+    
+    /**
+     * 处理IO异常（可能是SSE连接断开）
+     */
+    @ExceptionHandler(IOException.class)
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public ResponseEntity<Void> handleIOException(IOException e, HttpServletRequest request) {
+        String requestPath = request.getRequestURI();
+        // 只有SSE相关的请求才特殊处理
+        if (requestPath != null && (requestPath.contains("/chat") || requestPath.contains("/sse"))) {
+            log.warn("SSE连接IO异常: path={}, message={}", requestPath, e.getMessage());
+            return ResponseEntity.noContent().build();
+        }
+        // 其他IO异常交给通用异常处理器
+        throw new RuntimeException("IO异常", e);
+    }
     
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
@@ -242,8 +297,22 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public Response handleException(Exception e) {
-        log.error("系统异常", e);
+    public Object handleException(Exception e, HttpServletRequest request) {
+        // 脱敏异常信息
+        String desensitizedMessage = LogDesensitizationUtil.desensitizeThrowable(e);
+        log.error("系统异常: {}", desensitizedMessage);
+        
+        // 检查是否为SSE请求，避免转换器冲突
+        String acceptHeader = request.getHeader("Accept");
+        String contentType = request.getContentType();
+        String requestPath = request.getRequestURI();
+        
+        if ((acceptHeader != null && acceptHeader.contains("text/event-stream")) ||
+            (contentType != null && contentType.contains("text/event-stream")) ||
+            (requestPath != null && (requestPath.contains("/chat") || requestPath.contains("/sse")))) {
+            log.warn("SSE请求发生异常，返回无内容响应以避免转换器冲突: path={}, error={}", requestPath, e.getMessage());
+            return ResponseEntity.noContent().build();
+        }
         
         // 检查是否为数据库相关异常
         Throwable cause = e.getCause();

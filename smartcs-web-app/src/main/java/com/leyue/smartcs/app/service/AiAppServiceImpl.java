@@ -93,7 +93,6 @@ public class AiAppServiceImpl implements AiAppService {
     
     @Override
     public SseEmitter chatWithAppSSE(AiAppChatCmd cmd) {
-        log.info("执行AI应用SSE聊天: appId={}, sessionId={}", cmd.getAppId(), cmd.getSessionId());
         return aiAppChatCmdExe.execute(cmd);
     }
 }

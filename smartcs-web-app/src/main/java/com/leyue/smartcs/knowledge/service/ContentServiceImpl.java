@@ -12,10 +12,9 @@ import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
-import com.leyue.smartcs.dto.knowledge.ContentProcessCmd;
-import com.leyue.smartcs.dto.knowledge.ContentProcessResponse;
 import com.leyue.smartcs.dto.knowledge.DocumentProcessCmd;
 import com.leyue.smartcs.dto.knowledge.DocumentProcessResultDTO;
+import com.leyue.smartcs.dto.knowledge.UrlDocumentImportCmd;
 import com.leyue.smartcs.knowledge.executor.command.ContentCreateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentUpdateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.ContentStatusUpdateCmdExe;
@@ -61,6 +60,9 @@ public class ContentServiceImpl implements ContentService {
     
     @Autowired
     private DocumentProcessCmdExe documentProcessCmdExe;
+
+    @Autowired
+    private com.leyue.smartcs.knowledge.executor.command.UrlDocumentImportCmdExe urlDocumentImportCmdExe;
     
 
     @Override
@@ -106,5 +108,10 @@ public class ContentServiceImpl implements ContentService {
     @Override
     public SingleResponse<DocumentProcessResultDTO> processDocument(DocumentProcessCmd cmd) {
         return documentProcessCmdExe.execute(cmd);
+    }
+
+    @Override
+    public SingleResponse<DocumentProcessResultDTO> importByUrl(UrlDocumentImportCmd cmd) {
+        return urlDocumentImportCmdExe.execute(cmd);
     }
 }

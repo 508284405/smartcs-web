@@ -6,6 +6,8 @@ import com.leyue.smartcs.model.dataobject.ProviderDO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 模型提供商Mapper接口
  */
@@ -26,4 +28,17 @@ public interface ProviderMapper extends BaseMapper<ProviderDO> {
      * @return 是否存在
      */
     int countByProviderType(@Param("providerType") ProviderType providerType, @Param("excludeId") Long excludeId);
+    
+    /**
+     * 查询需要API Key迁移的提供商
+     * 条件：有明文api_key但没有加密存储的记录
+     * @return 需要迁移的提供商列表
+     */
+    List<ProviderDO> selectByApiKeyToMigrate();
+    
+    /**
+     * 查询已加密API Key的提供商
+     * @return 已加密的提供商列表
+     */
+    List<ProviderDO> selectByEncryptedApiKey();
 }

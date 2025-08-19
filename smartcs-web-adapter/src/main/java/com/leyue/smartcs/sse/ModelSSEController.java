@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.time.Duration;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -35,7 +36,7 @@ public class ModelSSEController {
     private final ModelSSEService modelSSEService;
 
     // 移除RouterFunction相关代码，改为标准Spring MVC接口
-    @PostMapping("/model/{modelId}/infer")
+    @PostMapping(value = "/model/{modelId}/infer", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter modelInferStream(@PathVariable Long modelId, @RequestBody ModelInferStreamRequest request) {
         request.setModelId(modelId);
         SseEmitter emitter = new SseEmitter(Duration.ofMinutes(10).toMillis());

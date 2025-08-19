@@ -5,7 +5,9 @@ import com.alibaba.cola.exception.BizException;
 import com.alibaba.fastjson2.JSON;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
+import com.leyue.smartcs.dto.errorcode.ModelErrorCode;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.service.DefaultModelService;
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
@@ -29,6 +31,19 @@ public class ChunkVectorizeCmdExe {
     private final ChunkGateway chunkGateway;
     private final EmbeddingStore<TextSegment> embeddingStore;
     private final DynamicModelManager dynamicModelManager;
+    private final DefaultModelService defaultModelService;
+
+    /**
+     * 执行切片向量化命令（使用默认嵌入模型）
+     * 
+     * @param id 切片ID
+     * @return 操作结果
+     */
+    public Response execute(Long id) {
+        // 使用默认嵌入模型服务获取模型ID
+        Long defaultModelId = defaultModelService.getDefaultEmbeddingModelId();
+        return executeWithModelId(id, defaultModelId);
+    }
 
     /**
      * 执行切片向量化命令
@@ -37,19 +52,21 @@ public class ChunkVectorizeCmdExe {
      * @param modelId 模型ID
      * @return 操作结果
      */
-    public Response execute(Long id, Long modelId) {
+    public Response executeWithModelId(Long id, Long modelId) {
         log.info("开始对切片进行向量化处理，切片ID: {}", id);
 
         try {
             // 查询切片信息
             Chunk chunk = chunkGateway.findById(id);
             if (chunk == null) {
-                throw new BizException("CHUNK_NOT_FOUND", "切片不存在: " + id);
+                throw new BizException(ModelErrorCode.CHUNK_NOT_FOUND.getErrCode(), 
+                        ModelErrorCode.CHUNK_NOT_FOUND.getErrDesc() + ": " + id);
             }
 
             // 检查切片内容
             if (!StringUtils.hasText(chunk.getContent())) {
-                throw new BizException("CHUNK_CONTENT_EMPTY", "切片内容为空，无法进行向量化");
+                throw new BizException(ModelErrorCode.CHUNK_CONTENT_EMPTY.getErrCode(), 
+                        ModelErrorCode.CHUNK_CONTENT_EMPTY.getErrDesc());
             }
 
             // 构建文档对象
@@ -70,9 +87,14 @@ public class ChunkVectorizeCmdExe {
             log.info("切片向量化处理成功，切片ID: {}", id);
             return Response.buildSuccess();
 
+        } catch (BizException e) {
+            // 重新抛出业务异常
+            throw e;
         } catch (Exception e) {
             log.error("切片向量化处理失败，切片ID: {}, 错误: {}", id, e.getMessage(), e);
-            throw new BizException("CHUNK_VECTORIZE_FAILED", "切片向量化处理失败: " + e.getMessage());
+            throw new BizException(ModelErrorCode.CHUNK_VECTORIZE_FAILED.getErrCode(), 
+                    ModelErrorCode.CHUNK_VECTORIZE_FAILED.getErrDesc() + ": " + e.getMessage());
         }
     }
+
 }

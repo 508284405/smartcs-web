@@ -9,7 +9,7 @@ import lombok.Data;
  * openai嵌入模型配置
  */
 @Data
-@Component
+// @Component
 @ConfigurationProperties(prefix = "langchain4j.openai.embedding")
 public class OpenAiEmbeddingModelProperties {
     private String apiKey;

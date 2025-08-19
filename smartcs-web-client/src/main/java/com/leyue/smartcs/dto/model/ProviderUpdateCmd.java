@@ -1,7 +1,6 @@
 package com.leyue.smartcs.dto.model;
 
 import com.alibaba.cola.dto.Command;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -41,9 +40,8 @@ public class ProviderUpdateCmd extends Command {
     private String iconLarge;
     
     /**
-     * API Key（全局）
+     * API Key（全局，为空表示不修改）
      */
-    @NotEmpty(message = "API Key不能为空")
     private String apiKey;
     
     /**

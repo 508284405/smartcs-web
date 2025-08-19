@@ -2,9 +2,32 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.leyue.smartcs.model.mapper.ProviderMapper">
 
+    <!-- 基础结果映射，包含加密字段 -->
+    <resultMap id="BaseResultMap" type="com.leyue.smartcs.model.dataobject.ProviderDO">
+        <id column="id" property="id"/>
+        <result column="provider_type" property="providerType"/>
+        <result column="label" property="label"/>
+        <result column="icon_small" property="iconSmall"/>
+        <result column="icon_large" property="iconLarge"/>
+        <result column="api_key" property="apiKey"/>
+        <result column="api_key_cipher" property="apiKeyCipher"/>
+        <result column="api_key_iv" property="apiKeyIv"/>
+        <result column="api_key_kid" property="apiKeyKid"/>
+        <result column="endpoint" property="endpoint"/>
+        <result column="supported_model_types" property="supportedModelTypes"/>
+        <result column="is_deleted" property="isDeleted"/>
+        <result column="created_by" property="createdBy"/>
+        <result column="updated_by" property="updatedBy"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
     <!-- 根据提供商标识查询 -->
-    <select id="selectByProviderType" resultType="com.leyue.smartcs.model.dataobject.ProviderDO">
-        SELECT *
+    <select id="selectByProviderType" resultMap="BaseResultMap">
+        SELECT id, provider_type, label, icon_small, icon_large, api_key, 
+               api_key_cipher, api_key_iv, api_key_kid, endpoint, 
+               supported_model_types, is_deleted, created_by, updated_by, 
+               created_at, updated_at
         FROM t_model_provider
         WHERE provider_type = #{providerType}
         AND is_deleted = 0
@@ -19,6 +42,37 @@
         <if test="excludeId != null">
             AND id != #{excludeId}
         </if>
+    </select>
+    
+    <!-- 查询需要API Key迁移的提供商 -->
+    <select id="selectByApiKeyToMigrate" resultMap="BaseResultMap">
+        SELECT id, provider_type, label, icon_small, icon_large, api_key, 
+               api_key_cipher, api_key_iv, api_key_kid, endpoint, 
+               supported_model_types, is_deleted, created_by, updated_by, 
+               created_at, updated_at
+        FROM t_model_provider
+        WHERE is_deleted = 0
+          AND api_key IS NOT NULL 
+          AND LENGTH(TRIM(api_key)) > 0
+          AND (api_key_cipher IS NULL OR LENGTH(api_key_cipher) = 0)
+        ORDER BY id
+    </select>
+    
+    <!-- 查询已加密API Key的提供商 -->
+    <select id="selectByEncryptedApiKey" resultMap="BaseResultMap">
+        SELECT id, provider_type, label, icon_small, icon_large, api_key, 
+               api_key_cipher, api_key_iv, api_key_kid, endpoint, 
+               supported_model_types, is_deleted, created_by, updated_by, 
+               created_at, updated_at
+        FROM t_model_provider
+        WHERE is_deleted = 0
+          AND api_key_cipher IS NOT NULL 
+          AND LENGTH(api_key_cipher) > 0
+          AND api_key_iv IS NOT NULL 
+          AND LENGTH(api_key_iv) > 0
+          AND api_key_kid IS NOT NULL 
+          AND LENGTH(TRIM(api_key_kid)) > 0
+        ORDER BY id
     </select>
 
 </mapper>

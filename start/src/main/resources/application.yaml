@@ -7,15 +7,6 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
   mvc:
-    cors:
-      enabled: true
-    mapping:
-      /**:
-        allowed-origins: "*"
-        allowed-methods: "*"
-        allowed-headers: "*"
-        allow-credentials: true
-        max-age: 3600
   reactor:
     context-propagation: auto # Boot 3.2+ 原生支持
   # Spring Cache配置
@@ -26,6 +17,27 @@ spring:
       cache-null-values: false
       use-key-prefix: true
       key-prefix: "smartcs:cache:"
+  
+  # Kafka配置
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: 1
+      retries: 3
+      linger-ms: 5
+      batch-size: 32768
+      buffer-memory: 67108864
+      enable-idempotence: true
+    consumer:
+      group-id: smartcs-eval
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: latest
+      enable-auto-commit: true
+    admin:
+      close-timeout: 10s
 
 # MCP (Model Context Protocol) 配置
 mcp:
@@ -45,6 +57,17 @@ smartcs:
       default-min-score: 0.7
       content-separator: "\n\n---\n\n"
       max-content-length: 4000
+    
+    # Web搜索配置
+    web-search:
+      enabled: false
+      searxng:
+        base-url: "https://searx.be"
+        timeout: 10
+        max-results: 8
+        user-agent: "SmartCS-Web/1.0.0"
+        result-language: "zh-CN"
+        safe-content: true
     
     # 工具系统配置
     tools:
@@ -81,6 +104,169 @@ smartcs:
       logging:
         enabled: true
         level: info
+
+  # 文档导入与下载相关配置
+import:
+  download:
+    # 允许的主机白名单（留空表示不启用白名单，仅按私网/回环限制）
+    allowed-hosts: []
+    # 禁止的主机黑名单
+    blocked-hosts: []
+    # 最大允许下载文件大小（字节），例如 52428800 = 50MB
+    max-file-size: 52428800
+    # 连接与读取超时（毫秒）
+    connect-timeout-ms: 5000
+    read-timeout-ms: 15000
+
+# RAG评估系统配置
+eval:
+  # 评估系统总开关
+  enabled: true
+  
+  # 采样配置
+  sampling:
+    rate: 0.05                    # 默认5%采样率
+    header: "X-RAG-EVAL"          # 强制采样请求头
+  
+  # Kafka配置
+  kafka:
+    enabled: true
+    topics:
+      rag-events: "rag.events"         # RAG事件主题
+      rag-eval-in: "rag.eval.in"      # 评估输入主题
+      partitions: 3                    # 分区数
+      replicas: 1                      # 副本数
+    producer:
+      acks: 1                          # 确认级别
+      linger-ms: 5                     # 批处理延迟
+      batch-size: 32768                # 批处理大小(32KB)
+      buffer-memory: 67108864          # 缓冲区大小(64MB)
+  
+  # 简化评估服务配置
+  simple-eval:
+    base-url: "http://localhost:8088"
+    timeout-ms: 120000
+    max-retries: 3
+    retry-interval-ms: 2000
+  
+  # RAGAS服务配置(保持向后兼容)
+  ragas:
+    enabled: true
+    base-url: "http://localhost:8088"
+    api-key: "${RAGAS_API_KEY:}"
+    timeout-ms: 120000
+    max-retries: 3
+    retry-interval-ms: 2000
+    connection-pool:
+      max-total: 20
+      max-idle: 5
+      min-idle: 2
+  
+  # 评估执行配置
+  execution:
+    # 并发控制
+    concurrency:
+      max-concurrent-runs: 3
+      max-concurrent-cases: 10
+      default-batch-size: 20
+      task-timeout-ms: 300000
+    
+    # 重试策略
+    retry:
+      max-attempts: 3
+      backoff-delay-ms: 5000
+      exponential-multiplier: 2.0
+    
+    # 缓存配置
+    cache:
+      enabled: true
+      ttl-minutes: 60
+      max-size: 1000
+  
+  # 默认评估配置
+  default:
+    # RAG配置
+    rag:
+      retrieval-top-k: 10
+      similarity-threshold: 0.7
+      enable-rerank: false
+      rerank-top-k: 5
+      max-context-length: 4000
+      retrieval-strategy: "vector"
+    
+    # 模型配置
+    model:
+      temperature: 0.7
+      top-p: 0.9
+      max-tokens: 2000
+      
+    # 选择的指标
+    metrics:
+      retrieval:
+        - "precision_at_1"
+        - "precision_at_3"
+        - "precision_at_5"
+        - "recall_at_1"
+        - "recall_at_3"
+        - "recall_at_5"
+        - "mrr"
+        - "context_precision"
+        - "context_recall"
+      generation:
+        - "faithfulness"
+        - "answer_relevancy"
+        - "citation_consistency"
+        - "completeness"
+        - "conciseness"
+      efficiency:
+        - "avg_retrieval_latency_ms"
+        - "avg_generation_latency_ms"
+        - "avg_e2e_latency_ms"
+        - "avg_cost_usd"
+  
+  # 数据管理配置
+  data:
+    # 导出配置
+    export:
+      max-rows: 10000
+      supported-formats: ["csv", "excel", "json"]
+      temp-dir: "/tmp/smartcs-eval-exports"
+      retention-days: 7
+    
+    # 清理配置
+    cleanup:
+      enabled: true
+      run-details-retention-days: 90
+      temp-files-retention-hours: 24
+      failed-runs-retention-days: 30
+  
+  # 统计分析配置
+  analytics:
+    # 趋势分析
+    trend:
+      default-time-range-days: 30
+      max-time-range-days: 365
+      aggregation-intervals: ["hour", "day", "week", "month"]
+    
+    # 异常检测
+    anomaly:
+      enabled: true
+      sensitivity: 0.8
+      min-samples: 10
+  
+  # 通知配置
+  notification:
+    enabled: true
+    channels: ["webhook", "email"]
+    webhook:
+      url: "${EVAL_WEBHOOK_URL:}"
+      timeout-ms: 10000
+    email:
+      enabled: false
+      smtp-host: "${SMTP_HOST:}"
+      smtp-port: 587
+      username: "${SMTP_USERNAME:}"
+      password: "${SMTP_PASSWORD:}"
 
 # PDF解析器优化配置 - 框架代替自定义解析
 pdf:
@@ -292,6 +478,11 @@ resilience4j:
         max-concurrent-calls: 10
         max-wait-duration: 3s
 
-#server:
+# 权限白名单配置
+permission:
+  white-list:
+    - "/smartcs/api/app/**"
+
+# server:
 #  servlet:
 #    context-path: /smartcs

@@ -1,0 +1,182 @@
+# RAG评估质量阈值配置
+# 用于CI/CD质量闸门的阈值定义
+
+# 评估阈值配置
+thresholds:
+  # 忠实度阈值 - 答案必须忠实于检索的上下文
+  faithfulness: 0.85
+  
+  # 答案相关性阈值 - 答案与问题的相关程度
+  answer_relevancy: 0.80
+  
+  # 上下文精确度阈值 - 检索上下文的精确度
+  context_precision: 0.70
+  
+  # 上下文召回度阈值 - 检索上下文的召回度
+  context_recall: 0.75
+  
+  # 噪声敏感度最大允许方差
+  noise_sensitivity_max_variance: 0.10
+
+# 分级阈值配置
+quality_levels:
+  # 优秀级别
+  excellent:
+    faithfulness: 0.95
+    answer_relevancy: 0.92
+    context_precision: 0.88
+    context_recall: 0.90
+    
+  # 良好级别
+  good:
+    faithfulness: 0.88
+    answer_relevancy: 0.85
+    context_precision: 0.75
+    context_recall: 0.80
+    
+  # 及格级别（与基础阈值相同）
+  passing:
+    faithfulness: 0.85
+    answer_relevancy: 0.80
+    context_precision: 0.70
+    context_recall: 0.75
+    
+  # 警告级别
+  warning:
+    faithfulness: 0.75
+    answer_relevancy: 0.70
+    context_precision: 0.60
+    context_recall: 0.65
+
+# 不同环境的阈值配置
+environments:
+  # 生产环境 - 最严格的阈值
+  production:
+    faithfulness: 0.90
+    answer_relevancy: 0.85
+    context_precision: 0.75
+    context_recall: 0.80
+    
+  # 预发布环境
+  staging:
+    faithfulness: 0.85
+    answer_relevancy: 0.80
+    context_precision: 0.70
+    context_recall: 0.75
+    
+  # 开发环境 - 相对宽松的阈值
+  development:
+    faithfulness: 0.80
+    answer_relevancy: 0.75
+    context_precision: 0.65
+    context_recall: 0.70
+
+# 特定域的阈值配置
+domains:
+  # 技术文档域
+  technical:
+    faithfulness: 0.90  # 技术准确性要求更高
+    answer_relevancy: 0.85
+    context_precision: 0.80
+    context_recall: 0.75
+    
+  # 通用知识域
+  general:
+    faithfulness: 0.85
+    answer_relevancy: 0.80
+    context_precision: 0.70
+    context_recall: 0.75
+    
+  # 客服域
+  customer_service:
+    faithfulness: 0.88
+    answer_relevancy: 0.85  # 相关性要求更高
+    context_precision: 0.72
+    context_recall: 0.78
+
+# 评估策略配置
+evaluation:
+  # 是否启用严格模式（所有指标都必须达标）
+  strict_mode: true
+  
+  # 允许的失败指标数量（非严格模式下）
+  max_failed_metrics: 1
+  
+  # 权重配置（用于计算综合分数）
+  weights:
+    faithfulness: 0.3
+    answer_relevancy: 0.3
+    context_precision: 0.2
+    context_recall: 0.2
+    
+  # 综合分数阈值
+  overall_score_threshold: 0.80
+
+# CI/CD配置
+cicd:
+  # 是否在质量闸门失败时阻断流水线
+  block_on_failure: true
+  
+  # 是否生成详细报告
+  generate_detailed_report: true
+  
+  # 报告输出格式
+  report_formats:
+    - json
+    - html
+    - junit  # 用于CI工具集成
+    
+  # 失败时的行为
+  failure_behavior:
+    # 是否发送通知
+    send_notification: true
+    
+    # 通知渠道
+    notification_channels:
+      - slack
+      - email
+      - webhook
+    
+    # 是否创建Issue
+    create_issue: false
+    
+    # Issue标签
+    issue_labels:
+      - "quality-gate-failure"
+      - "rag-evaluation"
+
+# 趋势分析配置
+trend_analysis:
+  # 启用趋势分析
+  enabled: true
+  
+  # 历史对比窗口（天）
+  comparison_window_days: 30
+  
+  # 趋势警告阈值（下降百分比）
+  decline_warning_threshold: 0.05  # 5%下降触发警告
+  
+  # 趋势阻断阈值（下降百分比）
+  decline_block_threshold: 0.10   # 10%下降阻断发布
+
+# 采样配置
+sampling:
+  # 基准集评估时是否强制采样
+  force_sampling: true
+  
+  # 采样请求头
+  sampling_header: "X-RAG-EVAL"
+  
+  # 评估超时时间（秒）
+  evaluation_timeout: 300
+
+# 缓存配置
+cache:
+  # 是否使用缓存结果
+  use_cache: true
+  
+  # 缓存过期时间（小时）
+  cache_expiry_hours: 1
+  
+  # 强制刷新缓存
+  force_refresh: false

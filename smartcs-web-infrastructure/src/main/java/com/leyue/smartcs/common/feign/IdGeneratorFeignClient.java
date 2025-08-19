@@ -6,8 +6,7 @@ import com.leyue.smartcs.dto.common.IdGeneratorResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
-import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,7 +21,6 @@ public interface IdGeneratorFeignClient {
     @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     @Retry(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
-    @TimeLimiter(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     ApiResponse<IdGeneratorResponse> generateId(@RequestBody IdGeneratorRequest request);
 
     /**
@@ -39,7 +37,6 @@ public interface IdGeneratorFeignClient {
     @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateBatchIdFallback")
     @Retry(name = "id-generator-feign", fallbackMethod = "generateBatchIdFallback")
     @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateBatchIdFallback")
-    @TimeLimiter(name = "id-generator-feign", fallbackMethod = "generateBatchIdFallback")
     ApiResponse<IdGeneratorResponse> generateBatchId(@RequestBody IdGeneratorRequest request);
 
     /**

@@ -8,11 +8,14 @@ import com.leyue.smartcs.api.KnowledgeBaseService;
 import com.leyue.smartcs.dto.knowledge.*;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseCreateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseDeleteCmdExe;
+import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseSettingsUpdateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeBaseUpdateCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeGeneralChunkCmdExe;
 import com.leyue.smartcs.knowledge.executor.command.KnowledgeParentChildChunkCmdExe;
 import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseGetQryExe;
 import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseListQryExe;
+import com.leyue.smartcs.knowledge.executor.query.KnowledgeBaseSettingsGetQryExe;
+import com.leyue.smartcs.knowledge.executor.query.RecallTestQryExe;
 import com.leyue.smartcs.knowledge.executor.query.TextSearchQryExe;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,6 +42,12 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final KnowledgeGeneralChunkCmdExe knowledgeGeneralChunkCmdExe;
 
     private final KnowledgeParentChildChunkCmdExe knowledgeParentChildChunkCmdExe;
+
+    private final KnowledgeBaseSettingsGetQryExe knowledgeBaseSettingsGetQryExe;
+
+    private final KnowledgeBaseSettingsUpdateCmdExe knowledgeBaseSettingsUpdateCmdExe;
+
+    private final RecallTestQryExe recallTestQryExe;
 
     @Override
     public MultiResponse<EmbeddingWithScore> searchByText(KnowledgeSearchQry qry) {
@@ -78,5 +87,20 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Override
     public MultiResponse<ChunkDTO> parentChildChunk(KnowledgeParentChildChunkCmd cmd) {
         return knowledgeParentChildChunkCmdExe.execute(cmd);
+    }
+
+    @Override
+    public SingleResponse<KnowledgeBaseSettingsDTO> getKnowledgeBaseSettings(Long id) {
+        return knowledgeBaseSettingsGetQryExe.execute(id);
+    }
+
+    @Override
+    public Response updateKnowledgeBaseSettings(KnowledgeBaseSettingsUpdateCmd cmd) {
+        return knowledgeBaseSettingsUpdateCmdExe.execute(cmd);
+    }
+
+    @Override
+    public MultiResponse<RecallTestResultDTO> recallTest(RecallTestQry qry) {
+        return recallTestQryExe.execute(qry);
     }
 }
