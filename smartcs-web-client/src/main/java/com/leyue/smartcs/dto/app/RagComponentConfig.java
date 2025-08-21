@@ -197,6 +197,73 @@ public class RagComponentConfig {
         @Builder.Default
         private Integer maxQueries = 10;
         
+        // ========== 新增阶段配置 ==========
+        
+        /**
+         * 是否启用语义对齐阶段
+         * 包括同义词归一化、单位标准化、时间正则化
+         */
+        @Builder.Default
+        private Boolean enableSemanticAlignment = true;
+        
+        /**
+         * 是否启用意图抽取阶段  
+         * 基于现有意图识别服务进行结构化槽位抽取
+         */
+        @Builder.Default
+        private Boolean enableIntentExtraction = true;
+        
+        /**
+         * 是否启用可检索化改写阶段
+         * 包括语义改写、负向词处理、关键词增强
+         */
+        @Builder.Default
+        private Boolean enableRetrievability = true;
+        
+        /**
+         * 是否启用检索增强策略阶段
+         * 包括多路Query、Step-back、HyDE等高级策略
+         */
+        @Builder.Default
+        private Boolean enableExpansionStrategy = false; // 默认关闭，可按需开启
+        
+        /**
+         * 语义对齐配置
+         */
+        private SemanticAlignmentConfig semanticAlignmentConfig;
+        
+        /**
+         * 意图抽取配置
+         */
+        private IntentExtractionConfig intentExtractionConfig;
+        
+        /**
+         * 可检索化配置
+         */
+        private RetrievabilityConfig retrievabilityConfig;
+        
+        /**
+         * 扩展策略配置
+         */
+        private ExpansionStrategyConfig expansionStrategyConfig;
+        
+        // Getter方法
+        public boolean isEnableSemanticAlignment() {
+            return enableSemanticAlignment != null && enableSemanticAlignment;
+        }
+        
+        public boolean isEnableIntentExtraction() {
+            return enableIntentExtraction != null && enableIntentExtraction;
+        }
+        
+        public boolean isEnableRetrievability() {
+            return enableRetrievability != null && enableRetrievability;
+        }
+        
+        public boolean isEnableExpansionStrategy() {
+            return enableExpansionStrategy != null && enableExpansionStrategy;
+        }
+        
         /**
          * 是否保留原始查询
          * 确保原始查询始终包含在结果中
@@ -309,6 +376,34 @@ public class RagComponentConfig {
          */
         public ExpandingConfig getExpandingConfigOrDefault() {
             return expandingConfig != null ? expandingConfig : ExpandingConfig.builder().build();
+        }
+        
+        /**
+         * 获取语义对齐配置或默认值
+         */
+        public SemanticAlignmentConfig getSemanticAlignmentConfigOrDefault() {
+            return semanticAlignmentConfig != null ? semanticAlignmentConfig : SemanticAlignmentConfig.builder().build();
+        }
+        
+        /**
+         * 获取意图抽取配置或默认值
+         */
+        public IntentExtractionConfig getIntentExtractionConfigOrDefault() {
+            return intentExtractionConfig != null ? intentExtractionConfig : IntentExtractionConfig.builder().build();
+        }
+        
+        /**
+         * 获取可检索化配置或默认值
+         */
+        public RetrievabilityConfig getRetrievabilityConfigOrDefault() {
+            return retrievabilityConfig != null ? retrievabilityConfig : RetrievabilityConfig.builder().build();
+        }
+        
+        /**
+         * 获取扩展策略配置或默认值
+         */
+        public ExpansionStrategyConfig getExpansionStrategyConfigOrDefault() {
+            return expansionStrategyConfig != null ? expansionStrategyConfig : ExpansionStrategyConfig.builder().build();
         }
         
         /**

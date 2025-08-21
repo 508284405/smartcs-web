@@ -1,0 +1,99 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] smartcs-web                                                        [pom]
+[INFO] smartcs-web-client                                                 [jar]
+[INFO] smartcs-web-domain                                                 [jar]
+[INFO] smartcs-web-infrastructure                                         [jar]
+[INFO] 
+[INFO] ----------------< com.leyue.smartcs:smartcs-web-parent >----------------
+[INFO] Building smartcs-web 1.0.0-SNAPSHOT                                [1/4]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] ----------------< com.leyue.smartcs:smartcs-web-client >----------------
+[INFO] Building smartcs-web-client 1.0.0-SNAPSHOT                         [2/4]
+[INFO]   from smartcs-web-client/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.0:resources (default-resources) @ smartcs-web-client ---
+[INFO] skip non existing resourceDirectory /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-client/src/main/resources
+[INFO] skip non existing resourceDirectory /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-client/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ smartcs-web-client ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] ----------------< com.leyue.smartcs:smartcs-web-domain >----------------
+[INFO] Building smartcs-web-domain 1.0.0-SNAPSHOT                         [3/4]
+[INFO]   from smartcs-web-domain/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.0:resources (default-resources) @ smartcs-web-domain ---
+[INFO] skip non existing resourceDirectory /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-domain/src/main/resources
+[INFO] skip non existing resourceDirectory /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-domain/src/main/resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ smartcs-web-domain ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] ------------< com.leyue.smartcs:smartcs-web-infrastructure >------------
+[INFO] Building smartcs-web-infrastructure 1.0.0-SNAPSHOT                 [4/4]
+[INFO]   from smartcs-web-infrastructure/pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.0:resources (default-resources) @ smartcs-web-infrastructure ---
+[INFO] Copying 0 resource
+[INFO] Copying 65 resources
+[INFO] 
+[INFO] --- compiler:3.11.0:compile (default-compile) @ smartcs-web-infrastructure ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 262 source files with javac [debug release 17] to target/classes
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ChunkConverter.java:[19,13] Unmapped target properties: "isDeleted, createdBy, updatedBy, createdAt, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ChunkConverter.java:[26,11] Unmapped target properties: "vectorId, createTime, updateTime".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ChunkConverter.java:[40,11] Unmapped target property: "vectorId".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ContentConvertor.java:[32,15] Unmapped target properties: "isDeleted, updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ContentConvertor.java:[39,16] Unmapped target property: "recallRate".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/SessionConvertor.java:[19,13] Unmapped target property: "id".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/model/convertor/ModelTaskContextConvertor.java:[22,24] Unmapped target properties: "id, createdBy, updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/UserKnowledgeBaseRelConvertor.java:[28,28] Unmapped target properties: "isDeleted, updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/FaqConvertor.java:[19,11] Unmapped target properties: "isDeleted, createdBy, updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/FaqConvertor.java:[29,12] Unmapped target property: "score".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/FaqConvertor.java:[31,12] Unmapped target property: "score".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ChunkConvertor.java:[18,11] Unmapped target properties: "vectorId, createTime, updateTime".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/ChunkConvertor.java:[25,13] Unmapped target properties: "isDeleted, createdBy, updatedBy, createdAt, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/ChatMessageConvertor.java:[78,13] Unmapped target properties: "msgType, createdAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/app/convertor/AppTestSessionConvertor.java:[26,22] Unmapped target property: "isDeleted".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/MessageConverter.java:[24,17] Unmapped target properties: "id, isDeleted, createdBy, updatedBy, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/MessageConverter.java:[40,10] Unmapped target properties: "id, isDeleted, createdBy, updatedBy, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/SessionConverter.java:[24,17] Unmapped target properties: "isDeleted, createdBy, updatedBy, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/SessionConverter.java:[33,13] Unmapped target properties: "agentName, closeReason, lastMessage".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/chat/convertor/SessionConverter.java:[42,10] Unmapped target properties: "isDeleted, createdBy, updatedBy, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/intent/convertor/IntentSnapshotConvertor.java:[30,22] Unmapped target property: "updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/intent/convertor/IntentCatalogConvertor.java:[24,19] Unmapped target property: "intentCount".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/app/convertor/AiAppConvertor.java:[32,13] Unmapped target property: "isDeleted".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/model/convertor/ModelTaskConvertor.java:[27,17] Unmapped target properties: "id, updatedBy, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/intent/convertor/IntentVersionConvertor.java:[27,19] Unmapped target property: "version".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/model/convertor/ModelConvertor.java:[28,11] Unmapped target properties: "featuresList, modelTypeStrings".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/KnowledgeBaseConvertor.java:[29,19] Unmapped target properties: "id, ownerId, createdBy, createdAt, updatedAt".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/KnowledgeBaseConvertor.java:[36,21] Unmapped target properties: "isDeleted, updatedBy".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/convertor/DocumentSearchConvertor.java:[13,29] Unmapped target properties: "id, text, score, metadata, chunkInfo".
+[WARNING] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/app/convertor/AppTestMessageConvertor.java:[29,22] Unmapped target property: "isDeleted".
+[WARNING] 注释处理不适用于隐式编译的文件。
+  使用 -proc:none 禁用注释处理或使用 -implicit 指定用于隐式编译的策略。
+[INFO] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/config/JedisConfig.java: 某些输入文件使用或覆盖了已过时的 API。
+[INFO] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/knowledge/config/JedisConfig.java: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+[INFO] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/order/OrderGatewayImpl.java: 某些输入文件使用了未经检查或不安全的操作。
+[INFO] /Users/wangyu/App/javaproduct/smartcs-web/smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/order/OrderGatewayImpl.java: 有关详细信息, 请使用 -Xlint:unchecked 重新编译。
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for smartcs-web 1.0.0-SNAPSHOT:
+[INFO] 
+[INFO] smartcs-web ........................................ SUCCESS [  0.003 s]
+[INFO] smartcs-web-client ................................. SUCCESS [  1.334 s]
+[INFO] smartcs-web-domain ................................. SUCCESS [  0.290 s]
+[INFO] smartcs-web-infrastructure ......................... SUCCESS [ 20.150 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  22.688 s
+[INFO] Finished at: 2025-08-20T23:57:05+08:00
+[INFO] ------------------------------------------------------------------------
