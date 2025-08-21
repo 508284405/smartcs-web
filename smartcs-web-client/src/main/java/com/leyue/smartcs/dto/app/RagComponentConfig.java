@@ -405,6 +405,109 @@ public class RagComponentConfig {
         public ExpansionStrategyConfig getExpansionStrategyConfigOrDefault() {
             return expansionStrategyConfig != null ? expansionStrategyConfig : ExpansionStrategyConfig.builder().build();
         }
+
+        // ========== 新增：拼音改写 / 前缀补全 / 近义词召回 ==========
+
+        /**
+         * 是否启用拼音改写
+         */
+        @Builder.Default
+        private Boolean enablePhoneticCorrection = false;
+
+        /**
+         * 是否启用前缀补全
+         */
+        @Builder.Default
+        private Boolean enablePrefixCompletion = false;
+
+        /**
+         * 是否启用近义词召回
+         */
+        @Builder.Default
+        private Boolean enableSynonymRecall = false;
+
+        /**
+         * 拼音改写配置
+         */
+        private PhoneticConfig phoneticConfig;
+
+        /**
+         * 前缀补全配置
+         */
+        private PrefixConfig prefixConfig;
+
+        /**
+         * 近义词召回配置
+         */
+        private SynonymRecallConfig synonymRecallConfig;
+
+        public boolean isEnablePhoneticCorrection() {
+            return enablePhoneticCorrection != null && enablePhoneticCorrection;
+        }
+
+        public boolean isEnablePrefixCompletion() {
+            return enablePrefixCompletion != null && enablePrefixCompletion;
+        }
+
+        public boolean isEnableSynonymRecall() {
+            return enableSynonymRecall != null && enableSynonymRecall;
+        }
+
+        public PhoneticConfig getPhoneticConfigOrDefault() {
+            return phoneticConfig != null ? phoneticConfig : PhoneticConfig.builder().build();
+        }
+
+        public PrefixConfig getPrefixConfigOrDefault() {
+            return prefixConfig != null ? prefixConfig : PrefixConfig.builder().build();
+        }
+
+        public SynonymRecallConfig getSynonymRecallConfigOrDefault() {
+            return synonymRecallConfig != null ? synonymRecallConfig : SynonymRecallConfig.builder().build();
+        }
+
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class PhoneticConfig {
+            @Builder.Default
+            private Double minConfidence = 0.6;
+
+            @Builder.Default
+            private Integer maxCandidates = 3;
+        }
+
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class PrefixConfig {
+            @Builder.Default
+            private Integer minPrefixLength = 2;
+
+            @Builder.Default
+            private Integer maxCandidates = 5;
+
+            @Builder.Default
+            private Boolean onlyShortQuery = true;
+
+            @Builder.Default
+            private Integer shortQueryMaxLen = 5;
+        }
+
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class SynonymRecallConfig {
+            private Long embeddingModelId;
+
+            @Builder.Default
+            private Integer topK = 5;
+
+            @Builder.Default
+            private Double simThreshold = 0.7;
+        }
         
         /**
          * 标准化配置

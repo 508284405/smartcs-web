@@ -28,6 +28,8 @@ import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.NormalizationStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SemanticAlignmentStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.RewriteStage;
 
 import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
 import dev.langchain4j.data.segment.TextSegment;
@@ -530,6 +532,9 @@ public class DynamicModelManager {
                 .enableNormalization(config.isEnableNormalization())
                 .enableExpanding(config.isEnableExpanding())
                 .enableIntentRecognition(config.isIntentRecognitionEnabled())
+                .enablePhoneticCorrection(config.isEnablePhoneticCorrection())
+                .enablePrefixCompletion(config.isEnablePrefixCompletion())
+                .enableSynonymRecall(config.isEnableSynonymRecall())
                 .maxQueries(config.getMaxQueries())
                 .keepOriginal(config.isKeepOriginal())
                 .dedupThreshold(config.getDedupThreshold());
@@ -559,6 +564,36 @@ public class DynamicModelManager {
                     config.getExpandingConfigOrDefault(), config);
             pipelineConfigBuilder.expandingConfig(expandingConfig);
         }
+
+        // 设置拼音改写配置
+        if (config.getPhoneticConfigOrDefault() != null) {
+            QueryContext.PhoneticConfig phoneticConfig = QueryContext.PhoneticConfig.builder()
+                    .minConfidence(config.getPhoneticConfigOrDefault().getMinConfidence())
+                    .maxCandidates(config.getPhoneticConfigOrDefault().getMaxCandidates())
+                    .build();
+            pipelineConfigBuilder.phoneticConfig(phoneticConfig);
+        }
+
+        // 设置前缀补全配置
+        if (config.getPrefixConfigOrDefault() != null) {
+            QueryContext.PrefixConfig prefixConfig = QueryContext.PrefixConfig.builder()
+                    .minPrefixLength(config.getPrefixConfigOrDefault().getMinPrefixLength())
+                    .maxCandidates(config.getPrefixConfigOrDefault().getMaxCandidates())
+                    .onlyShortQuery(config.getPrefixConfigOrDefault().getOnlyShortQuery() != null && config.getPrefixConfigOrDefault().getOnlyShortQuery())
+                    .shortQueryMaxLen(config.getPrefixConfigOrDefault().getShortQueryMaxLen())
+                    .build();
+            pipelineConfigBuilder.prefixConfig(prefixConfig);
+        }
+
+        // 设置近义词召回配置
+        if (config.getSynonymRecallConfigOrDefault() != null) {
+            QueryContext.SynonymConfig synonymConfig = QueryContext.SynonymConfig.builder()
+                    .embeddingModelId(config.getSynonymRecallConfigOrDefault().getEmbeddingModelId())
+                    .topK(config.getSynonymRecallConfigOrDefault().getTopK())
+                    .simThreshold(config.getSynonymRecallConfigOrDefault().getSimThreshold())
+                    .build();
+            pipelineConfigBuilder.synonymConfig(synonymConfig);
+        }
         
         QueryContext.PipelineConfig pipelineConfig = pipelineConfigBuilder.build();
         
@@ -584,17 +619,49 @@ public class DynamicModelManager {
     private List<QueryTransformerStage> createPipelineStages(ChatModel chatModel, 
                                                            QueryContext.PipelineConfig config) {
         List<QueryTransformerStage> stages = new ArrayList<>();
-        
+
         // 添加标准化阶段
         if (config.isEnableNormalization()) {
             stages.add(new NormalizationStage());
         }
-        
+
+        // 语义对齐（保持与 Spring Bean 装配一致）
+        stages.add(new SemanticAlignmentStage());
+
+        // 意图抽取（可选：当前 PipelineConfig 仅有 enableIntentRecognition 标记，此处若启用则加入）
+        if (config.isEnableIntentRecognition()) {
+            // 需要一个 AI Service 实例，但此处仅在配置为 true 时加入轻量阶段
+            // 由于 DynamicModelManager 无法直接构造 IntentClassificationAiService，这里暂不重复实现
+            // 留空：由 Spring Bean 管线提供完整意图阶段；此处保持最小改动
+        }
+
+        // 拼音改写阶段
+        if (config.isEnablePhoneticCorrection()) {
+            double minConf = config.getPhoneticConfig() != null ? config.getPhoneticConfig().getMinConfidence() : 0.6;
+            var phoneticService = new com.leyue.smartcs.rag.query.pipeline.services.PhoneticCorrectionService(minConf);
+            stages.add(new com.leyue.smartcs.rag.query.pipeline.stages.PhoneticCorrectionStage(phoneticService));
+        }
+
+        // 可检索化改写阶段（沿用已存在）
+        stages.add(new RewriteStage());
+
+        // 前缀补全阶段
+        if (config.isEnablePrefixCompletion()) {
+            var prefixService = new com.leyue.smartcs.rag.query.pipeline.services.PrefixCompletionService(Collections.emptyList());
+            stages.add(new com.leyue.smartcs.rag.query.pipeline.stages.PrefixCompletionStage(prefixService));
+        }
+
+        // 近义词召回阶段
+        if (config.isEnableSynonymRecall()) {
+            var synService = new com.leyue.smartcs.rag.query.pipeline.services.SynonymRecallService();
+            stages.add(new com.leyue.smartcs.rag.query.pipeline.stages.SynonymRecallStage(synService));
+        }
+
         // 添加扩展阶段
         if (config.isEnableExpanding()) {
             stages.add(new ExpandingStage(chatModel));
         }
-        
+
         log.debug("创建管线处理阶段完成: stageCount={}", stages.size());
         
         return stages;

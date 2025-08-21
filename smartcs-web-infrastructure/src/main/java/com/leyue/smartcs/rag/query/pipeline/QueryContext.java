@@ -271,6 +271,21 @@ public class QueryContext {
          * 标准化配置
          */
         private NormalizationConfig normalizationConfig;
+
+        // ========== 新增：拼音改写 / 前缀补全 / 近义词召回 ==========
+
+        @Builder.Default
+        private boolean enablePhoneticCorrection = false;
+
+        @Builder.Default
+        private boolean enablePrefixCompletion = false;
+
+        @Builder.Default
+        private boolean enableSynonymRecall = false;
+
+        private PhoneticConfig phoneticConfig;
+        private PrefixConfig prefixConfig;
+        private SynonymConfig synonymConfig;
     }
     
     /**
@@ -326,6 +341,53 @@ public class QueryContext {
          */
         @Builder.Default
         private boolean cleanWhitespace = true;
+    }
+
+    /**
+     * 拼音改写配置
+     */
+    @Data
+    @Builder
+    public static class PhoneticConfig {
+        @Builder.Default
+        private double minConfidence = 0.6;
+
+        @Builder.Default
+        private int maxCandidates = 3;
+    }
+
+    /**
+     * 前缀补全配置
+     */
+    @Data
+    @Builder
+    public static class PrefixConfig {
+        @Builder.Default
+        private int minPrefixLength = 2;
+
+        @Builder.Default
+        private int maxCandidates = 5;
+
+        @Builder.Default
+        private boolean onlyShortQuery = true;
+
+        @Builder.Default
+        private int shortQueryMaxLen = 5;
+    }
+
+    /**
+     * 近义词召回配置
+     */
+    @Data
+    @Builder
+    public static class SynonymConfig {
+        private Long embeddingModelId;
+
+        @Builder.Default
+        private int topK = 5;
+
+        @Builder.Default
+        private double simThreshold = 0.7;
     }
     
     /**
