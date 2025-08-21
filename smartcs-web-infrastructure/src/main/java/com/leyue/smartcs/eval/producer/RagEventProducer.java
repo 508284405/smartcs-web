@@ -63,7 +63,7 @@ public class RagEventProducer {
             });
             
         } catch (Exception e) {
-            log.error("发送RAG事件异常: eventId={}, error={}", event.getEventId(), e.getMessage(), e);
+             ;
         }
     }
     

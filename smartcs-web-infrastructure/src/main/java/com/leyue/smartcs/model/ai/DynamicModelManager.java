@@ -53,6 +53,8 @@ import dev.langchain4j.rag.query.router.LanguageModelQueryRouter;
 import dev.langchain4j.rag.query.router.QueryRouter;
 import dev.langchain4j.rag.query.transformer.ExpandingQueryTransformer;
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
+import com.leyue.smartcs.rag.transformer.LangChain4jQueryTransformerImpl;
+import com.leyue.smartcs.app.rag.service.QueryTransformationApplicationService;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
@@ -79,6 +81,7 @@ public class DynamicModelManager {
     private final ClassificationDomainService classificationDomainService;
     private final JdbcTemplate jdbcTemplate;
     private final NlpToSqlService nlpToSqlService;
+    private final QueryTransformationApplicationService queryTransformationApplicationService;
     
     // 缓存模型实例，避免重复创建
     private final Map<Long, ChatModel> chatModelCache = new ConcurrentHashMap<>();
@@ -494,51 +497,24 @@ public class DynamicModelManager {
     public QueryTransformer createQueryTransformer(Long modelId, RagComponentConfig.QueryTransformerConfig config) {
         if (config != null) {
             log.debug("创建自定义配置的QueryTransformer实例: modelId={}, config={}", modelId, config);
-            // 使用组件级模型ID，未指定时回退到会话级 modelId
-            Long actualModelId = config.getModelId() != null ? config.getModelId() : modelId;
-            ChatModel chatModel = getChatModel(actualModelId);
             
-            // 检查是否启用管线化处理
-            if (config.isEnablePipeline()) {
-                log.debug("创建QueryTransformerPipeline: modelId={}, pipelineEnabled=true", actualModelId);
-                return createQueryTransformerPipeline(chatModel, config);
-            }
-            
-            // 传统模式：检查是否启用意图识别
-            if (config.isIntentRecognitionEnabled()) {
-                log.debug("创建IntentAwareQueryTransformer: modelId={}, intentEnabled=true", actualModelId);
-                return new IntentAwareQueryTransformer(
-                    classificationDomainService,
-                    this,
-                    actualModelId,
-                    config.getN(),
-                    true,
-                    config.getDefaultChannel(),
-                    config.getDefaultTenant()
-                );
-            } else {
-                // 使用标准的查询扩展器
-                return ExpandingQueryTransformer.builder()
-                        .chatModel(chatModel)
-                        .n(config.getN())
-                        .promptTemplate(config.getPromptTemplate() != null ? 
-                                PromptTemplate.from(config.getPromptTemplate()) : null)
-                        .build();
-            }
+            // 使用新的DDD架构实现
+            return new LangChain4jQueryTransformerImpl(queryTransformationApplicationService, config);
         }
         
         return queryTransformerCache.computeIfAbsent(modelId, id -> {
             log.debug("创建默认配置的QueryTransformer实例（启用意图识别）: modelId={}", id);
-            // 默认启用意图识别
-            return new IntentAwareQueryTransformer(
-                classificationDomainService,
-                this,
-                id,
-                5, // 默认扩展数量
-                true, // 默认启用意图识别
-                "web", // 默认渠道
-                "default" // 默认租户
-            );
+            
+            // 创建默认配置
+            RagComponentConfig.QueryTransformerConfig defaultConfig = RagComponentConfig.QueryTransformerConfig.builder()
+                    .n(5)
+                    .intentRecognitionEnabled(true)
+                    .defaultChannel("web")
+                    .defaultTenant("default")
+                    .modelId(id)
+                    .build();
+            
+            return new LangChain4jQueryTransformerImpl(queryTransformationApplicationService, defaultConfig);
         });
     }
     
