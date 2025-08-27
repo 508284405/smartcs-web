@@ -54,6 +54,40 @@ public class DefaultModelService {
     }
 
     /**
+     * 获取默认的LLM模型ID
+     * 使用Spring Cache缓存结果，提高性能
+     * 
+     * @return 默认LLM模型ID
+     * @throws BizException 当未找到可用的LLM模型时抛出
+     */
+    @Cacheable(value = "defaultLlmModel", key = "'default'")
+    public Long getDefaultLlmModelId() {
+        log.debug("开始查找默认LLM模型");
+        
+        try {
+            // 查找第一个可用的LLM模型
+            Long defaultModelId = modelGateway.findAll().stream()
+                    .filter(model -> model.getModelType().contains(ModelType.LLM))
+                    .filter(model -> model.isActive())
+                    .map(model -> model.getId())
+                    .findFirst()
+                    .orElseThrow(() -> new BizException(ModelErrorCode.NO_LLM_MODEL.getErrCode(), 
+                            ModelErrorCode.NO_LLM_MODEL.getErrDesc()));
+            
+            log.info("找到默认LLM模型，ID: {}", defaultModelId);
+            return defaultModelId;
+            
+        } catch (BizException e) {
+            // 重新抛出业务异常
+            throw e;
+        } catch (Exception e) {
+            log.error("获取默认LLM模型失败: {}", e.getMessage(), e);
+            throw new BizException(ModelErrorCode.GET_DEFAULT_LLM_MODEL_FAILED.getErrCode(), 
+                    ModelErrorCode.GET_DEFAULT_LLM_MODEL_FAILED.getErrDesc() + ": " + e.getMessage());
+        }
+    }
+
+    /**
      * 检查是否存在可用的嵌入模型
      * 
      * @return true如果存在可用的嵌入模型，否则false
@@ -72,6 +106,29 @@ public class DefaultModelService {
             
         } catch (Exception e) {
             log.error("检查嵌入模型可用性失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+
+    /**
+     * 检查是否存在可用的LLM模型
+     * 
+     * @return true如果存在可用的LLM模型，否则false
+     */
+    @Cacheable(value = "llmModelExists", key = "'exists'")
+    public boolean hasAvailableLlmModel() {
+        log.debug("检查是否存在可用的LLM模型");
+        
+        try {
+            boolean exists = modelGateway.findAll().stream()
+                    .anyMatch(model -> model.getModelType().contains(ModelType.LLM) 
+                            && model.isActive());
+            
+            log.debug("LLM模型可用性检查结果: {}", exists);
+            return exists;
+            
+        } catch (Exception e) {
+            log.error("检查LLM模型可用性失败: {}", e.getMessage(), e);
             return false;
         }
     }

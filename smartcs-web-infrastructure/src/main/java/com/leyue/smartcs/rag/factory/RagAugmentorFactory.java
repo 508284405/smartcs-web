@@ -202,6 +202,8 @@ public class RagAugmentorFactory {
             // 创建默认配置
             RagComponentConfig.QueryTransformerConfig defaultConfig = RagComponentConfig.QueryTransformerConfig.builder()
                     .n(5)
+                    // 避免在未配置 querySelector 的情况下产生多条查询导致重排序歧义
+                    .maxQueries(1)
                     .intentRecognitionEnabled(true)
                     .defaultChannel("web")
                     .defaultTenant("default")
@@ -591,25 +593,31 @@ public class RagAugmentorFactory {
             try {
                 ScoringModel scoringModel = null;
                 if (config.getScoringModelId() != null) {
-                    // 注意：这里需要一个ScoringModel的提供者，暂时返回null
-                    // scoringModel = modelProvider.getScoringModel(config.getScoringModelId());
+                    log.debug("尝试获取ScoringModel: scoringModelId={}", config.getScoringModelId());
+                    scoringModel = modelProvider.getScoringModel(config.getScoringModelId());
+                } else if (modelId != null) {
+                    // 如果未指定评分模型ID，尝试使用当前模型ID
+                    log.debug("未指定评分模型ID，尝试使用当前模型ID: modelId={}", modelId);
+                    scoringModel = modelProvider.getScoringModel(modelId);
                 }
                 
                 if (scoringModel != null) {
+                    log.debug("成功获取ScoringModel，启用重排序功能");
                     return ReRankingContentAggregator.builder()
                             .maxResults(config.getMaxResults())
                             .minScore(config.getMinScore())
+                            // 选择原始查询用于重排序（管线会将原始查询置于首位）
                             .scoringModel(scoringModel)
                             .build();
                 } else {
-                    log.warn("ScoringModel不可用，将使用基础的ContentAggregator");
+                    log.warn("ScoringModel不可用，将使用基础的ContentAggregator（无重排序）");
                     return ReRankingContentAggregator.builder()
                             .maxResults(config.getMaxResults())
                             .minScore(config.getMinScore())
                             .build();
                 }
             } catch (Exception e) {
-                log.warn("获取ScoringModel失败，将使用基础的ContentAggregator: {}", e.getMessage());
+                log.warn("获取ScoringModel失败，将使用基础的ContentAggregator（无重排序）: {}", e.getMessage());
                 return ReRankingContentAggregator.builder()
                         .maxResults(config.getMaxResults())
                         .minScore(config.getMinScore())
@@ -619,6 +627,24 @@ public class RagAugmentorFactory {
         
         return contentAggregatorCache.computeIfAbsent(modelId, id -> {
             log.debug("创建默认配置的ReRankingContentAggregator实例: modelId={}", id);
+            
+            try {
+                // 尝试使用当前模型ID创建ScoringModel以启用重排序
+                ScoringModel scoringModel = modelProvider.getScoringModel(id);
+                if (scoringModel != null) {
+                    log.debug("默认配置成功获取ScoringModel，启用重排序功能");
+                    return ReRankingContentAggregator.builder()
+                            .maxResults(5)
+                            .minScore(0.5)
+                            .scoringModel(scoringModel)
+                            .build();
+                }
+            } catch (Exception e) {
+                log.debug("默认配置获取ScoringModel失败，将使用基础聚合器: {}", e.getMessage());
+            }
+            
+            // 降级方案：不使用重排序
+            log.debug("默认配置使用基础ContentAggregator（无重排序）");
             return ReRankingContentAggregator.builder()
                     .maxResults(5)
                     .minScore(0.5)

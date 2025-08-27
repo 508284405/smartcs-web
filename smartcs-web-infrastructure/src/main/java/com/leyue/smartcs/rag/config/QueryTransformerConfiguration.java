@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.service.DefaultModelService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
@@ -55,6 +56,7 @@ public class QueryTransformerConfiguration {
     private final DynamicModelManager dynamicModelManager;
     private final ClassificationDomainService classificationDomainService;
     private final SlotFillingMetricsCollector slotFillingMetricsCollector;
+    private final DefaultModelService defaultModelService;
     
     @Autowired(required = false)
     private DictionaryService dictionaryService;
@@ -68,10 +70,15 @@ public class QueryTransformerConfiguration {
     public QueryTransformer pipelineQueryTransformer() {
         log.info("创建管线化QueryTransformer");
         
+        // 获取默认LLM模型ID
+        Long modelId = getDefaultModelId();
+        log.info("QueryTransformerPipeline使用的模型ID: {}", modelId);
+        
         return QueryTransformerPipeline.builder()
                 .stages(createDefaultStages())
                 .pipelineConfig(createDefaultPipelineConfig())
                 .metricsCollector(createMetricsCollector())
+                .modelId(modelId)
                 .build();
     }
     
@@ -83,11 +90,16 @@ public class QueryTransformerConfiguration {
     public QueryTransformer intentAwareQueryTransformer() {
         log.info("创建传统意图感知QueryTransformer");
         
+        // 获取默认LLM模型ID
+        Long modelId = getDefaultModelId();
+        log.info("传统QueryTransformer使用的模型ID: {}", modelId);
+        
         // 使用管线式QueryTransformer实现
         return QueryTransformerPipeline.builder()
                 .stages(createDefaultStages())
                 .pipelineConfig(createDefaultPipelineConfig())
                 .metricsCollector(createMetricsCollector())
+                .modelId(modelId)
                 .build();
     }
     
@@ -217,6 +229,14 @@ public class QueryTransformerConfiguration {
                         .timeoutMs(5000)
                         .build())
                 .build();
+    }
+    
+    /**
+     * 获取默认的模型ID
+     * 如果无法获取默认LLM模型，则抛出异常
+     */
+    private Long getDefaultModelId() {
+        return defaultModelService.getDefaultLlmModelId();
     }
     
     /**

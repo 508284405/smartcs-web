@@ -3,6 +3,7 @@ package com.leyue.smartcs.model.gateway;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
+import dev.langchain4j.model.scoring.ScoringModel;
 
 /**
  * 模型提供者端口接口
@@ -29,6 +30,7 @@ import dev.langchain4j.model.embedding.EmbeddingModel;
  * @see dev.langchain4j.model.chat.ChatModel
  * @see dev.langchain4j.model.chat.StreamingChatModel
  * @see dev.langchain4j.model.embedding.EmbeddingModel
+ * @see dev.langchain4j.model.scoring.ScoringModel
  */
 public interface ModelProvider {
     
@@ -73,6 +75,20 @@ public interface ModelProvider {
      * @throws RuntimeException 当模型配置错误或创建失败时抛出
      */
     EmbeddingModel getEmbeddingModel(Long modelId);
+    
+    /**
+     * 根据模型ID获取ScoringModel实例
+     * <p>
+     * 用于执行文本相关性打分任务，适合RAG场景下的内容重排序，
+     * 通过AI模型评估查询与文档段落的相关性分数。
+     * </p>
+     * 
+     * @param modelId 模型ID，必须是系统中已配置的有效模型标识
+     * @return ScoringModel实例，可用于执行文本相关性打分任务
+     * @throws IllegalArgumentException 当模型ID不存在时抛出
+     * @throws RuntimeException 当模型配置错误或创建失败时抛出
+     */
+    ScoringModel getScoringModel(Long modelId);
     
     /**
      * 检查模型是否支持推理

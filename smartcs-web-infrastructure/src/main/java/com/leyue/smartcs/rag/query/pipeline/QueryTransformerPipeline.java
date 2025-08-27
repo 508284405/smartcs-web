@@ -45,6 +45,11 @@ public class QueryTransformerPipeline implements QueryTransformer {
     @Builder.Default
     private final String defaultChannel = "web";
     
+    /**
+     * 模型ID，用于LLM配置
+     */
+    private final Long modelId;
+    
     @Override
     public Collection<Query> transform(Query query) {
         // 处理null输入
@@ -101,33 +106,36 @@ public class QueryTransformerPipeline implements QueryTransformer {
                     .finalQueries(Collections.emptyList())
                     .build();
         }
-
+        
+        // 创建查询上下文
         QueryContext context = createQueryContext(query);
-        // 在 attributes 中挂载 trace 容器
-        QueryTransformationTrace trace = QueryTransformationTrace.builder()
-                .originalQuery(query.text())
-                .build();
-        context.setAttribute(TRACE_KEY, trace);
-
+        
+        log.debug("开始查询转换管线调试处理: originalQuery={}, stageCount={}", 
+                query.text(), stages != null ? stages.size() : 0);
+        
         try {
+            // 初始化指标收集
             if (metricsCollector != null) {
-                metricsCollector.recordStageStart("PIPELINE_START", 1);
+                metricsCollector.recordStageStart("PIPELINE_DEBUG_START", 1);
             }
-
-            Collection<Query> result = executeStages(context, Collections.singletonList(query));
-            if (result == null || result.isEmpty()) {
-                result = Collections.singletonList(query);
-            }
-            result = applyFinalConstraints(context, result);
-
-            // 记录最终输出
-            trace.setFinalQueries(toTextList(result));
+            
+            // 执行管线处理并记录trace
+            QueryTransformationTrace trace = executeStagesWithTrace(context, Collections.singletonList(query));
+            
+            log.info("查询转换管线调试处理完成: originalQuery={}, finalCount={}", 
+                    query.text(), trace.getFinalQueries().size());
+            
             return trace;
+            
         } catch (Exception e) {
-            // 失败降级时也记录最终输出为原始
-            trace.setFinalQueries(Collections.singletonList(query.text()));
-            return trace;
+            log.error("查询转换管线调试处理失败: query={}", query.text(), e);
+            return QueryTransformationTrace.builder()
+                    .originalQuery(query.text())
+                    .finalQueries(Collections.singletonList(query.text()))
+                    .error(e.getMessage())
+                    .build();
         } finally {
+            // 清理资源
             cleanupStages(context);
         }
     }
@@ -159,7 +167,39 @@ public class QueryTransformerPipeline implements QueryTransformer {
                 .metricsCollector(metricsCollector)
                 .pipelineConfig(pipelineConfig != null ? pipelineConfig : 
                         QueryContext.PipelineConfig.builder().build())
+                .llmConfig(QueryContext.LlmConfig.builder()
+                        .chatModelId(modelId)
+                        .build())
                 .build();
+    }
+    
+    /**
+     * 执行管线阶段（带调试跟踪）
+     */
+    private QueryTransformationTrace executeStagesWithTrace(QueryContext context, Collection<Query> queries) {
+        // 创建追踪对象
+        QueryTransformationTrace trace = QueryTransformationTrace.builder()
+                .originalQuery(context.getOriginalQuery().text())
+                .build();
+        
+        // 将trace对象存储到context中
+        context.setAttribute(TRACE_KEY, trace);
+        
+        // 执行阶段处理
+        Collection<Query> result = executeStages(context, queries);
+        
+        // 设置最终结果
+        List<String> finalQueries = new ArrayList<>();
+        if (result != null) {
+            for (Query q : result) {
+                if (q != null && q.text() != null) {
+                    finalQueries.add(q.text());
+                }
+            }
+        }
+        trace.setFinalQueries(finalQueries);
+        
+        return trace;
     }
     
     /**

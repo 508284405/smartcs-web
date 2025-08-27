@@ -23,6 +23,9 @@ public class QueryTransformationTrace {
     @Builder.Default
     private List<StageTrace> stages = new ArrayList<>();
 
+    /** 错误信息（如果处理失败） */
+    private String error;
+
     @Data
     @Builder
     public static class StageTrace {
