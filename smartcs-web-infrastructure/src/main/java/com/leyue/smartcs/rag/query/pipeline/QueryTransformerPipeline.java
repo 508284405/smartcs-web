@@ -90,6 +90,47 @@ public class QueryTransformerPipeline implements QueryTransformer {
             cleanupStages(context);
         }
     }
+
+    /**
+     * 调试/测试入口：执行转换并记录各阶段前后变化
+     */
+    public QueryTransformationTrace transformWithTrace(Query query) {
+        if (query == null) {
+            return QueryTransformationTrace.builder()
+                    .originalQuery(null)
+                    .finalQueries(Collections.emptyList())
+                    .build();
+        }
+
+        QueryContext context = createQueryContext(query);
+        // 在 attributes 中挂载 trace 容器
+        QueryTransformationTrace trace = QueryTransformationTrace.builder()
+                .originalQuery(query.text())
+                .build();
+        context.setAttribute(TRACE_KEY, trace);
+
+        try {
+            if (metricsCollector != null) {
+                metricsCollector.recordStageStart("PIPELINE_START", 1);
+            }
+
+            Collection<Query> result = executeStages(context, Collections.singletonList(query));
+            if (result == null || result.isEmpty()) {
+                result = Collections.singletonList(query);
+            }
+            result = applyFinalConstraints(context, result);
+
+            // 记录最终输出
+            trace.setFinalQueries(toTextList(result));
+            return trace;
+        } catch (Exception e) {
+            // 失败降级时也记录最终输出为原始
+            trace.setFinalQueries(Collections.singletonList(query.text()));
+            return trace;
+        } finally {
+            cleanupStages(context);
+        }
+    }
     
     /**
      * 创建查询上下文
@@ -143,6 +184,9 @@ public class QueryTransformerPipeline implements QueryTransformer {
                     if (metricsCollector != null) {
                         metricsCollector.recordStageSkipped(stage.getName(), "阶段已禁用");
                     }
+                    // 记录trace：禁用跳过
+                    recordStageTrace(context, stage.getName(), currentQueries, currentQueries, 0L,
+                            "skipped: disabled");
                     continue;
                 }
                 
@@ -153,6 +197,9 @@ public class QueryTransformerPipeline implements QueryTransformer {
                     if (metricsCollector != null) {
                         metricsCollector.recordStageSkipped(stage.getName(), "超时中断");
                     }
+                    // 记录trace：超时跳过
+                    recordStageTrace(context, stage.getName(), currentQueries, currentQueries, 0L,
+                            "skipped: timeout");
                     break;
                 }
                 
@@ -208,6 +255,9 @@ public class QueryTransformerPipeline implements QueryTransformer {
             
             log.debug("转换阶段执行完成: stage={}, inputCount={}, outputCount={}, elapsedMs={}", 
                     stageName, inputQueries.size(), outputQueries.size(), elapsedMs);
+
+            // 记录 trace
+            recordStageTrace(context, stageName, inputQueries, outputQueries, elapsedMs, null);
             
             return outputQueries;
             
@@ -233,6 +283,9 @@ public class QueryTransformerPipeline implements QueryTransformer {
         // 如果错误不可恢复，直接返回输入查询
         if (!e.isRecoverable()) {
             log.error("阶段错误不可恢复，跳过处理: stage={}", stageName);
+            // 记录 trace：失败（不可恢复）
+            recordStageTrace(context, stageName, inputQueries, inputQueries, 0L,
+                    "failure: non-recoverable - " + safeMsg(e));
             return inputQueries;
         }
         
@@ -241,20 +294,89 @@ public class QueryTransformerPipeline implements QueryTransformer {
         switch (policy) {
             case SKIP_STAGE:
                 log.info("跳过失败的阶段: stage={}", stageName);
+                recordStageTrace(context, stageName, inputQueries, inputQueries, 0L,
+                        "failure: skipped - " + safeMsg(e));
                 return inputQueries;
             
             case USE_BASIC_EXPANSION:
                 log.info("使用基础扩展降级: stage={}", stageName);
                 // 使用基础扩展降级策略 - 返回原始查询
-                return Collections.singletonList(context.getOriginalQuery());
+                Collection<Query> basic = Collections.singletonList(context.getOriginalQuery());
+                recordStageTrace(context, stageName, inputQueries, basic, 0L,
+                        "failure: basic expansion - " + safeMsg(e));
+                return basic;
             
             case ORIGINAL_QUERY_ONLY:
                 log.info("回退到原始查询: stage={}", stageName);
-                return Collections.singletonList(context.getOriginalQuery());
+                Collection<Query> orig = Collections.singletonList(context.getOriginalQuery());
+                recordStageTrace(context, stageName, inputQueries, orig, 0L,
+                        "failure: original only - " + safeMsg(e));
+                return orig;
             
             default:
                 return inputQueries;
         }
+    }
+
+    private String safeMsg(Throwable e) {
+        try { return e.getMessage(); } catch (Exception ex) { return ""; }
+    }
+
+    private static final String TRACE_KEY = "query-transformer-trace";
+
+    /**
+     * 若存在 trace 上下文，记录单阶段 before/after 对比
+     */
+    @SuppressWarnings("unchecked")
+    private void recordStageTrace(QueryContext context, String stageName,
+                                  Collection<Query> before,
+                                  Collection<Query> after,
+                                  long elapsedMs,
+                                  String note) {
+        if (context == null) return;
+        Object obj = context.getAttribute(TRACE_KEY);
+        if (!(obj instanceof QueryTransformationTrace)) return;
+        QueryTransformationTrace trace = (QueryTransformationTrace) obj;
+
+        List<String> beforeTexts = toTextList(before);
+        List<String> afterTexts = toTextList(after);
+
+        // 计算 added/removed/unchanged（按小写去重比对）
+        java.util.Set<String> beforeSet = new java.util.LinkedHashSet<>();
+        for (String s : beforeTexts) beforeSet.add(norm(s));
+        java.util.Set<String> afterSet = new java.util.LinkedHashSet<>();
+        for (String s : afterTexts) afterSet.add(norm(s));
+
+        List<String> added = new java.util.ArrayList<>();
+        for (String s : afterTexts) if (!beforeSet.contains(norm(s))) added.add(s);
+        List<String> removed = new java.util.ArrayList<>();
+        for (String s : beforeTexts) if (!afterSet.contains(norm(s))) removed.add(s);
+        List<String> unchanged = new java.util.ArrayList<>();
+        for (String s : beforeTexts) if (afterSet.contains(norm(s))) unchanged.add(s);
+
+        QueryTransformationTrace.StageTrace stageTrace = QueryTransformationTrace.StageTrace.builder()
+                .stage(stageName)
+                .before(beforeTexts)
+                .after(afterTexts)
+                .added(added)
+                .removed(removed)
+                .unchanged(unchanged)
+                .elapsedMs(elapsedMs)
+                .note(note)
+                .build();
+
+        trace.getStages().add(stageTrace);
+    }
+
+    private String norm(String s) { return s == null ? "" : s.trim().toLowerCase(); }
+
+    private List<String> toTextList(Collection<Query> queries) {
+        List<String> list = new ArrayList<>();
+        if (queries == null) return list;
+        for (Query q : queries) {
+            if (q != null && q.text() != null) list.add(q.text());
+        }
+        return list;
     }
     
     /**

@@ -24,6 +24,17 @@ public class ModerationDTOs {
 
     @Data
     @EqualsAndHashCode(callSuper = true)
+    public static class ModerationCategoryPageQry extends PageQuery {
+        private String name;
+        private String code;
+        private Long parentId;
+        private String severityLevel;
+        private String actionType;
+        private Boolean isActive;
+    }
+
+    @Data
+    @EqualsAndHashCode(callSuper = true)
     public static class ModerationKeywordRulePageQry extends PageQuery {
         private String name;
         private String keyword;
@@ -54,6 +65,49 @@ public class ModerationDTOs {
     }
 
     // ===== Command Objects =====
+
+    @Data
+    public static class ModerationCategoryCreateCmd {
+        @NotBlank(message = "分类名称不能为空")
+        private String name;
+
+        @NotBlank(message = "分类编码不能为空")
+        private String code;
+
+        private String description;
+
+        private Long parentId;
+
+        @NotBlank(message = "严重程度级别不能为空")
+        private String severityLevel;
+
+        @NotBlank(message = "处理动作类型不能为空")
+        private String actionType;
+
+        private Integer sortOrder;
+
+        private Boolean isActive = true;
+    }
+
+    @Data
+    public static class ModerationCategoryUpdateCmd {
+        private Long id;
+
+        @NotBlank(message = "分类名称不能为空")
+        private String name;
+
+        private String description;
+
+        @NotBlank(message = "严重程度级别不能为空")
+        private String severityLevel;
+
+        @NotBlank(message = "处理动作类型不能为空")
+        private String actionType;
+
+        private Integer sortOrder;
+
+        private Boolean isActive;
+    }
 
     @Data
     public static class ModerationKeywordRuleCreateCmd {
@@ -160,6 +214,27 @@ public class ModerationDTOs {
     }
 
     // ===== Response/Result DTOs =====
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ModerationCategoryDTO {
+        private Long id;
+        private Long parentId;
+        private String name;
+        private String code;
+        private String description;
+        private String severityLevel;
+        private String actionType;
+        private Boolean isActive;
+        private Integer sortOrder;
+        private String createdBy;
+        private String updatedBy;
+        private Long createdAt;
+        private Long updatedAt;
+        private List<ModerationCategoryDTO> children;
+    }
 
     @Data
     @Builder

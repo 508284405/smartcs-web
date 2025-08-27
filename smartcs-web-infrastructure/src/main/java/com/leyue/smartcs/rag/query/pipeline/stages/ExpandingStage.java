@@ -3,6 +3,7 @@ package com.leyue.smartcs.rag.query.pipeline.stages;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
+import com.leyue.smartcs.model.gateway.ModelProvider;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.rag.query.Query;
@@ -16,6 +17,7 @@ import java.util.*;
  * 查询扩展阶段
  * 使用LLM对输入查询进行智能扩展，生成多个相关的查询变体
  * 支持自定义PromptTemplate和各种扩展策略
+ * 通过QueryContext动态获取LLM实例，支持灵活配置
  * 
  * @author Claude
  */
@@ -24,14 +26,14 @@ import java.util.*;
 public class ExpandingStage implements QueryTransformerStage {
     
     /**
-     * 聊天模型
+     * 模型提供者
      */
-    private final ChatModel chatModel;
+    private final ModelProvider modelProvider;
     
     /**
-     * 扩展查询转换器实例（延迟初始化）
+     * 扩展查询转换器实例缓存（按模型ID缓存）
      */
-    private ExpandingQueryTransformer expandingTransformer;
+    private final Map<Long, ExpandingQueryTransformer> transformerCache = new HashMap<>();
     
     @Override
     public String getName() {
@@ -101,21 +103,29 @@ public class ExpandingStage implements QueryTransformerStage {
                                               QueryContext context) {
         
         // 检查预算和超时
-        if (context.getBudgetControl().isTokensBudgetExceeded(config.getN() * 50)) {
+        if (context.getBudgetControl() != null && context.getBudgetControl().isTokensBudgetExceeded(config.getN() * 50)) {
             log.warn("Token预算不足，跳过查询扩展: query={}", query.text());
             return Collections.singletonList(query);
         }
         
-        if (context.getTimeoutControl().isTimeout()) {
+        if (context.getTimeoutControl() != null && context.getTimeoutControl().isTimeout()) {
             log.warn("执行超时，跳过查询扩展: query={}", query.text());
             return Collections.singletonList(query);
         }
         
         try {
-            // 获取或创建扩展查询转换器
-            ExpandingQueryTransformer transformer = getOrCreateExpandingTransformer(config);
+            // 从QueryContext获取LLM配置
+            if (context.getLlmConfig() == null || context.getLlmConfig().getChatModelId() == null) {
+                log.warn("LLM配置未设置，跳过查询扩展: query={}", query.text());
+                return Collections.singletonList(query);
+            }
             
-            log.debug("执行LLM查询扩展: query={}, n={}", query.text(), config.getN());
+            Long modelId = context.getLlmConfig().getChatModelId();
+            
+            // 获取或创建扩展查询转换器
+            ExpandingQueryTransformer transformer = getOrCreateExpandingTransformer(modelId, config);
+            
+            log.debug("执行LLM查询扩展: query={}, modelId={}, n={}", query.text(), modelId, config.getN());
             
             // 使用LangChain4j的ExpandingQueryTransformer进行扩展
             Collection<Query> expandedQueries = transformer.transform(query);
@@ -135,21 +145,30 @@ public class ExpandingStage implements QueryTransformerStage {
     /**
      * 获取或创建扩展查询转换器
      */
-    private ExpandingQueryTransformer getOrCreateExpandingTransformer(QueryContext.ExpandingConfig config) {
-        if (expandingTransformer == null) {
-            var builder = ExpandingQueryTransformer.builder()
-                    .chatModel(chatModel)
-                    .n(config.getN());
-            
-            // 如果有自定义提示模板，设置它
-            if (config.getPromptTemplate() != null && !config.getPromptTemplate().trim().isEmpty()) {
-                builder.promptTemplate(PromptTemplate.from(config.getPromptTemplate()));
+    private ExpandingQueryTransformer getOrCreateExpandingTransformer(Long modelId, QueryContext.ExpandingConfig config) {
+        return transformerCache.computeIfAbsent(modelId, id -> {
+            try {
+                // 从ModelProvider获取ChatModel
+                ChatModel chatModel = modelProvider.getChatModel(id);
+                
+                var builder = ExpandingQueryTransformer.builder()
+                        .chatModel(chatModel)
+                        .n(config.getN());
+                
+                // 如果有自定义提示模板，设置它
+                if (config.getPromptTemplate() != null && !config.getPromptTemplate().trim().isEmpty()) {
+                    builder.promptTemplate(PromptTemplate.from(config.getPromptTemplate()));
+                }
+                
+                log.debug("创建ExpandingQueryTransformer: modelId={}, n={}", id, config.getN());
+                return builder.build();
+                
+            } catch (Exception e) {
+                log.error("创建ExpandingQueryTransformer失败: modelId={}", id, e);
+                throw new QueryTransformationException(getName(), 
+                        "创建ExpandingQueryTransformer失败: " + e.getMessage(), e, false);
             }
-            
-            expandingTransformer = builder.build();
-        }
-        
-        return expandingTransformer;
+        });
     }
     
     
@@ -236,6 +255,26 @@ public class ExpandingStage implements QueryTransformerStage {
     
     @Override
     public void cleanup(QueryContext context) {
-        // 无需清理资源
+        // 清理transformer缓存（可选，根据需要决定）
+        if (transformerCache.size() > 10) { // 避免缓存过大
+            log.debug("清理ExpandingStage transformer缓存: size={}", transformerCache.size());
+            transformerCache.clear();
+        }
+    }
+    
+    /**
+     * 清理特定模型的transformer缓存
+     */
+    public void clearTransformerCache(Long modelId) {
+        transformerCache.remove(modelId);
+        log.debug("清理ExpandingStage transformer缓存: modelId={}", modelId);
+    }
+    
+    /**
+     * 清理所有transformer缓存
+     */
+    public void clearAllTransformerCache() {
+        transformerCache.clear();
+        log.debug("清理ExpandingStage所有transformer缓存");
     }
 }

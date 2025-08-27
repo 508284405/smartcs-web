@@ -2,11 +2,9 @@ package com.leyue.smartcs.moderation.convertor;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leyue.smartcs.domain.moderation.ModerationCategory;
-import com.leyue.smartcs.domain.moderation.ModerationRecord;
+import com.leyue.smartcs.domain.moderation.*;
 import com.leyue.smartcs.domain.moderation.enums.*;
-import com.leyue.smartcs.moderation.dataobject.ModerationCategoryDO;
-import com.leyue.smartcs.moderation.dataobject.ModerationRecordDO;
+import com.leyue.smartcs.moderation.dataobject.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -338,5 +336,212 @@ public class ModerationConvertor {
             log.error("Failed to deserialize keyword matches: {}", keywordMatches, e);
         }
         return null;
+    }
+
+    // ====================== 策略转换 ======================
+
+    /**
+     * 策略Domain转DO
+     */
+    public ModerationPolicyDO toPolicyDO(ModerationPolicy policy) {
+        if (policy == null) {
+            return null;
+        }
+
+        return ModerationPolicyDO.builder()
+                .id(policy.getId())
+                .name(policy.getName())
+                .code(policy.getCode())
+                .description(policy.getDescription())
+                .scenario(policy.getScenario())
+                .policyType(policy.getPolicyType())
+                .defaultRiskLevel(policy.getDefaultRiskLevel() != null ? policy.getDefaultRiskLevel().getCode() : null)
+                .defaultAction(policy.getDefaultAction() != null ? policy.getDefaultAction().getCode() : null)
+                .isActive(policy.getIsActive() != null && policy.getIsActive() ? true : false)
+                .priority(policy.getPriority())
+                .configParams(serializeConfigParams(policy.getConfigParams()))
+                .templateId(policy.getTemplateId())
+                .createdBy(policy.getCreatedBy())
+                .updatedBy(policy.getUpdatedBy())
+                .createdAt(policy.getCreatedAt())
+                .updatedAt(policy.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 策略DO转Domain
+     */
+    public ModerationPolicy toPolicyDomain(ModerationPolicyDO policyDO) {
+        if (policyDO == null) {
+            return null;
+        }
+
+        return ModerationPolicy.builder()
+                .id(policyDO.getId())
+                .name(policyDO.getName())
+                .code(policyDO.getCode())
+                .description(policyDO.getDescription())
+                .scenario(policyDO.getScenario())
+                .policyType(policyDO.getPolicyType())
+                .defaultRiskLevel(parseSeverityLevel(policyDO.getDefaultRiskLevel()))
+                .defaultAction(parseActionType(policyDO.getDefaultAction()))
+                .isActive(policyDO.getIsActive() != null && policyDO.getIsActive())
+                .priority(policyDO.getPriority())
+                .configParams(deserializeConfigParams(policyDO.getConfigParams()))
+                .templateId(policyDO.getTemplateId())
+                .createdBy(policyDO.getCreatedBy())
+                .updatedBy(policyDO.getUpdatedBy())
+                .createdAt(policyDO.getCreatedAt())
+                .updatedAt(policyDO.getUpdatedAt())
+                .build();
+    }
+
+    // ====================== 维度转换 ======================
+
+    /**
+     * 维度Domain转DO
+     */
+    public ModerationDimensionDO toDimensionDO(ModerationDimension dimension) {
+        if (dimension == null) {
+            return null;
+        }
+
+        return ModerationDimensionDO.builder()
+                .id(dimension.getId())
+                .name(dimension.getName())
+                .code(dimension.getCode())
+                .description(dimension.getDescription())
+                .checkGuideline(dimension.getCheckGuideline())
+                .severityLevel(dimension.getSeverityLevel() != null ? dimension.getSeverityLevel().getCode() : null)
+                .actionType(dimension.getActionType() != null ? dimension.getActionType().getCode() : null)
+                .confidenceThreshold(dimension.getConfidenceThreshold() != null ? 
+                    new java.math.BigDecimal(dimension.getConfidenceThreshold()) : null)
+                .isActive(dimension.getIsActive() != null && dimension.getIsActive() ? true : false)
+                .sortOrder(dimension.getSortOrder())
+                .category(dimension.getCategory())
+                .configParams(serializeConfigParams(dimension.getConfigParams()))
+                .categoryId(dimension.getCategoryId())
+                .createdBy(dimension.getCreatedBy())
+                .updatedBy(dimension.getUpdatedBy())
+                .createdAt(dimension.getCreatedAt())
+                .updatedAt(dimension.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 维度DO转Domain
+     */
+    public ModerationDimension toDimensionDomain(ModerationDimensionDO dimensionDO) {
+        if (dimensionDO == null) {
+            return null;
+        }
+
+        return ModerationDimension.builder()
+                .id(dimensionDO.getId())
+                .name(dimensionDO.getName())
+                .code(dimensionDO.getCode())
+                .description(dimensionDO.getDescription())
+                .checkGuideline(dimensionDO.getCheckGuideline())
+                .severityLevel(parseSeverityLevel(dimensionDO.getSeverityLevel()))
+                .actionType(parseActionType(dimensionDO.getActionType()))
+                .confidenceThreshold(dimensionDO.getConfidenceThreshold() != null ? 
+                    dimensionDO.getConfidenceThreshold().doubleValue() : null)
+                .isActive(dimensionDO.getIsActive() != null && dimensionDO.getIsActive())
+                .sortOrder(dimensionDO.getSortOrder())
+                .category(dimensionDO.getCategory())
+                .configParams(deserializeConfigParams(dimensionDO.getConfigParams()))
+                .categoryId(dimensionDO.getCategoryId())
+                .createdBy(dimensionDO.getCreatedBy())
+                .updatedBy(dimensionDO.getUpdatedBy())
+                .createdAt(dimensionDO.getCreatedAt())
+                .updatedAt(dimensionDO.getUpdatedAt())
+                .build();
+    }
+
+    // ====================== 模板转换 ======================
+
+    /**
+     * 模板Domain转DO
+     */
+    public ModerationPolicyTemplateDO toTemplateDO(ModerationPolicyTemplate template) {
+        if (template == null) {
+            return null;
+        }
+
+        return ModerationPolicyTemplateDO.builder()
+                .id(template.getId())
+                .name(template.getName())
+                .code(template.getCode())
+                .description(template.getDescription())
+                .templateType(template.getTemplateType())
+                .promptTemplate(template.getPromptTemplate())
+                .dimensionTemplate(template.getDimensionTemplate())
+                .responseTemplate(template.getResponseTemplate())
+                .language(template.getLanguage())
+                .variables(serializeConfigParams(template.getVariables()))
+                .defaultValues(serializeConfigParams(template.getDefaultValues()))
+                .isActive(template.getIsActive() != null && template.getIsActive() ? true : false)
+                .version(template.getVersion())
+                .createdBy(template.getCreatedBy())
+                .updatedBy(template.getUpdatedBy())
+                .createdAt(template.getCreatedAt())
+                .updatedAt(template.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * 模板DO转Domain
+     */
+    public ModerationPolicyTemplate toTemplateDomain(ModerationPolicyTemplateDO templateDO) {
+        if (templateDO == null) {
+            return null;
+        }
+
+        return ModerationPolicyTemplate.builder()
+                .id(templateDO.getId())
+                .name(templateDO.getName())
+                .code(templateDO.getCode())
+                .description(templateDO.getDescription())
+                .templateType(templateDO.getTemplateType())
+                .promptTemplate(templateDO.getPromptTemplate())
+                .dimensionTemplate(templateDO.getDimensionTemplate())
+                .responseTemplate(templateDO.getResponseTemplate())
+                .language(templateDO.getLanguage())
+                .variables(deserializeConfigParams(templateDO.getVariables()))
+                .defaultValues(deserializeConfigParams(templateDO.getDefaultValues()))
+                .isActive(templateDO.getIsActive() != null && templateDO.getIsActive())
+                .version(templateDO.getVersion())
+                .createdBy(templateDO.getCreatedBy())
+                .updatedBy(templateDO.getUpdatedBy())
+                .createdAt(templateDO.getCreatedAt())
+                .updatedAt(templateDO.getUpdatedAt())
+                .build();
+    }
+
+    // ====================== 配置参数序列化辅助方法 ======================
+
+    private String serializeConfigParams(Map<String, Object> configParams) {
+        if (configParams == null || configParams.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(configParams);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize config params", e);
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> deserializeConfigParams(String configParams) {
+        if (configParams == null || configParams.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(configParams, Map.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize config params: {}", configParams, e);
+            return null;
+        }
     }
 }

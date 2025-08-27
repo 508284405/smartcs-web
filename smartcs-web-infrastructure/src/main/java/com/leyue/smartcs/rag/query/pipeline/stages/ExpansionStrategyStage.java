@@ -1,14 +1,16 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
-import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.rag.query.Query;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -28,10 +30,12 @@ import java.util.stream.Collectors;
  * @author Claude
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class ExpansionStrategyStage implements QueryTransformerStage {
     
-    private final ChatModel chatModel;
+    private final DynamicModelManager dynamicModelManager;
+    private final DictionaryService dictionaryService;
     
     // 查询扩展策略
     private static final Map<ExpansionStrategy, String> EXPANSION_PROMPTS = createExpansionPrompts();
@@ -97,7 +101,9 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
             
         } catch (Exception e) {
             log.error("检索增强策略处理失败: inputCount={}", queries.size(), e);
-            throw new QueryTransformationException(getName(), "检索增强策略处理失败", e, true);
+            // 发生错误时返回原始查询，保证系统稳定性
+            log.warn("扩展策略阶段异常，返回原始查询: {}", e.getMessage());
+            return queries;
         }
     }
     
@@ -117,6 +123,12 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
         List<CompletableFuture<List<Query>>> expansionFutures = new ArrayList<>();
         
         try {
+            // 0. 基于字典的查询扩展（优先级最高）
+            CompletableFuture<List<Query>> dictionaryExpansionFuture = CompletableFuture
+                    .supplyAsync(() -> expandQueriesWithDictionary(context, originalText))
+                    .orTimeout(5, TimeUnit.SECONDS);
+            expansionFutures.add(dictionaryExpansionFuture);
+            
             // 1. 多路Query生成
             if (config.getN() > 1) {
                 CompletableFuture<List<Query>> multiQueryFuture = CompletableFuture
@@ -177,10 +189,84 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
     }
     
     /**
+     * 基于字典的查询扩展
+     */
+    private List<Query> expandQueriesWithDictionary(QueryContext context, String originalQuery) {
+        List<Query> expandedQueries = new ArrayList<>();
+        
+        try {
+            // 获取domain配置
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            // 获取扩展策略字典
+            Map<String, String> expansionStrategies = dictionaryService.getExpansionStrategies(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            String lowerQuery = originalQuery.toLowerCase();
+            
+            // 应用字典扩展策略
+            for (Map.Entry<String, String> entry : expansionStrategies.entrySet()) {
+                String pattern = entry.getKey();
+                String expansionTemplate = entry.getValue();
+                
+                if (lowerQuery.contains(pattern.toLowerCase())) {
+                    // 应用扩展模板
+                    String expandedQuery = applyExpansionTemplate(originalQuery, pattern, expansionTemplate);
+                    if (!expandedQuery.equals(originalQuery)) {
+                        expandedQueries.add(Query.from(expandedQuery));
+                        log.debug("字典扩展: {} -> {}", pattern, expandedQuery);
+                    }
+                }
+            }
+            
+            // 如果没有找到匹配的扩展策略，返回原查询
+            if (expandedQueries.isEmpty()) {
+                expandedQueries.add(Query.from(originalQuery));
+            }
+            
+            return expandedQueries;
+            
+        } catch (Exception e) {
+            log.warn("字典查询扩展失败: {}", e.getMessage());
+            return Arrays.asList(Query.from(originalQuery));
+        }
+    }
+    
+    /**
+     * 应用扩展模板
+     */
+    private String applyExpansionTemplate(String originalQuery, String pattern, String template) {
+        try {
+            // 简单的模板替换，实际可以更复杂
+            if (template.contains("{query}")) {
+                return template.replace("{query}", originalQuery);
+            } else if (template.contains("{pattern}")) {
+                return template.replace("{pattern}", pattern);
+            } else {
+                // 如果模板不包含占位符，直接返回模板内容
+                return template;
+            }
+        } catch (Exception e) {
+            log.debug("扩展模板应用失败: template={}, error={}", template, e.getMessage());
+            return originalQuery;
+        }
+    }
+    
+    /**
      * 生成多路查询
      */
     private List<Query> generateMultipleQueries(String originalQuery, QueryContext.ExpandingConfig config) {
         try {
+            ChatModel chatModel = getChatModel();
+            if (chatModel == null) {
+                log.warn("ChatModel不可用，跳过多路查询生成");
+                return Arrays.asList(Query.from(originalQuery));
+            }
+            
             String prompt = String.format(EXPANSION_PROMPTS.get(ExpansionStrategy.MULTI_QUERY), 
                     config.getN(), originalQuery);
             
@@ -198,6 +284,12 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
      */
     private List<Query> generateStepBackQueries(String originalQuery) {
         try {
+            ChatModel chatModel = getChatModel();
+            if (chatModel == null) {
+                log.warn("ChatModel不可用，跳过Step-back查询生成");
+                return Arrays.asList(Query.from(originalQuery));
+            }
+            
             // 首先生成主题问题
             String topicPrompt = String.format(EXPANSION_PROMPTS.get(ExpansionStrategy.STEP_BACK), originalQuery);
             String topicResponse = chatModel.chat(UserMessage.from(topicPrompt)).aiMessage().text();
@@ -225,6 +317,12 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
      */
     private List<Query> generateHyDEQueries(String originalQuery) {
         try {
+            ChatModel chatModel = getChatModel();
+            if (chatModel == null) {
+                log.warn("ChatModel不可用，跳过HyDE查询生成");
+                return Arrays.asList(Query.from(originalQuery));
+            }
+            
             String prompt = String.format(EXPANSION_PROMPTS.get(ExpansionStrategy.HYDE), originalQuery);
             String hypotheticalAnswer = chatModel.chat(UserMessage.from(prompt)).aiMessage().text();
             
@@ -432,6 +530,21 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
         }
         
         return config;
+    }
+    
+    /**
+     * 获取ChatModel实例
+     * 通过DynamicModelManager动态获取，避免直接依赖注入
+     */
+    private ChatModel getChatModel() {
+        try {
+            // 使用默认模型ID，实际项目中应从配置获取
+            Long defaultModelId = 1L;
+            return dynamicModelManager.getChatModel(defaultModelId);
+        } catch (Exception e) {
+            log.warn("获取ChatModel失败，将导致LLM相关功能降级", e);
+            return null;
+        }
     }
     
     /**

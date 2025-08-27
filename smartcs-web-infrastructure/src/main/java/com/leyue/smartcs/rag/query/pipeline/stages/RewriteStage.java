@@ -1,12 +1,13 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
-import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
 import dev.langchain4j.rag.query.Query;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -25,8 +26,11 @@ import java.util.stream.Collectors;
  * @author Claude
  */
 @Slf4j
+@Component
 @RequiredArgsConstructor
 public class RewriteStage implements QueryTransformerStage {
+    
+    private final DictionaryService dictionaryService;
     
     // 负向词模式
     private static final Pattern NEGATIVE_PATTERN = Pattern.compile(
@@ -104,7 +108,9 @@ public class RewriteStage implements QueryTransformerStage {
             
         } catch (Exception e) {
             log.error("可检索化改写处理失败: inputCount={}", queries.size(), e);
-            throw new QueryTransformationException(getName(), "可检索化改写处理失败", e, true);
+            // 发生错误时返回原始查询，保证系统稳定性
+            log.warn("改写阶段异常，返回原始查询: {}", e.getMessage());
+            return queries;
         }
     }
     
@@ -121,8 +127,8 @@ public class RewriteStage implements QueryTransformerStage {
         // 2. 提取必含词
         List<String> mustContainTerms = extractMustContainTerms(textWithoutNegatives);
         
-        // 3. 语义改写（口语转书面语）
-        String rewrittenText = applySemanticRewrite(textWithoutNegatives);
+        // 3. 语义改写（口语转书面语，集成字典数据）
+        String rewrittenText = applySemanticRewriteWithDictionary(context, textWithoutNegatives);
         
         // 4. 关键词增强
         List<WeightedKeyword> keywords = extractWeightedKeywords(rewrittenText);
@@ -198,6 +204,50 @@ public class RewriteStage implements QueryTransformerStage {
         }
         
         return mustContainTerms;
+    }
+    
+    /**
+     * 语义改写（口语转书面语，集成字典数据）
+     */
+    private String applySemanticRewriteWithDictionary(QueryContext context, String text) {
+        String rewritten = text;
+        
+        try {
+            // 获取domain配置
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            // 1. 从字典获取改写规则
+            Map<String, String> rewriteRules = dictionaryService.getRewriteRules(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            // 2. 应用字典改写规则（优先级最高）
+            if (!rewriteRules.isEmpty()) {
+                // 按长度倒序排列，优先匹配长表达式
+                List<String> sortedKeys = rewriteRules.keySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                        .collect(Collectors.toList());
+                
+                for (String original : sortedKeys) {
+                    String rewriteTarget = rewriteRules.get(original);
+                    if (rewritten.toLowerCase().contains(original.toLowerCase())) {
+                        rewritten = rewritten.replaceAll("(?i)" + Pattern.quote(original), rewriteTarget);
+                        log.debug("字典改写: {} -> {}", original, rewriteTarget);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            log.warn("字典改写失败，使用内置规则: {}", e.getMessage());
+        }
+        
+        // 3. 回退到内置改写规则
+        rewritten = applySemanticRewrite(rewritten);
+        
+        return rewritten;
     }
     
     /**

@@ -1,5 +1,6 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class SynonymRecallStage implements QueryTransformerStage {
 
     private final SynonymRecallService service;
+    private final DictionaryService dictionaryService;
 
     @Override
     public String getName() {
@@ -34,10 +36,24 @@ public class SynonymRecallStage implements QueryTransformerStage {
         int topK = cfg != null ? cfg.getTopK() : 5;
         try {
             List<Query> out = new ArrayList<>(queries);
+            
+            // 优先尝试使用字典服务
+            Map<String, Set<String>> synonymSets = getDictionarySynonyms();
+            
             for (Query q : queries) {
                 Set<String> terms = extractTerms(q.text());
-                List<String> syns = service.recallForTerms(terms, topK);
-                for (String s : syns) {
+                
+                // 先尝试字典同义词
+                Set<String> dictSynonyms = getDictionarySynonymsForTerms(terms, synonymSets);
+                
+                // 如果字典没有足够的同义词，再使用服务
+                List<String> serviceSyns = service.recallForTerms(terms, topK);
+                
+                // 合并同义词
+                Set<String> allSynonyms = new LinkedHashSet<>(dictSynonyms);
+                allSynonyms.addAll(serviceSyns);
+                
+                for (String s : allSynonyms) {
                     // 简单策略：将同义词附加生成一条变体
                     String nv = q.text() + " " + s;
                     out.add(Query.from(nv.trim()));
@@ -55,6 +71,34 @@ public class SynonymRecallStage implements QueryTransformerStage {
             log.warn("近义词召回阶段失败，跳过: {}", e.getMessage());
             throw new QueryTransformationException(getName(), "近义词召回失败", e, true);
         }
+    }
+
+    /**
+     * 获取字典同义词数据
+     */
+    private Map<String, Set<String>> getDictionarySynonyms() {
+        if (dictionaryService != null) {
+            try {
+                return dictionaryService.getSemanticSynonyms("default", "default", "default");
+            } catch (Exception e) {
+                log.warn("获取字典同义词失败，使用服务降级: {}", e.getMessage());
+            }
+        }
+        return Collections.emptyMap();
+    }
+    
+    /**
+     * 为词汇获取字典同义词
+     */
+    private Set<String> getDictionarySynonymsForTerms(Set<String> terms, Map<String, Set<String>> synonymSets) {
+        Set<String> result = new HashSet<>();
+        for (String term : terms) {
+            Set<String> synonyms = synonymSets.get(term.toLowerCase());
+            if (synonyms != null) {
+                result.addAll(synonyms);
+            }
+        }
+        return result;
     }
 
     private Set<String> extractTerms(String text) {

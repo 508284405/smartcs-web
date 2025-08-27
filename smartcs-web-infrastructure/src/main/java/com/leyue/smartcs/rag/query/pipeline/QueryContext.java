@@ -69,6 +69,11 @@ public class QueryContext {
     private final PipelineConfig pipelineConfig;
     
     /**
+     * LLM配置信息
+     */
+    private final LlmConfig llmConfig;
+    
+    /**
      * 预算控制参数
      */
     @Data
@@ -282,10 +287,17 @@ public class QueryContext {
 
         @Builder.Default
         private boolean enableSynonymRecall = false;
+        
+        /**
+         * 是否启用槽位填充
+         */
+        @Builder.Default
+        private boolean enableSlotFilling = false;
 
         private PhoneticConfig phoneticConfig;
         private PrefixConfig prefixConfig;
         private SynonymConfig synonymConfig;
+        private SlotFillingConfig slotFillingConfig;
     }
     
     /**
@@ -388,6 +400,108 @@ public class QueryContext {
 
         @Builder.Default
         private double simThreshold = 0.7;
+    }
+    
+    /**
+     * 槽位填充配置
+     */
+    @Data
+    @Builder
+    public static class SlotFillingConfig {
+        /**
+         * 最大澄清尝试次数
+         */
+        @Builder.Default
+        private int maxClarificationAttempts = 3;
+        
+        /**
+         * 槽位完整性阈值（0.0-1.0）
+         */
+        @Builder.Default
+        private double completenessThreshold = 0.8;
+        
+        /**
+         * 缺失必填槽位时是否阻断检索
+         */
+        @Builder.Default
+        private boolean blockRetrievalOnMissing = true;
+        
+        /**
+         * 是否启用智能澄清问题生成
+         */
+        @Builder.Default
+        private boolean enableSmartQuestionGeneration = true;
+        
+        /**
+         * 超时时间（毫秒）
+         */
+        @Builder.Default
+        private long timeoutMs = 5000;
+    }
+    
+    /**
+     * LLM配置信息
+     */
+    @Data
+    @Builder
+    public static class LlmConfig {
+        /**
+         * 主要的ChatModel模型ID（用于查询扩展等）
+         */
+        private Long chatModelId;
+        
+        /**
+         * StreamingChatModel模型ID（用于流式处理）
+         */
+        private Long streamingChatModelId;
+        
+        /**
+         * EmbeddingModel模型ID（用于向量化处理）
+         */
+        private Long embeddingModelId;
+        
+        /**
+         * 意图识别专用模型ID（可选，未设置时使用chatModelId）
+         */
+        private Long intentClassificationModelId;
+        
+        /**
+         * 语义对齐专用模型ID（可选，未设置时使用chatModelId）
+         */
+        private Long semanticAlignmentModelId;
+        
+        /**
+         * 查询改写专用模型ID（可选，未设置时使用chatModelId）
+         */
+        private Long queryRewriteModelId;
+        
+        /**
+         * 获取意图识别使用的模型ID
+         */
+        public Long getIntentClassificationModelIdOrDefault() {
+            return intentClassificationModelId != null ? intentClassificationModelId : chatModelId;
+        }
+        
+        /**
+         * 获取语义对齐使用的模型ID
+         */
+        public Long getSemanticAlignmentModelIdOrDefault() {
+            return semanticAlignmentModelId != null ? semanticAlignmentModelId : chatModelId;
+        }
+        
+        /**
+         * 获取查询改写使用的模型ID
+         */
+        public Long getQueryRewriteModelIdOrDefault() {
+            return queryRewriteModelId != null ? queryRewriteModelId : chatModelId;
+        }
+        
+        /**
+         * 获取流式处理使用的模型ID
+         */
+        public Long getStreamingChatModelIdOrDefault() {
+            return streamingChatModelId != null ? streamingChatModelId : chatModelId;
+        }
     }
     
     /**

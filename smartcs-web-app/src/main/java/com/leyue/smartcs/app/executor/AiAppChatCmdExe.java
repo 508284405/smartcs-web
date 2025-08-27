@@ -6,8 +6,15 @@ import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
-import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.gateway.ModelProvider;
+import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +55,9 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class AiAppChatCmdExe {
 
-    private final DynamicModelManager dynamicModelManager;
+    private final ModelProvider modelProvider;
+    private final RagAugmentorFactory ragAugmentorFactory;
+    private final ChatMemoryStore chatMemoryStore;
     private final IdGeneratorGateway idGeneratorGateway;
     private final LangChain4jModerationService langChain4jModerationService;
 
@@ -82,7 +91,7 @@ public class AiAppChatCmdExe {
                 }
                 
                 // 3. 动态创建SmartChatService实例并执行对话
-                SmartChatService smartChatService = dynamicModelManager.createSmartChatService(cmd.getModelId(), ragConfig);
+                SmartChatService smartChatService = createSmartChatService(cmd.getModelId(), ragConfig);
                 processChatStream(emitter, cmd, sessionId, smartChatService);
                 
             } catch (Exception e) {
@@ -442,6 +451,42 @@ public class AiAppChatCmdExe {
                 
         } catch (Exception e) {
             log.warn("启动输出内容审核失败: sessionId={}", sessionId, e);
+        }
+    }
+    
+    /**
+     * 创建智能聊天服务
+     * 
+     * @param modelId 模型ID
+     * @param ragConfig RAG配置
+     * @return SmartChatService实例
+     */
+    private SmartChatService createSmartChatService(Long modelId, RagComponentConfig ragConfig) {
+        log.info("创建SmartChatService: modelId={}, ragConfig={}", modelId, ragConfig);
+        
+        try {
+            // 获取模型对应的ChatModel和StreamingChatModel
+            ChatModel chatModel = modelProvider.getChatModel(modelId);
+            StreamingChatModel streamingChatModel = modelProvider.getStreamingChatModel(modelId);
+            
+            // 创建RAG增强器
+            RetrievalAugmentor retrievalAugmentor = ragAugmentorFactory.createRetrievalAugmentor(modelId, ragConfig);
+            
+            // 使用LangChain4j AiServices框架创建推理服务
+            return AiServices.builder(SmartChatService.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                            .id(memoryId)
+                            .maxMessages(20)
+                            .chatMemoryStore(chatMemoryStore)
+                            .build())
+                    .retrievalAugmentor(retrievalAugmentor)
+                    .build();
+            
+        } catch (Exception e) {
+            log.error("创建SmartChatService失败: modelId={}, ragConfig={}", modelId, ragConfig, e);
+            throw new RuntimeException("无法创建SmartChatService: " + e.getMessage(), e);
         }
     }
 }

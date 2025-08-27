@@ -14,15 +14,20 @@ import com.leyue.smartcs.intent.executor.query.*;
 import com.leyue.smartcs.domain.intent.entity.Intent;
 import com.leyue.smartcs.domain.intent.entity.IntentCatalog;
 import com.leyue.smartcs.domain.intent.entity.IntentVersion;
+import com.leyue.smartcs.domain.intent.enums.VersionStatus;
+import com.leyue.smartcs.domain.intent.gateway.IntentVersionGateway;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * 意图服务实现
@@ -55,6 +60,12 @@ public class IntentServiceImpl implements IntentService {
     private final IntentCatalogGetQryExe catalogGetQryExe;
     private final IntentCatalogPageQryExe catalogPageQryExe;
     private final IntentVersionListQryExe versionListQryExe;
+    
+    // ============ Gateways ============
+    private final IntentVersionGateway intentVersionGateway;
+    
+    // ============ Utilities ============
+    private final ObjectMapper objectMapper;
     
     // ============ Convertors ============
     private final IntentAppConvertor intentAppConvertor;
@@ -707,5 +718,455 @@ public class IntentServiceImpl implements IntentService {
         response.setPageSize(pageSize);
         response.setPageIndex(pageNum);
         return response;
+    }
+    
+    // ============ 槽位模板管理 ============
+    
+    @Override
+    public SingleResponse<SlotTemplateDTO> getSlotTemplate(Long intentId) {
+        try {
+            log.info("获取意图槽位模板: {}", intentId);
+            
+            // 获取意图详情，找到当前活跃版本
+            SingleResponse<IntentDTO> intentResponse = getIntentById(intentId);
+            if (!intentResponse.isSuccess() || intentResponse.getData() == null) {
+                return SingleResponse.buildFailure("INTENT_NOT_FOUND", "意图不存在");
+            }
+            
+            IntentDTO intent = intentResponse.getData();
+            if (intent.getCurrentVersionId() == null) {
+                log.warn("意图暂无活跃版本: {}", intentId);
+                return SingleResponse.of(createEmptySlotTemplate(intent.getCode()));
+            }
+            
+            // 从版本快照中提取槽位模板配置
+            SlotTemplateDTO slotTemplate = extractSlotTemplateFromVersion(intent);
+            if (slotTemplate == null) {
+                slotTemplate = createEmptySlotTemplate(intent.getCode());
+            }
+            
+            return SingleResponse.of(slotTemplate);
+            
+        } catch (Exception e) {
+            log.error("获取意图槽位模板失败: intentId={}", intentId, e);
+            return SingleResponse.buildFailure("GET_SLOT_TEMPLATE_FAILED", "获取槽位模板失败: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    @Transactional
+    public Response updateSlotTemplate(Long intentId, SlotTemplateDTO slotTemplate) {
+        try {
+            log.info("更新意图槽位模板: intentId={}", intentId);
+            
+            // 获取意图详情
+            SingleResponse<IntentDTO> intentResponse = getIntentById(intentId);
+            if (!intentResponse.isSuccess() || intentResponse.getData() == null) {
+                return Response.buildFailure("INTENT_NOT_FOUND", "意图不存在");
+            }
+            
+            IntentDTO intent = intentResponse.getData();
+            
+            // 设置槽位模板的基本信息
+            slotTemplate.setIntentCode(intent.getCode());
+            if (slotTemplate.getTemplateId() == null || slotTemplate.getTemplateId().isEmpty()) {
+                slotTemplate.setTemplateId("slot_template_" + intent.getCode() + "_" + System.currentTimeMillis());
+            }
+            if (slotTemplate.getTemplateName() == null || slotTemplate.getTemplateName().isEmpty()) {
+                slotTemplate.setTemplateName(intent.getName() + "槽位模板");
+            }
+            
+            // 确保意图有当前版本，如果没有则创建
+            ensureIntentHasCurrentVersion(intent);
+            
+            // 更新意图版本的配置快照
+            updateVersionConfigSnapshot(intent, slotTemplate);
+            
+            log.info("槽位模板更新成功: intentId={}, templateId={}", intentId, slotTemplate.getTemplateId());
+            return Response.buildSuccess();
+            
+        } catch (Exception e) {
+            log.error("更新意图槽位模板失败: intentId={}", intentId, e);
+            return Response.buildFailure("UPDATE_SLOT_TEMPLATE_FAILED", "更新槽位模板失败: " + e.getMessage());
+        }
+    }
+    
+    @Override
+    public SingleResponse<SlotFillingTestResultDTO> testSlotFilling(Long intentId, SlotFillingTestCmd cmd) {
+        try {
+            log.info("测试槽位填充: intentId={}, query={}", intentId, cmd.getQuery());
+            
+            // 获取槽位模板（使用命令中的模板或意图的模板）
+            SlotTemplateDTO template = cmd.getSlotTemplate();
+            if (template == null) {
+                SingleResponse<SlotTemplateDTO> templateResponse = getSlotTemplate(intentId);
+                if (!templateResponse.isSuccess()) {
+                    return SingleResponse.buildFailure("TEMPLATE_NOT_FOUND", "获取槽位模板失败");
+                }
+                template = templateResponse.getData();
+            }
+            
+            // 如果槽位填充未启用，返回相应结果
+            if (template == null || !template.isSlotFillingActive()) {
+                SlotFillingTestResultDTO result = SlotFillingTestResultDTO.builder()
+                        .success(true)
+                        .originalQuery(cmd.getQuery())
+                        .intentCode(template != null ? template.getIntentCode() : null)
+                        .filledSlots(Collections.emptyMap())
+                        .missingSlots(Collections.emptyList())
+                        .clarificationQuestions(Collections.emptyList())
+                        .completenessScore(1.0)
+                        .clarificationRequired(false)
+                        .retrievalBlocked(false)
+                        .processingTime(0L)
+                        .build();
+                return SingleResponse.of(result);
+            }
+            
+            // 执行槽位填充测试逻辑
+            SlotFillingTestResultDTO result = executeSlotFillingTest(cmd.getQuery(), template, cmd);
+            return SingleResponse.of(result);
+            
+        } catch (Exception e) {
+            log.error("测试槽位填充失败: intentId={}", intentId, e);
+            return SingleResponse.buildFailure("TEST_SLOT_FILLING_FAILED", "测试槽位填充失败: " + e.getMessage());
+        }
+    }
+    
+    // ============ 槽位模板内部工具方法 ============
+    
+    /**
+     * 创建空的槽位模板
+     */
+    private SlotTemplateDTO createEmptySlotTemplate(String intentCode) {
+        return SlotTemplateDTO.builder()
+                .templateId("")
+                .templateName("")
+                .description("")
+                .intentCode(intentCode)
+                .slotDefinitions(Collections.emptyList())
+                .slotFillingEnabled(false)
+                .maxClarificationAttempts(3)
+                .completenessThreshold(0.8)
+                .blockRetrievalOnMissing(false)
+                .promptTemplate("")
+                .clarificationTemplates(Collections.emptyMap())
+                .language("zh-CN")
+                .version("1.0")
+                .extensions(Collections.emptyMap())
+                .build();
+    }
+    
+    /**
+     * 从意图版本中提取槽位模板配置
+     */
+    private SlotTemplateDTO extractSlotTemplateFromVersion(IntentDTO intent) {
+        try {
+            if (intent.getCurrentVersionId() == null) {
+                log.debug("意图没有当前版本，返回null: intentId={}", intent.getId());
+                return null;
+            }
+            
+            log.debug("从版本快照中提取槽位模板配置: intentId={}, versionId={}", 
+                    intent.getId(), intent.getCurrentVersionId());
+            
+            // 根据版本ID获取版本信息
+            IntentVersion version = intentVersionGateway.findById(intent.getCurrentVersionId());
+            if (version == null || version.getConfigSnapshot() == null) {
+                log.debug("版本不存在或配置快照为空: versionId={}", intent.getCurrentVersionId());
+                return null;
+            }
+            
+            // 从configSnapshot中提取slotTemplate
+            Map<String, Object> configSnapshot = version.getConfigSnapshot();
+            Object slotTemplateObj = configSnapshot.get("slotTemplate");
+            
+            if (slotTemplateObj == null) {
+                log.debug("配置快照中没有槽位模板配置: versionId={}", intent.getCurrentVersionId());
+                return null;
+            }
+            
+            // 将Object转换为SlotTemplateDTO
+            String json = objectMapper.writeValueAsString(slotTemplateObj);
+            SlotTemplateDTO slotTemplate = objectMapper.readValue(json, SlotTemplateDTO.class);
+            
+            log.debug("成功提取槽位模板: templateId={}, intentCode={}", 
+                    slotTemplate.getTemplateId(), slotTemplate.getIntentCode());
+            
+            return slotTemplate;
+            
+        } catch (Exception e) {
+            log.warn("从版本快照中提取槽位模板失败: intentId={}, versionId={}", 
+                    intent.getId(), intent.getCurrentVersionId(), e);
+            return null;
+        }
+    }
+    
+    /**
+     * 确保意图有当前版本，如果没有则创建一个默认版本
+     */
+    private void ensureIntentHasCurrentVersion(IntentDTO intent) {
+        if (intent.getCurrentVersionId() != null) {
+            return; // 已经有版本了
+        }
+        
+        try {
+            log.info("意图没有当前版本，创建默认版本: intentId={}", intent.getId());
+            
+            // 直接创建版本对象
+            IntentVersion version = IntentVersion.builder()
+                    .intentId(intent.getId())
+                    .versionName("v1.0.0")
+                    .versionNumber("1.0.0")
+                    .version("v1.0.0")
+                    .changeNote("系统自动创建的初始版本")
+                    .status(VersionStatus.ACTIVE)
+                    .createdAt(System.currentTimeMillis())
+                    .updatedAt(System.currentTimeMillis())
+                    .createdBy(getCurrentUserId())
+                    .isDeleted(false)
+                    .sampleCount(0)
+                    .configSnapshot(new HashMap<>())
+                    .build();
+            
+            // 保存版本
+            IntentVersion savedVersion = intentVersionGateway.save(version);
+            Long versionId = savedVersion.getId();
+            
+            // 更新DTO中的版本ID
+            intent.setCurrentVersionId(versionId);
+            
+            // 重新获取意图信息以确保数据一致性
+            IntentGetQry getQry = new IntentGetQry();
+            getQry.setId(intent.getId());
+            SingleResponse<IntentDTO> refreshResponse = getIntent(getQry);
+            if (refreshResponse.isSuccess() && refreshResponse.getData() != null) {
+                IntentDTO refreshedIntent = refreshResponse.getData();
+                if (refreshedIntent.getCurrentVersionId() != null) {
+                    intent.setCurrentVersionId(refreshedIntent.getCurrentVersionId());
+                }
+            }
+            
+            log.info("默认版本创建成功: intentId={}, versionId={}", intent.getId(), versionId);
+            
+        } catch (Exception e) {
+            log.error("创建默认版本失败: intentId={}", intent.getId(), e);
+            throw new RuntimeException("创建默认版本失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 获取当前用户ID
+     */
+    private Long getCurrentUserId() {
+        try {
+            // 从SecurityContext获取用户ID，如果获取不到则使用默认值
+            return 1L; // 暂时使用默认用户ID
+        } catch (Exception e) {
+            log.warn("获取当前用户ID失败，使用默认值", e);
+            return 1L;
+        }
+    }
+    
+    /**
+     * 更新版本配置快照
+     */
+    private void updateVersionConfigSnapshot(IntentDTO intent, SlotTemplateDTO slotTemplate) {
+        try {
+            if (intent.getCurrentVersionId() == null) {
+                throw new IllegalArgumentException("意图没有当前版本，无法更新配置快照");
+            }
+            
+            log.debug("更新版本配置快照: intentId={}, versionId={}", 
+                    intent.getId(), intent.getCurrentVersionId());
+            
+            // 获取当前版本信息
+            IntentVersion version = intentVersionGateway.findById(intent.getCurrentVersionId());
+            if (version == null) {
+                throw new IllegalArgumentException("版本不存在: " + intent.getCurrentVersionId());
+            }
+            
+            // 获取或创建配置快照
+            Map<String, Object> configSnapshot = version.getConfigSnapshot();
+            if (configSnapshot == null) {
+                configSnapshot = new HashMap<>();
+            } else {
+                // 创建副本以避免修改原始对象
+                configSnapshot = new HashMap<>(configSnapshot);
+            }
+            
+            // 更新槽位模板配置
+            if (slotTemplate != null) {
+                // 将SlotTemplateDTO转换为Map，以便存储到JSON中
+                String json = objectMapper.writeValueAsString(slotTemplate);
+                Map<String, Object> slotTemplateMap = objectMapper.readValue(json, 
+                        new TypeReference<Map<String, Object>>() {});
+                configSnapshot.put("slotTemplate", slotTemplateMap);
+                
+                log.debug("槽位模板已添加到配置快照: templateId={}, intentCode={}", 
+                        slotTemplate.getTemplateId(), slotTemplate.getIntentCode());
+            } else {
+                // 如果slotTemplate为null，则移除配置
+                configSnapshot.remove("slotTemplate");
+                log.debug("槽位模板已从配置快照中移除");
+            }
+            
+            // 更新版本对象并保存
+            version.setConfigSnapshot(configSnapshot);
+            version.setUpdatedAt(System.currentTimeMillis());
+            
+            intentVersionGateway.update(version);
+            
+            log.info("版本配置快照更新完成: versionId={}, intentId={}", 
+                    intent.getCurrentVersionId(), intent.getId());
+            
+        } catch (Exception e) {
+            log.error("更新版本配置快照失败: intentId={}, versionId={}", 
+                    intent.getId(), intent.getCurrentVersionId(), e);
+            throw new RuntimeException("更新版本配置快照失败: " + e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 执行槽位填充测试
+     */
+    private SlotFillingTestResultDTO executeSlotFillingTest(String query, SlotTemplateDTO template, SlotFillingTestCmd cmd) {
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            // 简单的槽位填充测试实现
+            Map<String, Object> filledSlots = Collections.emptyMap();
+            List<String> missingSlots = Collections.emptyList();
+            List<String> clarificationQuestions = Collections.emptyList();
+            
+            // 如果有槽位定义，进行简单的模式匹配测试
+            if (template.getSlotDefinitions() != null && !template.getSlotDefinitions().isEmpty()) {
+                filledSlots = extractSlotsFromQuery(query, template.getSlotDefinitions());
+                missingSlots = findMissingRequiredSlots(template.getSlotDefinitions(), filledSlots);
+                
+                if (!missingSlots.isEmpty()) {
+                    clarificationQuestions = generateClarificationQuestions(template, missingSlots);
+                }
+            }
+            
+            // 计算完整性得分
+            double completenessScore = calculateCompletenessScore(template.getSlotDefinitions(), filledSlots);
+            
+            // 判断是否需要澄清
+            boolean clarificationRequired = !missingSlots.isEmpty() && 
+                    completenessScore < template.getCompletenessThreshold();
+            
+            // 判断是否阻断检索
+            boolean retrievalBlocked = clarificationRequired && 
+                    Boolean.TRUE.equals(template.getBlockRetrievalOnMissing());
+            
+            long processingTime = System.currentTimeMillis() - startTime;
+            
+            return SlotFillingTestResultDTO.builder()
+                    .success(true)
+                    .originalQuery(query)
+                    .intentCode(template.getIntentCode())
+                    .filledSlots(filledSlots)
+                    .missingSlots(missingSlots)
+                    .clarificationQuestions(clarificationQuestions)
+                    .completenessScore(completenessScore)
+                    .clarificationRequired(clarificationRequired)
+                    .retrievalBlocked(retrievalBlocked)
+                    .processingTime(processingTime)
+                    .build();
+            
+        } catch (Exception e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+            log.error("执行槽位填充测试失败", e);
+            
+            return SlotFillingTestResultDTO.builder()
+                    .success(false)
+                    .originalQuery(query)
+                    .intentCode(template.getIntentCode())
+                    .errorMessage("测试执行失败: " + e.getMessage())
+                    .processingTime(processingTime)
+                    .build();
+        }
+    }
+    
+    /**
+     * 从查询中提取槽位信息（简单实现）
+     */
+    private Map<String, Object> extractSlotsFromQuery(String query, List<SlotDefinitionDTO> slotDefinitions) {
+        Map<String, Object> extractedSlots = new java.util.HashMap<>();
+        
+        for (SlotDefinitionDTO slotDef : slotDefinitions) {
+            // 简单的示例匹配
+            if (slotDef.getExamples() != null) {
+                for (String example : slotDef.getExamples()) {
+                    if (query.contains(example)) {
+                        extractedSlots.put(slotDef.getName(), example);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return extractedSlots;
+    }
+    
+    /**
+     * 查找缺失的必填槽位
+     */
+    private List<String> findMissingRequiredSlots(List<SlotDefinitionDTO> slotDefinitions, Map<String, Object> filledSlots) {
+        return slotDefinitions.stream()
+                .filter(slot -> Boolean.TRUE.equals(slot.getRequired()))
+                .filter(slot -> !filledSlots.containsKey(slot.getName()))
+                .map(SlotDefinitionDTO::getName)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 生成澄清问题
+     */
+    private List<String> generateClarificationQuestions(SlotTemplateDTO template, List<String> missingSlots) {
+        List<String> questions = new java.util.ArrayList<>();
+        
+        for (String slotName : missingSlots) {
+            // 从槽位定义中找到对应的槽位
+            SlotDefinitionDTO slotDef = template.getSlotDefinitions().stream()
+                    .filter(slot -> slotName.equals(slot.getName()))
+                    .findFirst()
+                    .orElse(null);
+            
+            if (slotDef != null) {
+                String question = "请提供" + (slotDef.getLabel() != null ? slotDef.getLabel() : slotDef.getName());
+                if (slotDef.getHint() != null && !slotDef.getHint().isEmpty()) {
+                    question += "：" + slotDef.getHint();
+                }
+                questions.add(question);
+            }
+        }
+        
+        return questions;
+    }
+    
+    /**
+     * 计算完整性得分
+     */
+    private double calculateCompletenessScore(List<SlotDefinitionDTO> slotDefinitions, Map<String, Object> filledSlots) {
+        if (slotDefinitions == null || slotDefinitions.isEmpty()) {
+            return 1.0;
+        }
+        
+        long requiredCount = slotDefinitions.stream()
+                .mapToLong(slot -> Boolean.TRUE.equals(slot.getRequired()) ? 1 : 0)
+                .sum();
+        
+        if (requiredCount == 0) {
+            return 1.0;
+        }
+        
+        long filledRequiredCount = slotDefinitions.stream()
+                .filter(slot -> Boolean.TRUE.equals(slot.getRequired()))
+                .mapToLong(slot -> filledSlots.containsKey(slot.getName()) ? 1 : 0)
+                .sum();
+        
+        return (double) filledRequiredCount / requiredCount;
     }
 }

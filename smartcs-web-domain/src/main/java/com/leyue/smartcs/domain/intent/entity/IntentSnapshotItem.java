@@ -1,5 +1,6 @@
 package com.leyue.smartcs.domain.intent.entity;
 
+import com.leyue.smartcs.domain.intent.valueobject.SlotTemplate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -60,6 +61,21 @@ public class IntentSnapshotItem {
      * 边界列表
      */
     private java.util.List<String> boundaries;
+    
+    /**
+     * 槽位模板（JSON格式存储）
+     */
+    private SlotTemplate slotTemplate;
+    
+    /**
+     * 意图字典关键词列表
+     */
+    private java.util.List<String> keywords;
+    
+    /**
+     * 意图匹配模式列表
+     */
+    private java.util.List<String> patterns;
     
     /**
      * 创建时间

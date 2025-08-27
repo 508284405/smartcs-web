@@ -98,4 +98,14 @@ public class IntentRuntimeConfigDTO {
      * 意图阈值配置
      */
     private Map<String, Object> intentThresholds;
+    
+    /**
+     * 槽位模板映射 (intentCode -> SlotTemplateDTO)
+     */
+    private Map<String, SlotTemplateDTO> slotTemplates;
+    
+    /**
+     * 意图字典映射 (intentCode -> IntentDictionaryDTO)
+     */
+    private Map<String, IntentDictionaryDTO> intentDictionaries;
 }

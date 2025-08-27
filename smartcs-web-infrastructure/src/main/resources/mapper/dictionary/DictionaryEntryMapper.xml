@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.dictionary.mapper.DictionaryEntryMapper">
+
+    <!-- 字典条目结果映射 -->
+    <resultMap id="dictionaryEntryResultMap" type="com.leyue.smartcs.dictionary.dataobject.DictionaryEntryDO">
+        <id column="id" property="id" />
+        <result column="dictionary_type" property="dictionaryType" />
+        <result column="tenant" property="tenant" />
+        <result column="channel" property="channel" />
+        <result column="domain" property="domain" />
+        <result column="entry_key" property="entryKey" />
+        <result column="entry_value" property="entryValue" />
+        <result column="description" property="description" />
+        <result column="status" property="status" />
+        <result column="priority" property="priority" />
+        <result column="version" property="version" />
+        <result column="is_deleted" property="isDeleted" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+        <result column="created_by" property="createdBy" />
+        <result column="updated_by" property="updatedBy" />
+    </resultMap>
+
+    <!-- 基础查询字段 -->
+    <sql id="baseColumns">
+        id, dictionary_type, tenant, channel, domain, entry_key, 
+        entry_value, description, status, priority, version, 
+        is_deleted, created_at, updated_at, created_by, updated_by
+    </sql>
+
+    <!-- 基础查询条件 -->
+    <sql id="baseWhereConditions">
+        <where>
+            is_deleted = 0
+            <if test="dictionaryType != null and dictionaryType != ''">
+                AND dictionary_type = #{dictionaryType}
+            </if>
+            <if test="tenant != null and tenant != ''">
+                AND tenant = #{tenant}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND channel = #{channel}
+            </if>
+            <if test="domain != null and domain != ''">
+                AND domain = #{domain}
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+    </sql>
+
+    <!-- 分页查询字典条目 -->
+    <select id="selectPageByConditions" resultMap="dictionaryEntryResultMap">
+        SELECT 
+        <include refid="baseColumns" />
+        FROM t_dictionary_entry
+        <where>
+            is_deleted = 0
+            <if test="dictionaryType != null and dictionaryType != ''">
+                AND dictionary_type = #{dictionaryType}
+            </if>
+            <if test="tenant != null and tenant != ''">
+                AND tenant = #{tenant}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND channel = #{channel}
+            </if>
+            <if test="domain != null and domain != ''">
+                AND domain = #{domain}
+            </if>
+            <if test="entryKey != null and entryKey != ''">
+                AND entry_key LIKE CONCAT('%', #{entryKey}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+            <if test="createdBy != null and createdBy != ''">
+                AND created_by = #{createdBy}
+            </if>
+        </where>
+        ORDER BY priority DESC, updated_at DESC
+    </select>
+
+    <!-- 按条件查询字典条目列表 -->
+    <select id="selectListByConditions" resultMap="dictionaryEntryResultMap">
+        SELECT 
+        <include refid="baseColumns" />
+        FROM t_dictionary_entry
+        <where>
+            is_deleted = 0
+            <if test="dictionaryType != null and dictionaryType != ''">
+                AND dictionary_type = #{dictionaryType}
+            </if>
+            <if test="tenant != null and tenant != ''">
+                AND tenant = #{tenant}
+            </if>
+            <if test="channel != null and channel != ''">
+                AND channel = #{channel}
+            </if>
+            <if test="domain != null and domain != ''">
+                AND domain = #{domain}
+            </if>
+            <if test="entryKeyPattern != null and entryKeyPattern != ''">
+                <choose>
+                    <when test="entryKeyPattern.contains('*') or entryKeyPattern.contains('?')">
+                        AND entry_key LIKE #{entryKeyPattern}
+                    </when>
+                    <otherwise>
+                        AND entry_key LIKE CONCAT('%', #{entryKeyPattern}, '%')
+                    </otherwise>
+                </choose>
+            </if>
+            <if test="status != null and status != ''">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY priority DESC, created_at ASC
+        <if test="limit != null and limit > 0">
+            LIMIT #{limit}
+        </if>
+    </select>
+
+    <!-- 批量插入字典条目 -->
+    <insert id="batchInsert" parameterType="java.util.List" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_dictionary_entry (
+            dictionary_type, tenant, channel, domain, entry_key, 
+            entry_value, description, status, priority, version, 
+            created_at, updated_at, created_by, updated_by
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+        (
+            #{item.dictionaryType}, #{item.tenant}, #{item.channel}, #{item.domain}, #{item.entryKey},
+            #{item.entryValue}, #{item.description}, #{item.status}, #{item.priority}, #{item.version},
+            #{item.createdAt}, #{item.updatedAt}, #{item.createdBy}, #{item.updatedBy}
+        )
+        </foreach>
+    </insert>
+
+    <!-- 批量更新字典条目状态 -->
+    <update id="batchUpdateStatus">
+        UPDATE t_dictionary_entry 
+        SET status = #{status}, 
+            updated_at = #{updatedAt}, 
+            updated_by = #{updatedBy},
+            version = version + 1
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+    <!-- 按配置删除字典条目 -->
+    <delete id="deleteByConfig">
+        DELETE FROM t_dictionary_entry 
+        WHERE dictionary_type = #{dictionaryType}
+        AND tenant = #{tenant}
+        AND channel = #{channel}
+        AND domain = #{domain}
+    </delete>
+
+    <!-- 逻辑删除字典条目 -->
+    <update id="logicDeleteById">
+        UPDATE t_dictionary_entry 
+        SET is_deleted = 1, 
+            updated_at = #{updatedAt}, 
+            updated_by = #{updatedBy},
+            version = version + 1
+        WHERE id = #{id} 
+        AND is_deleted = 0
+    </update>
+
+    <!-- 批量逻辑删除字典条目 -->
+    <update id="logicDeleteBatch">
+        UPDATE t_dictionary_entry 
+        SET is_deleted = 1, 
+            updated_at = #{updatedAt}, 
+            updated_by = #{updatedBy},
+            version = version + 1
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        AND is_deleted = 0
+    </update>
+
+    <!-- 统计字典条目数量 -->
+    <select id="countByConditions" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM t_dictionary_entry
+        <include refid="baseWhereConditions" />
+    </select>
+
+    <!-- 查询字典数据摘要信息（用于缓存版本控制） -->
+    <select id="selectDataSummary" resultType="java.util.Map">
+        SELECT 
+            dictionary_type,
+            tenant,
+            channel,
+            domain,
+            COUNT(*) as entry_count,
+            COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END) as active_count,
+            MAX(updated_at) as last_updated,
+            MAX(version) as max_version
+        FROM t_dictionary_entry
+        WHERE is_deleted = 0
+        <if test="dictionaryType != null and dictionaryType != ''">
+            AND dictionary_type = #{dictionaryType}
+        </if>
+        <if test="tenant != null and tenant != ''">
+            AND tenant = #{tenant}
+        </if>
+        <if test="channel != null and channel != ''">
+            AND channel = #{channel}
+        </if>
+        <if test="domain != null and domain != ''">
+            AND domain = #{domain}
+        </if>
+        GROUP BY dictionary_type, tenant, channel, domain
+        ORDER BY last_updated DESC
+    </select>
+
+</mapper>

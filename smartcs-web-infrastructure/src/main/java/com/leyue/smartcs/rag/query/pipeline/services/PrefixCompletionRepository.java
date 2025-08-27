@@ -131,17 +131,15 @@ public class PrefixCompletionRepository {
      */
     public List<String> extractWordsFromSearchLogs(int limit) {
         try {
-            String sql = """
-                SELECT query_text, COUNT(*) as frequency
-                FROM """ + SEARCH_LOGS_TABLE + """
-                WHERE created_time > DATE_SUB(NOW(), INTERVAL 30 DAY)
-                  AND LENGTH(query_text) >= ?
-                  AND LENGTH(query_text) <= ?
-                GROUP BY query_text
-                HAVING frequency >= 3
-                ORDER BY frequency DESC
-                LIMIT ?
-                """;
+            String sql = "SELECT query_text, COUNT(*) as frequency " +
+                         "FROM " + SEARCH_LOGS_TABLE + " " +
+                         "WHERE created_time > DATE_SUB(NOW(), INTERVAL 30 DAY) " +
+                         "  AND LENGTH(query_text) >= ? " +
+                         "  AND LENGTH(query_text) <= ? " +
+                         "GROUP BY query_text " +
+                         "HAVING frequency >= 3 " +
+                         "ORDER BY frequency DESC " +
+                         "LIMIT ?";
                 
             return jdbcTemplate.query(sql, 
                 (rs, rowNum) -> rs.getString("query_text"),
@@ -248,11 +246,9 @@ public class PrefixCompletionRepository {
     }
     
     private void saveWordsToDatabase(Collection<String> words) {
-        String sql = """
-            INSERT INTO """ + WORDS_TABLE + """ (word, weight, created_time, last_accessed)
-            VALUES (?, 1.0, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE last_accessed = NOW(), access_count = access_count + 1
-            """;
+        String sql = "INSERT INTO " + WORDS_TABLE + " (word, weight, created_time, last_accessed) " +
+                     "VALUES (?, 1.0, NOW(), NOW()) " +
+                     "ON DUPLICATE KEY UPDATE last_accessed = NOW(), access_count = access_count + 1";
             
         List<Object[]> batchArgs = new ArrayList<>();
         for (String word : words) {
@@ -314,11 +310,9 @@ public class PrefixCompletionRepository {
     }
     
     private void saveUserPreferencesToDatabase(Map<String, Double> preferences) {
-        String sql = """
-            INSERT INTO """ + USER_PREFS_TABLE + """ (pref_key, pref_value, updated_time)
-            VALUES (?, ?, NOW())
-            ON DUPLICATE KEY UPDATE pref_value = VALUES(pref_value), updated_time = NOW()
-            """;
+        String sql = "INSERT INTO " + USER_PREFS_TABLE + " (pref_key, pref_value, updated_time) " +
+                     "VALUES (?, ?, NOW()) " +
+                     "ON DUPLICATE KEY UPDATE pref_value = VALUES(pref_value), updated_time = NOW()";
             
         List<Object[]> batchArgs = new ArrayList<>();
         for (Map.Entry<String, Double> entry : preferences.entrySet()) {

@@ -1,5 +1,6 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
@@ -29,6 +30,25 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 public class NormalizationStage implements QueryTransformerStage {
+    
+    /**
+     * 字典服务（可选注入，支持降级）
+     */
+    private final DictionaryService dictionaryService;
+    
+    /**
+     * 无参构造器（使用内置数据）
+     */
+    public NormalizationStage() {
+        this.dictionaryService = null;
+    }
+    
+    /**
+     * 带字典服务的构造器
+     */
+    public NormalizationStage(DictionaryService dictionaryService) {
+        this.dictionaryService = dictionaryService;
+    }
     
     /**
      * 编号清理模式
@@ -397,12 +417,33 @@ public class NormalizationStage implements QueryTransformerStage {
     }
     
     /**
-     * 应用拼写纠错
+     * 应用拼写纠错（优先使用字典服务）
      */
     private String applySpellingCorrections(String text) {
         String result = text;
         
-        // 按长度倒序应用纠错，避免重复替换
+        // 优先使用字典服务
+        if (dictionaryService != null) {
+            try {
+                Map<String, String> corrections = dictionaryService.getNormalizationSpellingCorrections("default", "default", "default");
+                if (!corrections.isEmpty()) {
+                    // 按长度倒序应用纠错，避免重复替换
+                    List<String> sortedKeys = corrections.keySet().stream()
+                            .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                            .collect(Collectors.toList());
+                    
+                    for (String error : sortedKeys) {
+                        String correction = corrections.get(error);
+                        result = result.replaceAll("(?i)\\b" + Pattern.quote(error) + "\\b", correction);
+                    }
+                    return result;
+                }
+            } catch (Exception e) {
+                log.warn("使用字典服务进行拼写纠错失败，降级为内置数据: {}", e.getMessage());
+            }
+        }
+        
+        // 降级：使用内置数据
         List<String> sortedKeys = SPELLING_CORRECTIONS.keySet().stream()
                 .sorted((a, b) -> Integer.compare(b.length(), a.length()))
                 .collect(Collectors.toList());
@@ -465,12 +506,15 @@ public class NormalizationStage implements QueryTransformerStage {
     }
     
     /**
-     * 移除停用词（增强版，支持多语言）
+     * 移除停用词（增强版，支持多语言，优先使用字典服务）
      */
     private String removeStopwords(String text, LanguageType languageType) {
         if (text == null || text.trim().isEmpty()) {
             return text;
         }
+        
+        // 获取停用词集合
+        Set<String> stopWords = getStopWords();
         
         // 根据语言类型选择不同的分词策略
         String[] words;
@@ -484,7 +528,7 @@ public class NormalizationStage implements QueryTransformerStage {
         
         List<String> filteredWords = Arrays.stream(words)
                 .map(String::trim)
-                .filter(word -> !word.isEmpty() && !STOP_WORDS.contains(word.toLowerCase()))
+                .filter(word -> !word.isEmpty() && !stopWords.contains(word.toLowerCase()))
                 .collect(Collectors.toList());
         
         // 如果过滤后为空，返回原文
@@ -493,6 +537,25 @@ public class NormalizationStage implements QueryTransformerStage {
         }
         
         return String.join(" ", filteredWords);
+    }
+    
+    /**
+     * 获取停用词集合（优先使用字典服务）
+     */
+    private Set<String> getStopWords() {
+        if (dictionaryService != null) {
+            try {
+                Set<String> dictStopWords = dictionaryService.getNormalizationStopwords("default", "default", "default");
+                if (!dictStopWords.isEmpty()) {
+                    return dictStopWords;
+                }
+            } catch (Exception e) {
+                log.warn("使用字典服务获取标准化停用词失败，降级为内置数据: {}", e.getMessage());
+            }
+        }
+        
+        // 降级：使用内置停用词
+        return STOP_WORDS;
     }
     
     /**

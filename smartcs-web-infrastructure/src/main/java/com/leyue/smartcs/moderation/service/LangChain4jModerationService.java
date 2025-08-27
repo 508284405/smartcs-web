@@ -4,6 +4,7 @@ import com.leyue.smartcs.domain.moderation.ModerationRecord;
 import com.leyue.smartcs.domain.moderation.enums.ModerationResult;
 import com.leyue.smartcs.domain.moderation.enums.SeverityLevel;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.moderation.service.ModerationPromptGenerator;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.UserMessage;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 public class LangChain4jModerationService {
 
     private final DynamicModelManager dynamicModelManager;
+    private final ModerationPromptGenerator promptGenerator;
 
     @Value("${moderation.ai.timeout-seconds:10}")
     private int timeoutSeconds;
@@ -37,47 +39,26 @@ public class LangChain4jModerationService {
     @Value("${moderation.ai.model-name:gpt-3.5-turbo}")
     private String defaultModelName;
 
-    public LangChain4jModerationService(DynamicModelManager dynamicModelManager) {
+    @Value("${moderation.ai.default-scenario:USER_CHAT}")
+    private String defaultScenario;
+
+    public LangChain4jModerationService(DynamicModelManager dynamicModelManager, ModerationPromptGenerator promptGenerator) {
         this.dynamicModelManager = dynamicModelManager;
+        this.promptGenerator = promptGenerator;
     }
 
     /**
-     * AI审核助手接口
+     * AI审核助手接口 - 支持动态prompt
      */
     interface ModerationAssistant {
-        @UserMessage("""
-            请对以下内容进行安全审核，评估其是否存在违规风险。
-
-            审核内容：
-            {{content}}
-
-            请从以下维度进行评估：
-            1. 仇恨言论 - 基于种族、性别、宗教等的歧视性言论
-            2. 骚扰威胁 - 对个人或群体的威胁、恐吓、霸凌行为
-            3. 性内容 - 明确的性内容或成人内容
-            4. 暴力内容 - 描述或宣扬暴力行为
-            5. 自我伤害 - 鼓励自杀或自我伤害的内容
-            6. 危险活动 - 危险或非法活动的指导
-            7. 垃圾信息 - 垃圾信息、广告推广
-            8. 隐私泄露 - 包含个人隐私信息
-
-            请返回JSON格式的审核结果，包含：
-            {
-              "result": "APPROVED/REJECTED/NEEDS_REVIEW",
-              "riskLevel": "LOW/MEDIUM/HIGH/CRITICAL",
-              "confidence": 0.85,
-              "violations": [
-                {
-                  "category": "违规分类",
-                  "confidence": 0.9,
-                  "reason": "具体原因"
-                }
-              ],
-              "reasoning": "详细分析说明"
-            }
-            """)
-        String moderateContent(String content);
-
+        /**
+         * 使用动态prompt进行内容审核
+         */
+        String moderateWithPrompt(String prompt);
+        
+        /**
+         * 快速安全检查（保留向后兼容性）
+         */
         @UserMessage("""
             请对以下内容进行快速安全检查，判断是否需要进一步审核。
 
@@ -94,9 +75,9 @@ public class LangChain4jModerationService {
     }
 
     /**
-     * 执行AI内容审核（使用指定模型）
+     * 执行AI内容审核（使用指定模型和场景）
      */
-    public CompletableFuture<AiModerationResult> moderateContent(String content, Long modelId) {
+    public CompletableFuture<AiModerationResult> moderateContent(String content, Long modelId, String scenario) {
         if (!aiModerationEnabled) {
             return CompletableFuture.completedFuture(
                     AiModerationResult.disabled("AI moderation is disabled")
@@ -117,25 +98,38 @@ public class LangChain4jModerationService {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // 动态获取ChatModel
+                // 1. 生成动态prompt
+                String targetScenario = scenario != null ? scenario : defaultScenario;
+                ModerationPromptGenerator.GeneratedPrompt generatedPrompt = 
+                    promptGenerator.generatePromptForScenario(targetScenario, content);
+                
+                if (!generatedPrompt.isSuccess()) {
+                    log.error("Failed to generate prompt: {}", generatedPrompt.getErrorMessage());
+                    return AiModerationResult.error("Failed to generate prompt: " + generatedPrompt.getErrorMessage());
+                }
+
+                // 2. 动态获取ChatModel
                 ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
                 
-                // 动态创建ModerationAssistant
+                // 3. 动态创建ModerationAssistant
                 ModerationAssistant moderationAssistant = AiServices.builder(ModerationAssistant.class)
                         .chatModel(chatModel)
                         .build();
 
+                // 4. 执行审核
                 long startTime = System.currentTimeMillis();
-                String result = moderationAssistant.moderateContent(content);
+                String result = moderationAssistant.moderateWithPrompt(generatedPrompt.getPrompt());
                 long processingTime = System.currentTimeMillis() - startTime;
 
-                AiModerationResult moderationResult = parseAiResult(result, processingTime, modelId);
-                log.debug("AI moderation completed in {}ms, modelId: {}, result: {}", 
-                         processingTime, modelId, moderationResult.getResult());
+                // 5. 解析结果
+                AiModerationResult moderationResult = parseAiResult(result, processingTime, modelId, generatedPrompt);
+                log.debug("AI moderation completed in {}ms, modelId: {}, scenario: {}, result: {}", 
+                         processingTime, modelId, targetScenario, moderationResult.getResult());
                 return moderationResult;
 
             } catch (Exception e) {
-                log.error("AI moderation failed for content length: {}, modelId: {}", content.length(), modelId, e);
+                log.error("AI moderation failed for content length: {}, modelId: {}, scenario: {}", 
+                         content.length(), modelId, scenario, e);
                 return AiModerationResult.error("AI moderation failed: " + e.getMessage());
             }
         }).completeOnTimeout(
@@ -146,9 +140,16 @@ public class LangChain4jModerationService {
     }
 
     /**
-     * 执行快速AI预检（使用指定模型）
+     * 执行AI内容审核（使用指定模型，默认场景）
      */
-    public CompletableFuture<QuickModerationResult> quickModerate(String content, Long modelId) {
+    public CompletableFuture<AiModerationResult> moderateContent(String content, Long modelId) {
+        return moderateContent(content, modelId, null);
+    }
+
+    /**
+     * 执行快速AI预检（使用指定模型和语言）
+     */
+    public CompletableFuture<QuickModerationResult> quickModerate(String content, Long modelId, String language) {
         if (!aiModerationEnabled) {
             return CompletableFuture.completedFuture(QuickModerationResult.disabled());
         }
@@ -163,22 +164,37 @@ public class LangChain4jModerationService {
 
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // 动态获取ChatModel
+                // 1. 生成快速审核prompt
+                String targetLanguage = language != null ? language : "zh-CN";
+                ModerationPromptGenerator.GeneratedPrompt generatedPrompt = 
+                    promptGenerator.generateQuickModerationPrompt(content, targetLanguage);
+                
+                String promptToUse;
+                if (generatedPrompt.isSuccess()) {
+                    promptToUse = generatedPrompt.getPrompt();
+                } else {
+                    // 使用默认的快速审核逻辑
+                    log.warn("Failed to generate quick prompt, using default: {}", generatedPrompt.getErrorMessage());
+                    return executeDefaultQuickModerate(content, modelId);
+                }
+
+                // 2. 动态获取ChatModel
                 ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
                 
-                // 动态创建ModerationAssistant
+                // 3. 动态创建ModerationAssistant
                 ModerationAssistant moderationAssistant = AiServices.builder(ModerationAssistant.class)
                         .chatModel(chatModel)
                         .build();
 
+                // 4. 执行快速审核
                 long startTime = System.currentTimeMillis();
-                String result = moderationAssistant.quickModerate(content);
+                String result = moderationAssistant.moderateWithPrompt(promptToUse);
                 long processingTime = System.currentTimeMillis() - startTime;
 
                 return parseQuickResult(result.trim().toUpperCase(), processingTime);
 
             } catch (Exception e) {
-                log.error("Quick AI moderation failed, modelId: {}", modelId, e);
+                log.error("Quick AI moderation failed, modelId: {}, language: {}", modelId, language, e);
                 return QuickModerationResult.error();
             }
         }).completeOnTimeout(
@@ -186,6 +202,38 @@ public class LangChain4jModerationService {
                 Math.min(timeoutSeconds / 2, 5), 
                 TimeUnit.SECONDS
         );
+    }
+
+    /**
+     * 执行快速AI预检（使用指定模型，默认语言）
+     */
+    public CompletableFuture<QuickModerationResult> quickModerate(String content, Long modelId) {
+        return quickModerate(content, modelId, null);
+    }
+
+    /**
+     * 执行默认的快速审核（当prompt生成失败时的回退方案）
+     */
+    private QuickModerationResult executeDefaultQuickModerate(String content, Long modelId) {
+        try {
+            // 动态获取ChatModel
+            ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
+            
+            // 动态创建ModerationAssistant
+            ModerationAssistant moderationAssistant = AiServices.builder(ModerationAssistant.class)
+                    .chatModel(chatModel)
+                    .build();
+
+            long startTime = System.currentTimeMillis();
+            String result = moderationAssistant.quickModerate(content);
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            return parseQuickResult(result.trim().toUpperCase(), processingTime);
+
+        } catch (Exception e) {
+            log.error("Default quick AI moderation failed, modelId: {}", modelId, e);
+            return QuickModerationResult.error();
+        }
     }
 
     /**
@@ -207,9 +255,9 @@ public class LangChain4jModerationService {
     }
 
     /**
-     * 解析AI审核结果
+     * 解析AI审核结果（新版本，支持生成的prompt信息）
      */
-    private AiModerationResult parseAiResult(String aiResponse, long processingTime, Long modelId) {
+    private AiModerationResult parseAiResult(String aiResponse, long processingTime, Long modelId, ModerationPromptGenerator.GeneratedPrompt generatedPrompt) {
         try {
             // 尝试解析JSON响应
             if (aiResponse.contains("{") && aiResponse.contains("}")) {
@@ -218,11 +266,11 @@ public class LangChain4jModerationService {
                 int endIndex = aiResponse.lastIndexOf('}') + 1;
                 String jsonPart = aiResponse.substring(startIndex, endIndex);
 
-                // 这里应该使用Jackson解析，为简化演示使用基础解析
-                return parseJsonResponse(jsonPart, processingTime, modelId);
+                // 解析JSON响应，包含生成的prompt信息
+                return parseJsonResponse(jsonPart, processingTime, modelId, generatedPrompt);
             } else {
                 // 如果不是JSON格式，使用规则解析
-                return parseTextResponse(aiResponse, processingTime, modelId);
+                return parseTextResponse(aiResponse, processingTime, modelId, generatedPrompt);
             }
         } catch (Exception e) {
             log.warn("Failed to parse AI response: {}", aiResponse, e);
@@ -231,9 +279,16 @@ public class LangChain4jModerationService {
     }
 
     /**
-     * 解析JSON格式的AI响应
+     * 解析AI审核结果（保持向后兼容性）
      */
-    private AiModerationResult parseJsonResponse(String jsonResponse, long processingTime, Long modelId) {
+    private AiModerationResult parseAiResult(String aiResponse, long processingTime, Long modelId) {
+        return parseAiResult(aiResponse, processingTime, modelId, null);
+    }
+
+    /**
+     * 解析JSON格式的AI响应（新版本，支持生成的prompt信息）
+     */
+    private AiModerationResult parseJsonResponse(String jsonResponse, long processingTime, Long modelId, ModerationPromptGenerator.GeneratedPrompt generatedPrompt) {
         // 简化的JSON解析逻辑，实际应该使用Jackson
         try {
             ModerationResult result = ModerationResult.APPROVED;
@@ -258,7 +313,7 @@ public class LangChain4jModerationService {
                 riskLevel = SeverityLevel.MEDIUM;
             }
 
-            return AiModerationResult.builder()
+            AiModerationResult.Builder builder = AiModerationResult.builder()
                     .result(result)
                     .riskLevel(riskLevel)
                     .confidence(BigDecimal.valueOf(confidence))
@@ -267,8 +322,25 @@ public class LangChain4jModerationService {
                     .processingTimeMs(processingTime)
                     .modelUsed("Model-" + modelId)
                     .rawResponse(jsonResponse)
-                    .success(true)
-                    .build();
+                    .success(true);
+
+            // 添加生成的prompt信息
+            if (generatedPrompt != null) {
+                // 暂时记录在reasoning中，待AiModerationResult类更新后修改
+                String enhancedReasoning = reasoning;
+                if (generatedPrompt.getPolicy() != null) {
+                    enhancedReasoning += " [Policy: " + generatedPrompt.getPolicy().getCode() + "]";
+                }
+                if (generatedPrompt.getTemplate() != null) {
+                    enhancedReasoning += " [Template: " + generatedPrompt.getTemplate().getCode() + "]";
+                }
+                if (generatedPrompt.isFallback()) {
+                    enhancedReasoning += " [Fallback]";
+                }
+                builder.reasoning(enhancedReasoning);
+            }
+
+            return builder.build();
 
         } catch (Exception e) {
             log.error("Failed to parse JSON response: {}", jsonResponse, e);
@@ -277,9 +349,9 @@ public class LangChain4jModerationService {
     }
 
     /**
-     * 解析文本格式的AI响应
+     * 解析文本格式的AI响应（新版本，支持生成的prompt信息）
      */
-    private AiModerationResult parseTextResponse(String textResponse, long processingTime, Long modelId) {
+    private AiModerationResult parseTextResponse(String textResponse, long processingTime, Long modelId, ModerationPromptGenerator.GeneratedPrompt generatedPrompt) {
         String lowerResponse = textResponse.toLowerCase();
         
         ModerationResult result = ModerationResult.APPROVED;
@@ -294,7 +366,7 @@ public class LangChain4jModerationService {
             riskLevel = SeverityLevel.MEDIUM;
         }
 
-        return AiModerationResult.builder()
+        AiModerationResult.Builder builder = AiModerationResult.builder()
                 .result(result)
                 .riskLevel(riskLevel)
                 .confidence(BigDecimal.valueOf(confidence))
@@ -303,8 +375,25 @@ public class LangChain4jModerationService {
                 .processingTimeMs(processingTime)
                 .modelUsed("Model-" + modelId)
                 .rawResponse(textResponse)
-                .success(true)
-                .build();
+                .success(true);
+
+        // 添加生成的prompt信息
+        if (generatedPrompt != null) {
+            // 暂时记录在reasoning中，待AiModerationResult类更新后修改
+            String enhancedReasoning = textResponse;
+            if (generatedPrompt.getPolicy() != null) {
+                enhancedReasoning += " [Policy: " + generatedPrompt.getPolicy().getCode() + "]";
+            }
+            if (generatedPrompt.getTemplate() != null) {
+                enhancedReasoning += " [Template: " + generatedPrompt.getTemplate().getCode() + "]";
+            }
+            if (generatedPrompt.isFallback()) {
+                enhancedReasoning += " [Fallback]";
+            }
+            builder.reasoning(enhancedReasoning);
+        }
+
+        return builder.build();
     }
 
     /**

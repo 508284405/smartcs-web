@@ -1,10 +1,13 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
 import dev.langchain4j.rag.query.Query;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -25,7 +28,11 @@ import java.util.stream.Collectors;
  * @author Claude
  */
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class SemanticAlignmentStage implements QueryTransformerStage {
+    
+    private final DictionaryService dictionaryService;
     
     // 领域同义词映射表
     private static final Map<String, String> DOMAIN_SYNONYMS = createDomainSynonyms();
@@ -91,7 +98,9 @@ public class SemanticAlignmentStage implements QueryTransformerStage {
             
         } catch (Exception e) {
             log.error("语义对齐处理失败: inputCount={}", queries.size(), e);
-            throw new QueryTransformationException(getName(), "语义对齐处理失败", e, true);
+            // 发生错误时返回原始查询，而不是抛出异常，保证系统稳定性
+            log.warn("语义对齐阶段异常，返回原始查询: {}", e.getMessage());
+            return queries;
         }
     }
     
@@ -104,17 +113,30 @@ public class SemanticAlignmentStage implements QueryTransformerStage {
             return query;
         }
         
-        // 1. 领域同义词归一化
-        text = applyDomainSynonyms(text);
+        String originalText = text;
         
-        // 2. 单位/数值标准化
+        // 1. 领域同义词归一化（集成字典服务）
+        text = applyDomainSynonyms(context, text);
+        
+        // 2. 语义分类对齐
+        text = applySemanticCategoryAlignment(context, text);
+        
+        // 3. 单位/数值标准化
         text = standardizeUnitsAndValues(text);
         
-        // 3. 时间表达式正则化
+        // 4. 时间表达式正则化
         text = normalizeTimeExpressions(text);
         
-        // 4. 实体标准化（基于上下文）
+        // 5. 实体标准化（基于上下文）
         text = normalizeEntities(context, text);
+        
+        // 记录处理过程
+        if (!originalText.equals(text)) {
+            log.debug("语义对齐处理完成: {} -> {}", originalText, text);
+            // 在attributes中记录处理信息
+            context.setAttribute("semantic-alignment-original", originalText);
+            context.setAttribute("semantic-alignment-processed", text);
+        }
         
         return Query.from(text.trim());
     }
@@ -122,10 +144,58 @@ public class SemanticAlignmentStage implements QueryTransformerStage {
     /**
      * 应用领域同义词映射
      */
-    private String applyDomainSynonyms(String text) {
+    private String applyDomainSynonyms(QueryContext context, String text) {
         String result = text;
         
-        // 按长度倒序排列，优先匹配长词组
+        try {
+            // 1. 从字典服务获取语义对齐规则
+            // 注意：由于QueryContext没有getDomain()方法，这里使用attribute获取domain或使用默认值
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            Map<String, String> semanticAlignmentRules = dictionaryService.getSemanticAlignmentRules(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            // 2. 应用字典中的语义对齐规则
+            if (!semanticAlignmentRules.isEmpty()) {
+                // 按长度倒序排列，优先匹配长词组
+                List<String> sortedKeys = semanticAlignmentRules.keySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                        .collect(Collectors.toList());
+                
+                for (String synonym : sortedKeys) {
+                    String standardForm = semanticAlignmentRules.get(synonym);
+                    // 使用词边界匹配，避免部分匹配
+                    result = result.replaceAll("(?i)\\b" + Pattern.quote(synonym) + "\\b", standardForm);
+                    log.debug("语义对齐替换: {} -> {}", synonym, standardForm);
+                }
+            }
+            
+            // 3. 应用语义关键词标准化
+            Map<String, String> semanticKeywords = dictionaryService.getSemanticKeywords(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            if (!semanticKeywords.isEmpty()) {
+                List<String> sortedKeywords = semanticKeywords.keySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                        .collect(Collectors.toList());
+                
+                for (String keyword : sortedKeywords) {
+                    String standardForm = semanticKeywords.get(keyword);
+                    result = result.replaceAll("(?i)\\b" + Pattern.quote(keyword) + "\\b", standardForm);
+                    log.debug("语义关键词标准化: {} -> {}", keyword, standardForm);
+                }
+            }
+            
+        } catch (Exception e) {
+            log.warn("字典服务调用失败，使用内置规则: {}", e.getMessage());
+        }
+        
+        // 4. 应用内置的领域同义词映射（作为兜底）
         List<String> sortedKeys = DOMAIN_SYNONYMS.keySet().stream()
                 .sorted((a, b) -> Integer.compare(b.length(), a.length()))
                 .collect(Collectors.toList());
@@ -237,24 +307,89 @@ public class SemanticAlignmentStage implements QueryTransformerStage {
     }
     
     /**
-     * 实体标准化（基于上下文信息）
+     * 语义分类对齐
      */
-    private String normalizeEntities(QueryContext context, String text) {
-        // 这里可以基于租户、渠道等上下文信息进行实体标准化
-        // 例如：根据不同租户的业务领域，应用不同的实体映射规则
-        
-        String tenant = context.getTenant();
-        if ("automotive".equals(tenant)) {
-            // 汽车行业特定的实体标准化
-            text = text.replaceAll("(?i)国VI|国6|China\\s*6", "国六");
-            text = text.replaceAll("(?i)新能源车|NEV|电动车", "新能源汽车");
-        } else if ("logistics".equals(tenant)) {
-            // 物流行业特定的实体标准化
-            text = text.replaceAll("(?i)CN|菜鸟|菜鸟网络", "菜鸟网络");
-            text = text.replaceAll("(?i)快递|快运|配送", "快递服务");
+    private String applySemanticCategoryAlignment(QueryContext context, String text) {
+        try {
+            // 从字典服务获取语义分类规则
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            Map<String, String> categoryRules = dictionaryService.getSemanticCategories(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            if (!categoryRules.isEmpty()) {
+                String result = text;
+                
+                // 按长度倒序排列，优先匹配长词组
+                List<String> sortedCategories = categoryRules.keySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                        .collect(Collectors.toList());
+                
+                for (String category : sortedCategories) {
+                    String alignment = categoryRules.get(category);
+                    result = result.replaceAll("(?i)\\b" + Pattern.quote(category) + "\\b", alignment);
+                    log.debug("语义分类对齐: {} -> {}", category, alignment);
+                }
+                
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("语义分类对齐失败，跳过此步骤: {}", e.getMessage());
         }
         
         return text;
+    }
+    
+    /**
+     * 实体标准化（基于上下文信息）
+     */
+    private String normalizeEntities(QueryContext context, String text) {
+        String result = text;
+        
+        try {
+            // 从字典服务获取领域术语标准化规则
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            Map<String, String> domainTerms = dictionaryService.getDomainTerms(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            if (!domainTerms.isEmpty()) {
+                // 按长度倒序排列，优先匹配长词组
+                List<String> sortedTerms = domainTerms.keySet().stream()
+                        .sorted((a, b) -> Integer.compare(b.length(), a.length()))
+                        .collect(Collectors.toList());
+                
+                for (String term : sortedTerms) {
+                    String standardTerm = domainTerms.get(term);
+                    result = result.replaceAll("(?i)\\b" + Pattern.quote(term) + "\\b", standardTerm);
+                    log.debug("领域术语标准化: {} -> {}", term, standardTerm);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("领域术语标准化失败，使用内置规则: {}", e.getMessage());
+        }
+        
+        // 应用内置的实体标准化规则（作为兜底）
+        String tenant = context.getTenant();
+        if ("automotive".equals(tenant)) {
+            // 汽车行业特定的实体标准化
+            result = result.replaceAll("(?i)国VI|国6|China\\s*6", "国六");
+            result = result.replaceAll("(?i)新能源车|NEV|电动车", "新能源汽车");
+        } else if ("logistics".equals(tenant)) {
+            // 物流行业特定的实体标准化
+            result = result.replaceAll("(?i)CN|菜鸟|菜鸟网络", "菜鸟网络");
+            result = result.replaceAll("(?i)快递|快运|配送", "快递服务");
+        }
+        
+        return result;
     }
     
     /**

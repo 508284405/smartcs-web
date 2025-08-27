@@ -8,7 +8,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
-import com.leyue.smartcs.knowledge.convertor.ChunkConverter;
+import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 import com.leyue.smartcs.knowledge.dataobject.ChunkDO;
 import com.leyue.smartcs.knowledge.mapper.ChunkMapper;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class ChunkGatewayImpl implements ChunkGateway {
 
     private final ChunkMapper chunkMapper;
-    private final ChunkConverter chunkConverter;
+    private final ChunkConvertor chunkConverter;
 
     @Override
     public Long save(Chunk chunk) {

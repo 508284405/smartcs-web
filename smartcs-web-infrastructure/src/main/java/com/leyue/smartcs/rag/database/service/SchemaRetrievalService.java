@@ -1,7 +1,7 @@
 package com.leyue.smartcs.rag.database.service;
 
 import com.leyue.smartcs.domain.database.entity.DatabaseTableSchema;
-import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.gateway.ModelProvider;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class SchemaRetrievalService {
     
     private final EmbeddingStore<TextSegment> embeddingStore;
-    private final DynamicModelManager dynamicModelManager;
+    private final ModelProvider modelProvider;
     private final TableSchemaVectorizationService vectorizationService;
     
     @Value("${smartcs.nlp2sql.schema-search-max-results:10}")
@@ -64,7 +64,7 @@ public class SchemaRetrievalService {
                     nlpQuery, maxResults, minSimilarity);
             
             // 生成查询向量
-            EmbeddingModel embeddingModel = dynamicModelManager.getEmbeddingModel(embeddingModelId);
+            EmbeddingModel embeddingModel = modelProvider.getEmbeddingModel(embeddingModelId);
             Embedding queryEmbedding = embeddingModel.embed(nlpQuery).content();
             
             // 执行向量搜索

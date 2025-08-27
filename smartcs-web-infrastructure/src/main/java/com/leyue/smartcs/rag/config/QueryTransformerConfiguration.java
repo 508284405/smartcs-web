@@ -1,26 +1,39 @@
 package com.leyue.smartcs.rag.config;
 
-import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
-import com.leyue.smartcs.intent.ai.IntentClassificationAiService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leyue.smartcs.model.ai.DynamicModelManager;
-import com.leyue.smartcs.rag.query.IntentAwareQueryTransformer;
-import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
-import com.leyue.smartcs.rag.query.pipeline.QueryContext;
-import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
-import com.leyue.smartcs.rag.query.pipeline.stages.*;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.rag.query.transformer.QueryTransformer;
-import dev.langchain4j.service.AiServices;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-import java.util.ArrayList;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leyue.smartcs.api.DictionaryService;
+import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.rag.query.pipeline.QueryContext;
+import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
+import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
+import com.leyue.smartcs.rag.query.pipeline.services.PhoneticCorrectionService;
+import com.leyue.smartcs.rag.query.pipeline.services.PrefixCompletionService;
+import com.leyue.smartcs.rag.query.pipeline.services.SynonymRecallService;
+import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.ExpansionStrategyStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.IntentExtractionStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.NormalizationStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.PhoneticCorrectionStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.PrefixCompletionStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.RewriteStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SemanticAlignmentStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SlotFillingStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SynonymRecallStage;
+import com.leyue.smartcs.rag.metrics.SlotFillingMetricsCollector;
+
+import dev.langchain4j.rag.query.transformer.QueryTransformer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * QueryTransformer配置类
@@ -41,6 +54,10 @@ public class QueryTransformerConfiguration {
     
     private final DynamicModelManager dynamicModelManager;
     private final ClassificationDomainService classificationDomainService;
+    private final SlotFillingMetricsCollector slotFillingMetricsCollector;
+    
+    @Autowired(required = false)
+    private DictionaryService dictionaryService;
     
     /**
      * 创建管线化的QueryTransformer（优先使用）
@@ -66,55 +83,106 @@ public class QueryTransformerConfiguration {
     public QueryTransformer intentAwareQueryTransformer() {
         log.info("创建传统意图感知QueryTransformer");
         
-        // 从配置中获取参数，这里使用默认值
-        Long defaultModelId = 1L; // 应从配置或DynamicModelManager获取
-        int queryExpansionCount = 5;
-        boolean intentRecognitionEnabled = true;
-        String defaultChannel = "web";
-        String defaultTenant = "default";
-        
-        return new IntentAwareQueryTransformer(
-                classificationDomainService,
-                dynamicModelManager,
-                defaultModelId,
-                queryExpansionCount,
-                intentRecognitionEnabled,
-                defaultChannel,
-                defaultTenant
-        );
+        // 使用管线式QueryTransformer实现
+        return QueryTransformerPipeline.builder()
+                .stages(createDefaultStages())
+                .pipelineConfig(createDefaultPipelineConfig())
+                .metricsCollector(createMetricsCollector())
+                .build();
     }
     
     /**
-     * 创建默认的处理阶段
+     * 创建默认的处理阶段（集成字典服务，使用动态LLM配置）
      */
     private List<QueryTransformerStage> createDefaultStages() {
         List<QueryTransformerStage> stages = new ArrayList<>();
         
-        // 获取默认的ChatModel
-        ChatModel chatModel = getDefaultChatModel();
+        // 1. 标准化阶段（集成字典服务）
+        if (dictionaryService != null) {
+            stages.add(new NormalizationStage(dictionaryService));
+            log.debug("标准化阶段已集成字典服务");
+        } else {
+            stages.add(new NormalizationStage());
+            log.debug("标准化阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 1. 标准化阶段（现有实现）
-        stages.add(new NormalizationStage());
+        // 2. 拼音纠错阶段（集成字典服务）
+        PhoneticCorrectionService phoneticService = new PhoneticCorrectionService(0.8);
+        if (dictionaryService != null) {
+            stages.add(new PhoneticCorrectionStage(phoneticService, dictionaryService));
+            log.debug("拼音纠错阶段已集成字典服务");
+        } else {
+            stages.add(new PhoneticCorrectionStage(phoneticService, null));
+            log.debug("拼音纠错阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 2. 语义对齐阶段（新增）
-        stages.add(new SemanticAlignmentStage());
+        // 3. 前缀补全阶段（新增，集成字典服务）
+        PrefixCompletionService prefixService = new PrefixCompletionService(null, dictionaryService);
+        stages.add(new PrefixCompletionStage(prefixService,null));
+        if (dictionaryService != null) {
+            log.debug("前缀补全阶段已集成字典服务");
+        } else {
+            log.debug("前缀补全阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 3. 意图抽取阶段（新增）
-        IntentClassificationAiService aiService = AiServices.builder(IntentClassificationAiService.class)
-                .chatModel(chatModel)
-                .build();
-        stages.add(new IntentExtractionStage(aiService, new ObjectMapper()));
+        // 4. 同义词召回阶段（新增，集成字典服务）
+        SynonymRecallService synonymService = new SynonymRecallService(dictionaryService);
+        stages.add(new SynonymRecallStage(synonymService, dictionaryService));
+        if (dictionaryService != null) {
+            log.debug("同义词召回阶段已集成字典服务");
+        } else {
+            log.debug("同义词召回阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 4. 可检索化改写阶段（预留，暂不启用）
-        // stages.add(new RetrievabilityStage(chatModel));
+        // 5. 语义对齐阶段（M2增强，集成字典服务）
+        if (dictionaryService != null) {
+            stages.add(new SemanticAlignmentStage(dictionaryService));
+            log.debug("语义对齐阶段已集成字典服务");
+        } else {
+            stages.add(new SemanticAlignmentStage(null));
+            log.debug("语义对齐阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 5. 查询扩展阶段（现有实现）
-        stages.add(new ExpandingStage(chatModel));
+        // 6. 意图抽取阶段（M2增强，集成字典服务和动态模型管理器）
+        if (dictionaryService != null) {
+            stages.add(new IntentExtractionStage(dynamicModelManager, new ObjectMapper(), dictionaryService));
+            log.debug("意图抽取阶段已集成字典服务和动态模型管理器");
+        } else {
+            stages.add(new IntentExtractionStage(dynamicModelManager, new ObjectMapper(), null));
+            log.debug("意图抽取阶段使用内置数据（字典服务不可用）");
+        }
         
-        // 6. 检索增强策略阶段（新增，默认禁用）
-        // stages.add(new ExpansionStrategyStage(chatModel));
+        // 7. 槽位填充阶段（集成字典服务和指标收集器）
+        if (dictionaryService != null) {
+            stages.add(new SlotFillingStage(dictionaryService, new ObjectMapper(), slotFillingMetricsCollector));
+            log.debug("槽位填充阶段已集成字典服务和指标收集器");
+        } else {
+            log.debug("槽位填充阶段跳过（字典服务不可用）");
+        }
         
-        log.debug("创建默认处理阶段: stageCount={}", stages.size());
+        // 8. 可检索化改写阶段（M3实现，集成字典服务）
+        if (dictionaryService != null) {
+            stages.add(new RewriteStage(dictionaryService));
+            log.debug("可检索化改写阶段已集成字典服务");
+        } else {
+            stages.add(new RewriteStage(null));
+            log.debug("可检索化改写阶段使用内置数据（字典服务不可用）");
+        }
+        
+        // 8. 查询扩展阶段（使用模型提供者）
+        stages.add(new ExpandingStage(dynamicModelManager));
+        
+        // 9. 检索增强策略阶段（M3实现，集成字典服务和动态模型管理器）
+        if (dictionaryService != null) {
+            stages.add(new ExpansionStrategyStage(dynamicModelManager, dictionaryService));
+            log.debug("检索增强策略阶段已集成字典服务和动态模型管理器");
+        } else {
+            stages.add(new ExpansionStrategyStage(dynamicModelManager, null));
+            log.debug("检索增强策略阶段使用内置数据（字典服务不可用）");
+        }
+        
+        log.info("创建默认处理阶段完成: stageCount={}, 字典服务状态={}, 动态LLM支持=已启用", 
+                stages.size(), dictionaryService != null ? "已集成" : "未集成");
         return stages;
     }
     
@@ -126,6 +194,7 @@ public class QueryTransformerConfiguration {
                 .enableNormalization(true)
                 .enableExpanding(true)
                 .enableIntentRecognition(true)
+                .enableSlotFilling(true)  // 启用槽位填充
                 .maxQueries(10)
                 .keepOriginal(true)
                 .dedupThreshold(0.85)
@@ -139,6 +208,13 @@ public class QueryTransformerConfiguration {
                         .maxQueryLength(512)
                         .normalizeCase(true)
                         .cleanWhitespace(true)
+                        .build())
+                .slotFillingConfig(QueryContext.SlotFillingConfig.builder()
+                        .maxClarificationAttempts(3)
+                        .completenessThreshold(0.8)
+                        .blockRetrievalOnMissing(true)
+                        .enableSmartQuestionGeneration(true)
+                        .timeoutMs(5000)
                         .build())
                 .build();
     }
@@ -183,20 +259,6 @@ public class QueryTransformerConfiguration {
         };
     }
     
-    /**
-     * 获取默认的ChatModel
-     */
-    private ChatModel getDefaultChatModel() {
-        try {
-            // 从DynamicModelManager获取默认模型
-            Long defaultModelId = 1L; // 应从配置获取
-            return dynamicModelManager.getChatModel(defaultModelId);
-        } catch (Exception e) {
-            log.warn("获取默认ChatModel失败，使用降级方案", e);
-            // 这里应该有一个降级的ChatModel实现
-            throw new IllegalStateException("无法获取默认ChatModel", e);
-        }
-    }
     
     /**
      * QueryTransformer阶段工厂Bean
@@ -215,37 +277,46 @@ public class QueryTransformerConfiguration {
         private final ClassificationDomainService classificationDomainService;
         
         /**
-         * 根据配置创建处理阶段
+         * 根据配置创建处理阶段（使用动态LLM配置）
          */
-        public List<QueryTransformerStage> createStages(QueryTransformerConfig config, Long modelId) {
+        public List<QueryTransformerStage> createStages(QueryTransformerConfig config, Long modelId, DictionaryService dictionaryService) {
             List<QueryTransformerStage> stages = new ArrayList<>();
-            
-            ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
             
             // 按配置添加阶段
             if (config.isEnableNormalization()) {
-                stages.add(new NormalizationStage());
+                if (dictionaryService != null) {
+                    stages.add(new NormalizationStage(dictionaryService));
+                } else {
+                    stages.add(new NormalizationStage());
+                }
             }
             
             if (config.isEnableSemanticAlignment()) {
-                stages.add(new SemanticAlignmentStage());
+                stages.add(new SemanticAlignmentStage(dictionaryService));
             }
             
             if (config.isEnableIntentExtraction()) {
-                IntentClassificationAiService aiService = AiServices.builder(IntentClassificationAiService.class)
-                        .chatModel(chatModel)
-                        .build();
-                stages.add(new IntentExtractionStage(aiService, new ObjectMapper()));
+                // 使用动态模型管理器和字典服务，支持运行时切换LLM和多租户字典
+                stages.add(new IntentExtractionStage(dynamicModelManager, new ObjectMapper(), dictionaryService));
             }
             
-            // 预留：可检索化改写阶段暂不启用（类未实现）
+            if (config.isEnableRetrievability()) {
+                // 可检索化改写阶段（M3实现）
+                stages.add(new RewriteStage(dictionaryService));
+            }
             
             if (config.isEnableExpanding()) {
-                stages.add(new ExpandingStage(chatModel));
+                // 使用动态模型管理器，支持运行时切换LLM
+                stages.add(new ExpandingStage(dynamicModelManager));
             }
             
             if (config.isEnableExpansionStrategy()) {
-                stages.add(new ExpansionStrategyStage(chatModel));
+                // 检索增强策略阶段（M3实现）
+                try {
+                    stages.add(new ExpansionStrategyStage(dynamicModelManager, dictionaryService));
+                } catch (Exception e) {
+                    log.warn("创建检索增强策略阶段失败，跳过此阶段", e);
+                }
             }
             
             return stages;

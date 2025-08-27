@@ -3,8 +3,7 @@ package com.leyue.smartcs.moderation.gatewayimpl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.leyue.smartcs.domain.moderation.ModerationCategory;
-import com.leyue.smartcs.domain.moderation.ModerationRecord;
+import com.leyue.smartcs.domain.moderation.*;
 import com.leyue.smartcs.domain.moderation.enums.ContentType;
 import com.leyue.smartcs.domain.moderation.enums.ModerationResult;
 import com.leyue.smartcs.domain.moderation.enums.SeverityLevel;
@@ -34,6 +33,10 @@ public class ModerationGatewayImpl implements ModerationGateway {
     private final ModerationRecordMapper recordMapper;
     private final ModerationConfigMapper configMapper;
     private final ModerationKeywordRuleMapper keywordRuleMapper;
+    private final ModerationPolicyMapper policyMapper;
+    private final ModerationDimensionMapper dimensionMapper;
+    private final ModerationPolicyDimensionMapper policyDimensionMapper;
+    private final ModerationPolicyTemplateMapper templateMapper;
     private final ModerationConvertor moderationConvertor;
 
     // ====================== 审核分类管理 ======================
@@ -488,5 +491,298 @@ public class ModerationGatewayImpl implements ModerationGateway {
         }
         @Override
         public String getTopViolationType() { return (String) data.get("topViolationType"); }
+    }
+
+    // ====================== 审核策略管理 ======================
+
+    @Override
+    public ModerationPolicy saveModerationPolicy(ModerationPolicy policy) {
+        ModerationPolicyDO policyDO = moderationConvertor.toPolicyDO(policy);
+        if (policyDO.getId() == null) {
+            policyMapper.insert(policyDO);
+        } else {
+            policyMapper.updateById(policyDO);
+        }
+        return moderationConvertor.toPolicyDomain(policyDO);
+    }
+
+    @Override
+    public Optional<ModerationPolicy> findPolicyById(Long id) {
+        ModerationPolicyDO policyDO = policyMapper.selectById(id);
+        return Optional.ofNullable(moderationConvertor.toPolicyDomain(policyDO));
+    }
+
+    @Override
+    public Optional<ModerationPolicy> findPolicyByCode(String code) {
+        ModerationPolicyDO policyDO = policyMapper.findByCode(code);
+        return Optional.ofNullable(moderationConvertor.toPolicyDomain(policyDO));
+    }
+
+    @Override
+    public List<ModerationPolicy> findPoliciesByScenario(String scenario) {
+        List<ModerationPolicyDO> policyDOs = policyMapper.findByScenarioOrderByPriority(scenario);
+        return policyDOs.stream()
+                .map(moderationConvertor::toPolicyDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicy> findPoliciesByType(String policyType) {
+        List<ModerationPolicyDO> policyDOs = policyMapper.findByPolicyType(policyType);
+        return policyDOs.stream()
+                .map(moderationConvertor::toPolicyDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicy> findAllActivePolicies() {
+        List<ModerationPolicyDO> policyDOs = policyMapper.findAllActiveOrderByPriority();
+        return policyDOs.stream()
+                .map(moderationConvertor::toPolicyDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicy> findPoliciesByTemplateId(Long templateId) {
+        List<ModerationPolicyDO> policyDOs = policyMapper.findByTemplateId(templateId);
+        return policyDOs.stream()
+                .map(moderationConvertor::toPolicyDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean deleteModerationPolicy(Long id) {
+        return policyMapper.deleteById(id) > 0;
+    }
+
+    // ====================== 审核维度管理 ======================
+
+    @Override
+    public ModerationDimension saveModerationDimension(ModerationDimension dimension) {
+        ModerationDimensionDO dimensionDO = moderationConvertor.toDimensionDO(dimension);
+        if (dimensionDO.getId() == null) {
+            dimensionMapper.insert(dimensionDO);
+        } else {
+            dimensionMapper.updateById(dimensionDO);
+        }
+        return moderationConvertor.toDimensionDomain(dimensionDO);
+    }
+
+    @Override
+    public Optional<ModerationDimension> findDimensionById(Long id) {
+        ModerationDimensionDO dimensionDO = dimensionMapper.selectById(id);
+        return Optional.ofNullable(moderationConvertor.toDimensionDomain(dimensionDO));
+    }
+
+    @Override
+    public Optional<ModerationDimension> findDimensionByCode(String code) {
+        ModerationDimensionDO dimensionDO = dimensionMapper.findByCode(code);
+        return Optional.ofNullable(moderationConvertor.toDimensionDomain(dimensionDO));
+    }
+
+    @Override
+    public List<ModerationDimension> findDimensionsByCategory(String category) {
+        List<ModerationDimensionDO> dimensionDOs = dimensionMapper.findByCategoryOrderBySortOrder(category);
+        return dimensionDOs.stream()
+                .map(moderationConvertor::toDimensionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationDimension> findDimensionsBySeverityLevel(SeverityLevel severityLevel) {
+        List<ModerationDimensionDO> dimensionDOs = dimensionMapper.findBySeverityLevel(severityLevel.getCode());
+        return dimensionDOs.stream()
+                .map(moderationConvertor::toDimensionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationDimension> findAllActiveDimensions() {
+        List<ModerationDimensionDO> dimensionDOs = dimensionMapper.findAllActiveOrderBySortOrder();
+        return dimensionDOs.stream()
+                .map(moderationConvertor::toDimensionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationDimension> findDimensionsByCategoryId(Long categoryId) {
+        List<ModerationDimensionDO> dimensionDOs = dimensionMapper.findByCategoryId(categoryId);
+        return dimensionDOs.stream()
+                .map(moderationConvertor::toDimensionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationDimension> findDimensionsByConfidenceRange(Double minThreshold, Double maxThreshold) {
+        List<ModerationDimensionDO> dimensionDOs = dimensionMapper.findByConfidenceThresholdRange(minThreshold, maxThreshold);
+        return dimensionDOs.stream()
+                .map(moderationConvertor::toDimensionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean deleteModerationDimension(Long id) {
+        return dimensionMapper.deleteById(id) > 0;
+    }
+
+    // ====================== 策略维度关联管理 ======================
+
+    @Override
+    public List<ModerationDimension> findDimensionsByPolicyId(Long policyId) {
+        List<ModerationPolicyDimensionDO> relationDOs = policyDimensionMapper.findByPolicyIdWithDimensionInfo(policyId);
+        return relationDOs.stream()
+                .map(relationDO -> {
+                    // 这里需要从关联表中构造维度对象
+                    // 实际实现中可能需要优化查询以避免N+1问题
+                    ModerationDimensionDO dimensionDO = dimensionMapper.selectById(relationDO.getDimensionId());
+                    return moderationConvertor.toDimensionDomain(dimensionDO);
+                })
+                .filter(dimension -> dimension != null)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicy> findPoliciesByDimensionId(Long dimensionId) {
+        List<ModerationPolicyDimensionDO> relationDOs = policyDimensionMapper.findByDimensionIdWithPolicyInfo(dimensionId);
+        return relationDOs.stream()
+                .map(relationDO -> {
+                    ModerationPolicyDO policyDO = policyMapper.selectById(relationDO.getPolicyId());
+                    return moderationConvertor.toPolicyDomain(policyDO);
+                })
+                .filter(policy -> policy != null)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean savePolicyDimensionRelation(Long policyId, Long dimensionId, Boolean isActive, 
+                                             Double weight, Double customThreshold, String customAction, String updatedBy) {
+        ModerationPolicyDimensionDO existing = policyDimensionMapper.findByPolicyIdAndDimensionId(policyId, dimensionId);
+        
+        if (existing != null) {
+            // 更新现有关联
+            existing.setIsActive(isActive);
+            existing.setWeight(weight != null ? new BigDecimal(weight) : null);
+            existing.setCustomThreshold(customThreshold != null ? new BigDecimal(customThreshold) : null);
+            existing.setCustomAction(customAction);
+            existing.setUpdatedBy(updatedBy);
+            existing.setUpdatedAt(System.currentTimeMillis());
+            return policyDimensionMapper.updateById(existing) > 0;
+        } else {
+            // 创建新关联
+            ModerationPolicyDimensionDO newRelation = ModerationPolicyDimensionDO.builder()
+                    .policyId(policyId)
+                    .dimensionId(dimensionId)
+                    .isActive(isActive)
+                    .weight(weight != null ? new BigDecimal(weight) : BigDecimal.ONE)
+                    .customThreshold(customThreshold != null ? new BigDecimal(customThreshold) : null)
+                    .customAction(customAction)
+                    .createdBy(updatedBy)
+                    .updatedBy(updatedBy)
+                    .createdAt(System.currentTimeMillis())
+                    .updatedAt(System.currentTimeMillis())
+                    .build();
+            return policyDimensionMapper.insert(newRelation) > 0;
+        }
+    }
+
+    @Override
+    public boolean deletePolicyDimensionRelation(Long policyId, Long dimensionId) {
+        ModerationPolicyDimensionDO existing = policyDimensionMapper.findByPolicyIdAndDimensionId(policyId, dimensionId);
+        if (existing != null) {
+            return policyDimensionMapper.deleteById(existing.getId()) > 0;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean batchUpdatePolicyDimensionStatus(Long policyId, List<Long> dimensionIds, Boolean isActive, String updatedBy) {
+        if (dimensionIds == null || dimensionIds.isEmpty()) {
+            return false;
+        }
+        
+        String dimensionIdsStr = dimensionIds.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        
+        return policyDimensionMapper.batchUpdateActiveStatus(policyId, dimensionIdsStr, isActive, updatedBy, System.currentTimeMillis()) > 0;
+    }
+
+    // ====================== 策略模板管理 ======================
+
+    @Override
+    public ModerationPolicyTemplate saveModerationPolicyTemplate(ModerationPolicyTemplate template) {
+        ModerationPolicyTemplateDO templateDO = moderationConvertor.toTemplateDO(template);
+        if (templateDO.getId() == null) {
+            templateMapper.insert(templateDO);
+        } else {
+            templateMapper.updateById(templateDO);
+        }
+        return moderationConvertor.toTemplateDomain(templateDO);
+    }
+
+    @Override
+    public Optional<ModerationPolicyTemplate> findTemplateById(Long id) {
+        ModerationPolicyTemplateDO templateDO = templateMapper.selectById(id);
+        return Optional.ofNullable(moderationConvertor.toTemplateDomain(templateDO));
+    }
+
+    @Override
+    public Optional<ModerationPolicyTemplate> findTemplateByCode(String code) {
+        ModerationPolicyTemplateDO templateDO = templateMapper.findByCode(code);
+        return Optional.ofNullable(moderationConvertor.toTemplateDomain(templateDO));
+    }
+
+    @Override
+    public Optional<ModerationPolicyTemplate> findTemplateByCodeAndVersion(String code, String version) {
+        ModerationPolicyTemplateDO templateDO = templateMapper.findByCodeAndVersion(code, version);
+        return Optional.ofNullable(moderationConvertor.toTemplateDomain(templateDO));
+    }
+
+    @Override
+    public List<ModerationPolicyTemplate> findTemplatesByType(String templateType) {
+        List<ModerationPolicyTemplateDO> templateDOs = templateMapper.findByTemplateType(templateType);
+        return templateDOs.stream()
+                .map(moderationConvertor::toTemplateDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicyTemplate> findTemplatesByLanguage(String language) {
+        List<ModerationPolicyTemplateDO> templateDOs = templateMapper.findByLanguage(language);
+        return templateDOs.stream()
+                .map(moderationConvertor::toTemplateDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicyTemplate> findAllActiveTemplates() {
+        List<ModerationPolicyTemplateDO> templateDOs = templateMapper.findAllActiveOrderByTypeAndVersion();
+        return templateDOs.stream()
+                .map(moderationConvertor::toTemplateDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ModerationPolicyTemplate> findAllTemplateVersionsByCode(String code) {
+        List<ModerationPolicyTemplateDO> templateDOs = templateMapper.findAllVersionsByCode(code);
+        return templateDOs.stream()
+                .map(moderationConvertor::toTemplateDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public String findLatestTemplateVersionByCode(String code) {
+        return templateMapper.findLatestVersionByCode(code);
+    }
+
+    @Override
+    public Optional<ModerationPolicyTemplate> findTemplateByTypeAndLanguage(String templateType, String language) {
+        ModerationPolicyTemplateDO templateDO = templateMapper.findByTemplateTypeAndLanguage(templateType, language);
+        return Optional.ofNullable(moderationConvertor.toTemplateDomain(templateDO));
+    }
+
+    @Override
+    public boolean deleteModerationPolicyTemplate(Long id) {
+        return templateMapper.deleteById(id) > 0;
     }
 }

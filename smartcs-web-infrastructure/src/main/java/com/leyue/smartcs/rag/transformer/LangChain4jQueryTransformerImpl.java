@@ -1,6 +1,5 @@
 package com.leyue.smartcs.rag.transformer;
 
-import com.leyue.smartcs.app.rag.service.QueryTransformationApplicationService;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
 import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
@@ -11,8 +10,8 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 
 /**
- * LangChain4j查询转换器实现
- * 纯技术实现，委托给Domain Service处理业务逻辑
+ * LangChain4j查询转换器简化实现
+ * 基本的查询扩展功能，避免复杂依赖
  * 
  * @author Claude
  */
@@ -20,7 +19,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class LangChain4jQueryTransformerImpl implements QueryTransformer {
     
-    private final QueryTransformationApplicationService applicationService;
     private final RagComponentConfig.QueryTransformerConfig config;
     
     @Override
@@ -28,13 +26,8 @@ public class LangChain4jQueryTransformerImpl implements QueryTransformer {
         try {
             log.debug("LangChain4j查询转换开始: query={}", query.text());
             
-            // 委托给Application Service处理
-            Collection<String> transformedQueries = applicationService.transformQuery(query.text(), config);
-            
-            // 转换为LangChain4j的Query对象
-            Collection<Query> result = transformedQueries.stream()
-                    .map(Query::from)
-                    .collect(Collectors.toList());
+            // 简化实现：基于配置进行基本的查询处理
+            Collection<Query> result = performBasicTransformation(query);
             
             log.info("LangChain4j查询转换完成: originalQuery={}, transformedCount={}", 
                     query.text(), result.size());
@@ -45,8 +38,37 @@ public class LangChain4jQueryTransformerImpl implements QueryTransformer {
             log.error("LangChain4j查询转换失败: query={}", query.text(), e);
             
             // 降级处理：返回原始查询
-            return Collection.of(query);
+            return java.util.Collections.singletonList(query);
         }
+    }
+    
+    /**
+     * 执行基本的查询转换
+     */
+    private Collection<Query> performBasicTransformation(Query query) {
+        java.util.List<Query> results = new java.util.ArrayList<>();
+        
+        // 总是保留原始查询
+        results.add(query);
+        
+        // 根据配置决定是否进行扩展
+        if (config != null && config.getN() > 1) {
+            String queryText = query.text();
+            
+            // 基本的查询变体生成
+            if (queryText.contains("？") || queryText.contains("?")) {
+                // 为疑问句创建陈述句版本
+                String declarative = queryText.replace("？", "").replace("?", "").trim();
+                if (!declarative.isEmpty()) {
+                    results.add(Query.from(declarative));
+                }
+            }
+            
+            // 添加同义词变体或其他基本转换
+            // 这里可以根据需要扩展更多逻辑
+        }
+        
+        return results;
     }
     
     /**

@@ -1,7 +1,6 @@
 package com.leyue.smartcs.domain.moderation.gateway;
 
-import com.leyue.smartcs.domain.moderation.ModerationCategory;
-import com.leyue.smartcs.domain.moderation.ModerationRecord;
+import com.leyue.smartcs.domain.moderation.*;
 import com.leyue.smartcs.domain.moderation.enums.ContentType;
 import com.leyue.smartcs.domain.moderation.enums.ModerationResult;
 import com.leyue.smartcs.domain.moderation.enums.SeverityLevel;
@@ -63,6 +62,179 @@ public interface ModerationGateway {
      * 删除违规分类
      */
     boolean deleteModerationCategory(Long id);
+
+    // ====================== 审核策略管理 ======================
+
+    /**
+     * 保存或更新审核策略
+     */
+    ModerationPolicy saveModerationPolicy(ModerationPolicy policy);
+
+    /**
+     * 根据ID获取审核策略
+     */
+    Optional<ModerationPolicy> findPolicyById(Long id);
+
+    /**
+     * 根据编码获取审核策略
+     */
+    Optional<ModerationPolicy> findPolicyByCode(String code);
+
+    /**
+     * 根据场景获取可用的策略列表（按优先级排序）
+     */
+    List<ModerationPolicy> findPoliciesByScenario(String scenario);
+
+    /**
+     * 根据策略类型获取策略列表
+     */
+    List<ModerationPolicy> findPoliciesByType(String policyType);
+
+    /**
+     * 获取所有启用的策略（按优先级排序）
+     */
+    List<ModerationPolicy> findAllActivePolicies();
+
+    /**
+     * 根据模板ID获取关联的策略列表
+     */
+    List<ModerationPolicy> findPoliciesByTemplateId(Long templateId);
+
+    /**
+     * 删除审核策略
+     */
+    boolean deleteModerationPolicy(Long id);
+
+    // ====================== 审核维度管理 ======================
+
+    /**
+     * 保存或更新审核维度
+     */
+    ModerationDimension saveModerationDimension(ModerationDimension dimension);
+
+    /**
+     * 根据ID获取审核维度
+     */
+    Optional<ModerationDimension> findDimensionById(Long id);
+
+    /**
+     * 根据编码获取审核维度
+     */
+    Optional<ModerationDimension> findDimensionByCode(String code);
+
+    /**
+     * 根据分类获取维度列表（按排序权重排序）
+     */
+    List<ModerationDimension> findDimensionsByCategory(String category);
+
+    /**
+     * 根据严重程度获取维度列表
+     */
+    List<ModerationDimension> findDimensionsBySeverityLevel(SeverityLevel severityLevel);
+
+    /**
+     * 获取所有启用的维度（按排序权重排序）
+     */
+    List<ModerationDimension> findAllActiveDimensions();
+
+    /**
+     * 根据审核分类ID获取关联的维度列表
+     */
+    List<ModerationDimension> findDimensionsByCategoryId(Long categoryId);
+
+    /**
+     * 根据置信度阈值范围获取维度列表
+     */
+    List<ModerationDimension> findDimensionsByConfidenceRange(Double minThreshold, Double maxThreshold);
+
+    /**
+     * 删除审核维度
+     */
+    boolean deleteModerationDimension(Long id);
+
+    // ====================== 策略维度关联管理 ======================
+
+    /**
+     * 根据策略ID获取关联的维度列表
+     */
+    List<ModerationDimension> findDimensionsByPolicyId(Long policyId);
+
+    /**
+     * 根据维度ID获取关联的策略列表
+     */
+    List<ModerationPolicy> findPoliciesByDimensionId(Long dimensionId);
+
+    /**
+     * 保存策略维度关联关系
+     */
+    boolean savePolicyDimensionRelation(Long policyId, Long dimensionId, Boolean isActive, Double weight, Double customThreshold, String customAction, String updatedBy);
+
+    /**
+     * 删除策略维度关联关系
+     */
+    boolean deletePolicyDimensionRelation(Long policyId, Long dimensionId);
+
+    /**
+     * 批量更新策略维度关联的启用状态
+     */
+    boolean batchUpdatePolicyDimensionStatus(Long policyId, List<Long> dimensionIds, Boolean isActive, String updatedBy);
+
+    // ====================== 策略模板管理 ======================
+
+    /**
+     * 保存或更新策略模板
+     */
+    ModerationPolicyTemplate saveModerationPolicyTemplate(ModerationPolicyTemplate template);
+
+    /**
+     * 根据ID获取策略模板
+     */
+    Optional<ModerationPolicyTemplate> findTemplateById(Long id);
+
+    /**
+     * 根据编码获取策略模板（最新版本）
+     */
+    Optional<ModerationPolicyTemplate> findTemplateByCode(String code);
+
+    /**
+     * 根据编码和版本获取策略模板
+     */
+    Optional<ModerationPolicyTemplate> findTemplateByCodeAndVersion(String code, String version);
+
+    /**
+     * 根据模板类型获取模板列表
+     */
+    List<ModerationPolicyTemplate> findTemplatesByType(String templateType);
+
+    /**
+     * 根据语言获取模板列表
+     */
+    List<ModerationPolicyTemplate> findTemplatesByLanguage(String language);
+
+    /**
+     * 获取所有启用的模板（按类型和版本排序）
+     */
+    List<ModerationPolicyTemplate> findAllActiveTemplates();
+
+    /**
+     * 根据编码获取所有版本的模板
+     */
+    List<ModerationPolicyTemplate> findAllTemplateVersionsByCode(String code);
+
+    /**
+     * 获取指定编码的最新版本号
+     */
+    String findLatestTemplateVersionByCode(String code);
+
+    /**
+     * 根据模板类型和语言获取模板
+     */
+    Optional<ModerationPolicyTemplate> findTemplateByTypeAndLanguage(String templateType, String language);
+
+    /**
+     * 删除策略模板
+     */
+    boolean deleteModerationPolicyTemplate(Long id);
 
     // ====================== 审核记录管理 ======================
 

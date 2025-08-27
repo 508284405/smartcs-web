@@ -1,6 +1,6 @@
 package com.leyue.smartcs.chat;
 
-import com.leyue.smartcs.chat.convertor.MessageConverter;
+import com.leyue.smartcs.chat.convertor.MessageConvertor;
 import com.leyue.smartcs.chat.dataobject.CsMessageDO;
 import com.leyue.smartcs.chat.mapper.CsMessageMapper;
 import com.leyue.smartcs.domain.chat.Message;
@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 public class MessageGatewayImpl implements MessageGateway {
     
     private final CsMessageMapper messageMapper;
-    private final MessageConverter messageConverter;
+    private final MessageConvertor messageConverter;
     
     @Override
     public String sendMessage(Message message) {

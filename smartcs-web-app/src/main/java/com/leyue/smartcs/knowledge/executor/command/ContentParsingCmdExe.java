@@ -6,7 +6,7 @@ import com.leyue.smartcs.domain.knowledge.Content;
 import com.leyue.smartcs.domain.knowledge.enums.ContentStatusEnum;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.domain.knowledge.gateway.ContentGateway;
-import com.leyue.smartcs.domain.utils.OssFileDownloader;
+import com.leyue.smartcs.utils.OssFileDownloader;
 import com.leyue.smartcs.dto.errorcode.ModelErrorCode;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.model.service.DefaultModelService;

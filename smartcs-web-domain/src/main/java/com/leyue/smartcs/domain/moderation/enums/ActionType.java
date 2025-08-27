@@ -6,6 +6,11 @@ package com.leyue.smartcs.domain.moderation.enums;
 public enum ActionType {
     
     /**
+     * 审核通过 - 内容完全合规，允许正常使用
+     */
+    APPROVE("APPROVE", "审核通过", 0, "内容完全合规，允许正常使用"),
+    
+    /**
      * 警告 - 记录违规但允许内容通过，给用户警告提示
      */
     WARN("WARN", "警告", 1, "记录违规并给用户警告，允许内容通过"),
@@ -123,10 +128,10 @@ public enum ActionType {
     }
 
     /**
-     * 判断是否为非阻断性动作（WARN或REVIEW）
+     * 判断是否为非阻断性动作（APPROVE、WARN或REVIEW）
      */
     public boolean isNonBlocking() {
-        return this == WARN || this == REVIEW;
+        return this == APPROVE || this == WARN || this == REVIEW;
     }
 
     /**
@@ -142,13 +147,13 @@ public enum ActionType {
     public static ActionType recommendForSeverityLevel(SeverityLevel severityLevel) {
         switch (severityLevel) {
             case LOW:
-                return WARN;
+                return APPROVE;
             case MEDIUM:
-                return REVIEW;
+                return WARN;
             case HIGH:
-                return BLOCK;
+                return REVIEW;
             case CRITICAL:
-                return ESCALATE;
+                return BLOCK;
             default:
                 return BLOCK;
         }
@@ -159,6 +164,8 @@ public enum ActionType {
      */
     public String getUserFriendlyDescription() {
         switch (this) {
+            case APPROVE:
+                return "您的内容完全合规，可以正常使用";
             case WARN:
                 return "您的内容包含轻微不当内容，请注意用词规范";
             case REVIEW:

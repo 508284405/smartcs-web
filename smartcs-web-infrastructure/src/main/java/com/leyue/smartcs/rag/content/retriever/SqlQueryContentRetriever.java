@@ -1,19 +1,23 @@
 package com.leyue.smartcs.rag.content.retriever;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import com.leyue.smartcs.rag.database.service.NlpToSqlService;
 import com.leyue.smartcs.rag.database.service.NlpToSqlService.SqlGenerationResult;
+
+import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.rag.content.Content;
-import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.query.Query;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
-
-import java.util.*;
-import java.util.regex.Pattern;
 
 /**
  * SQL查询内容检索器
@@ -23,7 +27,6 @@ import java.util.regex.Pattern;
  * @author Claude
  */
 @Slf4j
-@Component
 public class SqlQueryContentRetriever implements ContentRetriever {
 
     private final JdbcTemplate jdbcTemplate;

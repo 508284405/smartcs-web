@@ -924,5 +924,128 @@ public class RagComponentConfig {
         return memory != null ? memory : MemoryConfig.builder().build();
     }
 
+    /**
+     * 语义对齐配置
+     * 用于配置语义对齐阶段的参数
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SemanticAlignmentConfig {
+        
+        /**
+         * 模型ID（可选，未设置时使用默认）
+         */
+        private Long modelId;
+        
+        /**
+         * 是否启用
+         */
+        @Builder.Default
+        private Boolean enabled = true;
+        
+        /**
+         * 相似度阈值
+         */
+        @DecimalMin(value = "0.0", message = "相似度阈值不能小于0")
+        @DecimalMax(value = "1.0", message = "相似度阈值不能大于1")
+        @Builder.Default
+        private Double similarityThreshold = 0.7;
+    }
+
+    /**
+     * 意图抽取配置
+     * 用于配置意图抽取阶段的参数
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class IntentExtractionConfig {
+        
+        /**
+         * 模型ID（可选，未设置时使用默认）
+         */
+        private Long modelId;
+        
+        /**
+         * 是否启用
+         */
+        @Builder.Default
+        private Boolean enabled = true;
+        
+        /**
+         * 置信度阈值
+         */
+        @DecimalMin(value = "0.0", message = "置信度阈值不能小于0")
+        @DecimalMax(value = "1.0", message = "置信度阈值不能大于1")
+        @Builder.Default
+        private Double confidenceThreshold = 0.6;
+    }
+
+    /**
+     * 可检索化配置
+     * 用于配置可检索化改写阶段的参数
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RetrievabilityConfig {
+        
+        /**
+         * 模型ID（可选，未设置时使用默认）
+         */
+        private Long modelId;
+        
+        /**
+         * 是否启用
+         */
+        @Builder.Default
+        private Boolean enabled = false;
+        
+        /**
+         * 改写策略
+         */
+        @Builder.Default
+        private String rewriteStrategy = "default";
+    }
+
+    /**
+     * 扩展策略配置
+     * 用于配置扩展策略阶段的参数
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExpansionStrategyConfig {
+        
+        /**
+         * 模型ID（可选，未设置时使用默认）
+         */
+        private Long modelId;
+        
+        /**
+         * 是否启用
+         */
+        @Builder.Default
+        private Boolean enabled = false;
+        
+        /**
+         * 扩展策略类型
+         */
+        @Builder.Default
+        private String strategyType = "adaptive";
+        
+        /**
+         * 最大扩展数量
+         */
+        @Min(value = 1, message = "最大扩展数量不能少于1")
+        @Max(value = 20, message = "最大扩展数量不能超过20")
+        @Builder.Default
+        private Integer maxExpansions = 5;
+    }
 
 }

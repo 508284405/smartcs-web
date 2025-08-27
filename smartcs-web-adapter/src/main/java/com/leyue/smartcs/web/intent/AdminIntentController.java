@@ -357,4 +357,35 @@ public class AdminIntentController {
         log.info("管理端批量删除意图样本，数量: {}", cmd.getSampleIds().size());
         return intentService.batchDeleteSamples(cmd.getSampleIds());
     }
+    
+    // ====== 槽位模板管理 ======
+    
+    /**
+     * 获取意图槽位模板
+     */
+    @GetMapping("/intents/{intentId}/slot-template")
+    public SingleResponse<SlotTemplateDTO> getSlotTemplate(@PathVariable Long intentId) {
+        log.info("管理端获取意图槽位模板: {}", intentId);
+        return intentService.getSlotTemplate(intentId);
+    }
+    
+    /**
+     * 更新意图槽位模板
+     */
+    @PutMapping("/intents/{intentId}/slot-template")
+    public Response updateSlotTemplate(@PathVariable Long intentId,
+                                     @Valid @RequestBody SlotTemplateDTO slotTemplate) {
+        log.info("管理端更新意图槽位模板: {}", intentId);
+        return intentService.updateSlotTemplate(intentId, slotTemplate);
+    }
+    
+    /**
+     * 测试槽位填充
+     */
+    @PostMapping("/intents/{intentId}/slot-template/test")
+    public SingleResponse<SlotFillingTestResultDTO> testSlotFilling(@PathVariable Long intentId,
+                                                                  @Valid @RequestBody SlotFillingTestCmd cmd) {
+        log.info("管理端测试槽位填充: intentId={}, query={}", intentId, cmd.getQuery());
+        return intentService.testSlotFilling(intentId, cmd);
+    }
 }

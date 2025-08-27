@@ -1,21 +1,30 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.intent.ai.IntentClassificationAiService;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
-import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformationException;
+import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
+
+import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.rag.query.Query;
+import dev.langchain4j.service.AiServices;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
-import java.util.stream.Collectors;
 
 /**
  * 意图识别与结构化槽位提取阶段
@@ -25,6 +34,7 @@ import java.util.stream.Collectors;
  * 3. 结构化槽位提取（时间、地点、设备型号等）
  * 4. 查询类型判断（问答/对比/汇总等）
  * 5. 过滤条件抽取
+ * 通过QueryContext动态获取LLM实例，支持灵活配置
  * 
  * @author Claude
  */
@@ -32,8 +42,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class IntentExtractionStage implements QueryTransformerStage {
     
-    private final IntentClassificationAiService intentClassificationAiService;
+    private final DynamicModelManager dynamicModelManager;
     private final ObjectMapper objectMapper;
+    private final DictionaryService dictionaryService;
+    
+    /**
+     * IntentClassificationAiService实例缓存（按模型ID缓存）
+     */
+    private final Map<Long, IntentClassificationAiService> aiServiceCache = new HashMap<>();
     
     // 实体抽取模式
     private static final Map<String, Pattern> ENTITY_PATTERNS = createEntityPatterns();
@@ -46,7 +62,7 @@ public class IntentExtractionStage implements QueryTransformerStage {
     
     // 数值与单位模式
     private static final Pattern VALUE_UNIT_PATTERN = Pattern.compile(
-        "(\\d+(?:\\.\\d+)?)[\\s]*([a-zA-Z\\u4e00-\\u9fa5]+)(?:[\\s]*[以上|以下|左右|约]?)?"
+        "(\\d+(?:\\.\\d+)?)[\\s]*([a-zA-Z\\u4e00-\\u9fa5]+)(?:[\\s]*(以上|以下|左右|约))?"
     );
     
     // 比较运算符模式
@@ -106,20 +122,26 @@ public class IntentExtractionStage implements QueryTransformerStage {
     private QueryIntent extractIntentAndSlots(QueryContext context, Query query) {
         String text = query.text();
         
-        // 1. 意图分类
-        IntentClassificationResult intentResult = classifyIntent(context, text);
+        // 1. 意图分类（集成字典数据）
+        IntentClassificationResult intentResult = classifyIntentWithDictionary(context, text);
         
-        // 2. 查询类型识别
-        QueryType queryType = recognizeQueryType(text);
+        // 2. 查询类型识别（集成字典数据）
+        QueryType queryType = recognizeQueryTypeWithDictionary(context, text);
         
-        // 3. 实体抽取
-        Map<String, List<String>> entities = extractEntities(text);
+        // 3. 实体抽取（集成字典数据）
+        Map<String, List<String>> entities = extractEntitiesWithDictionary(context, text);
         
         // 4. 结构化槽位提取
         Map<String, Object> slots = extractStructuredSlots(text);
         
         // 5. 过滤条件提取
         List<FilterCondition> filterConditions = extractFilterConditions(text);
+        
+        // 记录处理过程到上下文
+        if (intentResult.getConfidence() > 0.8) {
+            context.setAttribute("intent-extraction-high-confidence", true);
+            context.setAttribute("intent-code", intentResult.getIntentCode());
+        }
         
         return QueryIntent.builder()
                 .originalText(text)
@@ -137,15 +159,153 @@ public class IntentExtractionStage implements QueryTransformerStage {
     }
     
     /**
+     * 基于字典的意图分类增强
+     */
+    private IntentClassificationResult classifyIntentWithDictionary(QueryContext context, String text) {
+        // 1. 先尝试通过字典进行快速意图匹配
+        IntentClassificationResult dictionaryResult = classifyIntentByDictionary(context, text);
+        
+        // 2. 如果字典匹配置信度较高，直接返回
+        if (dictionaryResult.getConfidence() > 0.85) {
+            log.debug("字典意图匹配成功: intent={}, confidence={}", dictionaryResult.getIntentCode(), dictionaryResult.getConfidence());
+            return dictionaryResult;
+        }
+        
+        // 3. 否则回退到AI意图分类
+        IntentClassificationResult aiResult = classifyIntent(context, text);
+        
+        // 4. 综合字典和AI结果，选择置信度更高的
+        if (dictionaryResult.getConfidence() > aiResult.getConfidence()) {
+            return dictionaryResult;
+        } else {
+            return aiResult;
+        }
+    }
+    
+    /**
+     * 基于字典的意图分类
+     */
+    private IntentClassificationResult classifyIntentByDictionary(QueryContext context, String text) {
+        try {
+            // 获取domain配置
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            // 获取意图模式字典
+            Map<String, String> intentPatterns = dictionaryService.getIntentPatterns(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            // 获取意图关键词字典
+            Map<String, String> intentKeywords = dictionaryService.getIntentKeywords(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            // 首先尝试模式匹配
+            for (Map.Entry<String, String> entry : intentPatterns.entrySet()) {
+                String pattern = entry.getKey();
+                String intentCode = entry.getValue();
+                
+                if (text.matches(".*" + pattern + ".*")) {
+                    log.debug("意图模式匹配: pattern={}, intent={}", pattern, intentCode);
+                    return createIntentResult(intentCode, 0.9);
+                }
+            }
+            
+            // 然后尝试关键词匹配
+            double maxScore = 0.0;
+            String bestIntentCode = null;
+            
+            for (Map.Entry<String, String> entry : intentKeywords.entrySet()) {
+                String keyword = entry.getKey();
+                String intentCode = entry.getValue();
+                
+                if (text.toLowerCase().contains(keyword.toLowerCase())) {
+                    double score = calculateKeywordMatchScore(text, keyword);
+                    if (score > maxScore) {
+                        maxScore = score;
+                        bestIntentCode = intentCode;
+                    }
+                }
+            }
+            
+            if (bestIntentCode != null && maxScore > 0.6) {
+                log.debug("意图关键词匹配: intent={}, score={}", bestIntentCode, maxScore);
+                return createIntentResult(bestIntentCode, maxScore);
+            }
+            
+            // 如果都没有匹配，返回低置信度的默认结果
+            return createDefaultIntentResult();
+            
+        } catch (Exception e) {
+            log.warn("字典意图分类失败，返回默认结果: {}", e.getMessage());
+            return createDefaultIntentResult();
+        }
+    }
+    
+    /**
+     * 计算关键词匹配得分
+     */
+    private double calculateKeywordMatchScore(String text, String keyword) {
+        String lowerText = text.toLowerCase();
+        String lowerKeyword = keyword.toLowerCase();
+        
+        // 完全匹配得分最高
+        if (lowerText.equals(lowerKeyword)) {
+            return 0.95;
+        }
+        
+        // 包含匹配
+        if (lowerText.contains(lowerKeyword)) {
+            // 根据关键词在文本中的比例计算得分
+            double ratio = (double) lowerKeyword.length() / lowerText.length();
+            return Math.min(0.8, 0.6 + ratio * 0.2);
+        }
+        
+        return 0.0;
+    }
+    
+    /**
+     * 创建意图结果
+     */
+    private IntentClassificationResult createIntentResult(String intentCode, double confidence) {
+        // 这里简化处理，实际应该从配置中获取意图名称和分类信息
+        String intentName = intentCode.replace("_", " ").toUpperCase();
+        String catalogCode = intentCode.contains("_") ? intentCode.split("_")[0] : "general";
+        String catalogName = catalogCode.toUpperCase();
+        
+        return IntentClassificationResult.builder()
+                .intentCode(intentCode)
+                .intentName(intentName)
+                .catalogCode(catalogCode)
+                .catalogName(catalogName)
+                .confidence(confidence)
+                .build();
+    }
+    
+    /**
      * 调用意图分类服务
      */
     private IntentClassificationResult classifyIntent(QueryContext context, String text) {
         try {
+            // 检查LLM配置
+            if (context.getLlmConfig() == null || context.getLlmConfig().getIntentClassificationModelIdOrDefault() == null) {
+                log.warn("意图识别LLM配置未设置，使用默认分类: text={}", text);
+                return createDefaultIntentResult();
+            }
+            
+            Long modelId = context.getLlmConfig().getIntentClassificationModelIdOrDefault();
+            
+            // 获取意图分类AI服务
+            IntentClassificationAiService aiService = getOrCreateIntentClassificationAiService(modelId);
+            
             // 构建意图列表（这里简化处理，实际应从配置或数据库获取）
             String intentList = buildIntentList(context);
             
             // 调用AI服务进行意图分类
-            String result = intentClassificationAiService.classifyIntent(
+            String result = aiService.classifyIntent(
                 text, intentList, context.getChannel(), context.getTenant()
             );
             
@@ -154,14 +314,46 @@ public class IntentExtractionStage implements QueryTransformerStage {
             
         } catch (Exception e) {
             log.warn("意图分类失败，使用默认分类: text={}", text, e);
-            return IntentClassificationResult.builder()
-                    .intentCode("UNKNOWN")
-                    .intentName("未知意图")
-                    .catalogCode("CATALOG_unknown")
-                    .catalogName("未知分类")
-                    .confidence(0.0)
-                    .build();
+            return createDefaultIntentResult();
         }
+    }
+    
+    /**
+     * 创建默认意图结果
+     */
+    private IntentClassificationResult createDefaultIntentResult() {
+        return IntentClassificationResult.builder()
+                .intentCode("UNKNOWN")
+                .intentName("未知意图")
+                .catalogCode("CATALOG_unknown")
+                .catalogName("未知分类")
+                .confidence(0.0)
+                .build();
+    }
+    
+    /**
+     * 获取或创建意图分类AI服务
+     */
+    private IntentClassificationAiService getOrCreateIntentClassificationAiService(Long modelId) {
+        return aiServiceCache.computeIfAbsent(modelId, id -> {
+            try {
+                // 从DynamicModelManager获取ChatModel
+                ChatModel chatModel = dynamicModelManager.getChatModel(id);
+                
+                // 使用AiServices创建意图分类服务
+                IntentClassificationAiService aiService = AiServices.builder(IntentClassificationAiService.class)
+                        .chatModel(chatModel)
+                        .build();
+                
+                log.debug("创建IntentClassificationAiService: modelId={}", id);
+                return aiService;
+                
+            } catch (Exception e) {
+                log.error("创建IntentClassificationAiService失败: modelId={}", id, e);
+                throw new QueryTransformationException(getName(), 
+                        "创建IntentClassificationAiService失败: " + e.getMessage(), e, false);
+            }
+        });
     }
     
     /**
@@ -200,12 +392,18 @@ public class IntentExtractionStage implements QueryTransformerStage {
         try {
             JsonNode node = objectMapper.readTree(jsonResult);
             
+            // 兼容不同的字段名称
+            double confidence = node.path("confidenceScore").asDouble(0.0);
+            if (confidence == 0.0) {
+                confidence = node.path("confidence").asDouble(0.0);
+            }
+            
             return IntentClassificationResult.builder()
                     .intentCode(node.path("intentCode").asText("UNKNOWN"))
                     .intentName(node.path("intentName").asText("未知意图"))
                     .catalogCode(node.path("catalogCode").asText("CATALOG_unknown"))
                     .catalogName(node.path("catalogName").asText("未知分类"))
-                    .confidence(node.path("confidence").asDouble(0.0))
+                    .confidence(confidence)
                     .reasoning(node.path("reasoning").asText(""))
                     .build();
                     
@@ -218,6 +416,160 @@ public class IntentExtractionStage implements QueryTransformerStage {
                     .catalogName("未知分类")
                     .confidence(0.0)
                     .build();
+        }
+    }
+    
+    /**
+     * 基于字典的查询类型识别增强
+     */
+    private QueryType recognizeQueryTypeWithDictionary(QueryContext context, String text) {
+        // 1. 先尝试通过字典进行查询类型识别
+        QueryType dictionaryResult = recognizeQueryTypeByDictionary(context, text);
+        
+        // 2. 如果字典匹配成功，返回结果
+        if (dictionaryResult != QueryType.QUESTION_ANSWER) {
+            return dictionaryResult;
+        }
+        
+        // 3. 否则回退到内置模式匹配
+        return recognizeQueryType(text);
+    }
+    
+    /**
+     * 基于字典的查询类型识别
+     */
+    private QueryType recognizeQueryTypeByDictionary(QueryContext context, String text) {
+        try {
+            // 这里简化处理，实际可以扩展字典服务支持查询类型模式
+            // 目前通过意图关键词来推断查询类型
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            Map<String, String> intentKeywords = dictionaryService.getIntentKeywords(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            String lowerText = text.toLowerCase();
+            
+            // 检查对比类型关键词
+            if (containsAnyKeyword(lowerText, intentKeywords, "对比", "比较", "差异", "区别", "versus", "vs")) {
+                return QueryType.FEATURE_COMPARISON;
+            }
+            
+            // 检查汇总类型关键词
+            if (containsAnyKeyword(lowerText, intentKeywords, "汇总", "统计", "总结", "概述", "summary")) {
+                return QueryType.SUMMARY_REPORT;
+            }
+            
+            // 检查故障排查关键词
+            if (containsAnyKeyword(lowerText, intentKeywords, "故障", "问题", "不能", "无法", "错误", "异常", "troubleshoot")) {
+                return QueryType.TROUBLESHOOTING;
+            }
+            
+            // 检查手册查找关键词
+            if (containsAnyKeyword(lowerText, intentKeywords, "手册", "文档", "指南", "说明", "manual", "documentation")) {
+                return QueryType.MANUAL_LOOKUP;
+            }
+            
+            // 检查代码示例关键词
+            if (containsAnyKeyword(lowerText, intentKeywords, "代码", "示例", "样例", "例子", "code", "example")) {
+                return QueryType.CODE_EXAMPLE;
+            }
+            
+        } catch (Exception e) {
+            log.warn("字典查询类型识别失败: {}", e.getMessage());
+        }
+        
+        return QueryType.QUESTION_ANSWER; // 默认问答类型
+    }
+    
+    /**
+     * 检查文本是否包含任何指定关键词
+     */
+    private boolean containsAnyKeyword(String text, Map<String, String> intentKeywords, String... keywords) {
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) {
+                return true;
+            }
+            // 也检查字典中的关键词
+            for (String dictKeyword : intentKeywords.keySet()) {
+                if (dictKeyword.toLowerCase().contains(keyword) && text.contains(dictKeyword.toLowerCase())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 基于字典的实体抽取增强
+     */
+    private Map<String, List<String>> extractEntitiesWithDictionary(QueryContext context, String text) {
+        // 1. 先使用内置模式抽取
+        Map<String, List<String>> entities = extractEntities(text);
+        
+        // 2. 使用字典数据增强抽取结果
+        enhanceEntitiesWithDictionary(context, text, entities);
+        
+        return entities;
+    }
+    
+    /**
+     * 使用字典数据增强实体抽取
+     */
+    private void enhanceEntitiesWithDictionary(QueryContext context, String text, Map<String, List<String>> entities) {
+        try {
+            String domain = context.getAttribute("domain");
+            if (domain == null) {
+                domain = "default";
+            }
+            
+            // 获取领域术语字典来识别专业实体
+            Map<String, String> domainTerms = dictionaryService.getDomainTerms(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            String lowerText = text.toLowerCase();
+            
+            // 从领域术语中抽取实体
+            List<String> domainEntities = new ArrayList<>();
+            for (String term : domainTerms.keySet()) {
+                if (lowerText.contains(term.toLowerCase())) {
+                    String standardTerm = domainTerms.get(term);
+                    if (!domainEntities.contains(standardTerm)) {
+                        domainEntities.add(standardTerm);
+                        log.debug("字典实体抽取: {} -> {}", term, standardTerm);
+                    }
+                }
+            }
+            
+            if (!domainEntities.isEmpty()) {
+                entities.put("DOMAIN_TERMS", domainEntities);
+            }
+            
+            // 使用意图关键词补充实体信息
+            Map<String, String> intentKeywords = dictionaryService.getIntentKeywords(
+                context.getTenant(), context.getChannel(), domain, context.getLocale()
+            );
+            
+            List<String> intentEntities = new ArrayList<>();
+            for (String keyword : intentKeywords.keySet()) {
+                if (lowerText.contains(keyword.toLowerCase())) {
+                    String intentCode = intentKeywords.get(keyword);
+                    if (!intentEntities.contains(intentCode)) {
+                        intentEntities.add(intentCode);
+                    }
+                }
+            }
+            
+            if (!intentEntities.isEmpty()) {
+                entities.put("INTENT_KEYWORDS", intentEntities);
+            }
+            
+        } catch (Exception e) {
+            log.warn("字典增强实体抽取失败: {}", e.getMessage());
         }
     }
     
@@ -577,5 +929,27 @@ public class IntentExtractionStage implements QueryTransformerStage {
         if (intentStats != null && !intentStats.isEmpty()) {
             log.info("本次查询意图统计: {}", intentStats);
         }
+        
+        // 清理AI服务缓存（可选，根据需要决定）
+        if (aiServiceCache.size() > 10) { // 避免缓存过大
+            log.debug("清理IntentExtractionStage AI服务缓存: size={}", aiServiceCache.size());
+            aiServiceCache.clear();
+        }
+    }
+    
+    /**
+     * 清理特定模型的AI服务缓存
+     */
+    public void clearAiServiceCache(Long modelId) {
+        aiServiceCache.remove(modelId);
+        log.debug("清理IntentExtractionStage AI服务缓存: modelId={}", modelId);
+    }
+    
+    /**
+     * 清理所有AI服务缓存
+     */
+    public void clearAllAiServiceCache() {
+        aiServiceCache.clear();
+        log.debug("清理IntentExtractionStage所有AI服务缓存");
     }
 }

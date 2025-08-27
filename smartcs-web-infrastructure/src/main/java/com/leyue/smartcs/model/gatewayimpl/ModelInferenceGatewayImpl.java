@@ -2,8 +2,15 @@ package com.leyue.smartcs.model.gatewayimpl;
 
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.domain.model.gateway.ModelInferenceGateway;
-import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.gateway.ModelProvider;
+import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -21,7 +28,9 @@ import java.util.function.Consumer;
 @Slf4j
 public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
 
-    private final DynamicModelManager dynamicModelManager;
+    private final ModelProvider modelProvider;
+    private final RagAugmentorFactory ragAugmentorFactory;
+    private final ChatMemoryStore chatMemoryStore;
 
     /**
      * 同步推理 - 完全基于LangChain4j框架
@@ -105,12 +114,12 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
     }
 
     /**
-     * 检查模型是否支持推理 - 委托给DynamicModelManager
+     * 检查模型是否支持推理 - 委托给ModelProvider
      */
     @Override
     public boolean supportsInference(Long modelId) {
         try {
-            return dynamicModelManager.supportsInference(modelId);
+            return modelProvider.supportsInference(modelId);
         } catch (Exception e) {
             log.warn("检查模型推理支持失败: modelId={}", modelId, e);
             return false;
@@ -118,12 +127,12 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
     }
 
     /**
-     * 检查模型是否支持流式推理 - 委托给DynamicModelManager
+     * 检查模型是否支持流式推理 - 委托给ModelProvider
      */
     @Override
     public boolean supportsStreaming(Long modelId) {
         try {
-            return dynamicModelManager.supportsStreaming(modelId);
+            return modelProvider.supportsStreaming(modelId);
         } catch (Exception e) {
             log.warn("检查模型流式推理支持失败: modelId={}", modelId, e);
             return false;
@@ -149,23 +158,42 @@ public class ModelInferenceGatewayImpl implements ModelInferenceGateway {
      * 验证模型支持
      */
     private void validateModelSupport(Long modelId, boolean requireStreaming) {
-        if (!dynamicModelManager.supportsInference(modelId)) {
+        if (!modelProvider.supportsInference(modelId)) {
             throw new IllegalArgumentException("模型不支持推理: modelId=" + modelId);
         }
 
-        if (requireStreaming && !dynamicModelManager.supportsStreaming(modelId)) {
+        if (requireStreaming && !modelProvider.supportsStreaming(modelId)) {
             throw new IllegalArgumentException("模型不支持流式推理: modelId=" + modelId);
         }
     }
 
     /**
      * 创建推理服务 - 核心简化逻辑
-     * 基于LangChain4j框架和DynamicModelManager，自动处理所有复杂性：RAG、记忆、工具调用等
+     * 基于ModelProvider和RagAugmentorFactory，自动处理所有复杂性：RAG、记忆、工具调用等
      */
     private com.leyue.smartcs.model.ai.ModelInferenceService createInferenceService(Long modelId, List<Long> knowledgeIds) {
         try {
-            // 使用DynamicModelManager创建推理服务，它已经集成了RAG增强能力
-            return dynamicModelManager.createModelInferenceService(modelId, knowledgeIds);
+            log.info("创建ModelInferenceService: modelId={}, knowledgeIds={}", modelId, knowledgeIds);
+            
+            // 获取模型对应的ChatModel和StreamingChatModel
+            ChatModel chatModel = modelProvider.getChatModel(modelId);
+            StreamingChatModel streamingChatModel = modelProvider.getStreamingChatModel(modelId);
+            
+            // 创建RAG增强器
+            RetrievalAugmentor retrievalAugmentor = ragAugmentorFactory.createRetrievalAugmentor(modelId);
+            
+            // 使用LangChain4j AiServices框架创建推理服务
+            return AiServices.builder(com.leyue.smartcs.model.ai.ModelInferenceService.class)
+                    .chatModel(chatModel)
+                    .streamingChatModel(streamingChatModel)
+                    .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
+                            .id(memoryId)
+                            .maxMessages(20)
+                            .chatMemoryStore(chatMemoryStore)
+                            .build())
+                    .retrievalAugmentor(retrievalAugmentor)
+                    .build();
+            
         } catch (Exception e) {
             log.error("创建推理服务失败: modelId={}, knowledgeIds={}", modelId, knowledgeIds, e);
             throw new BizException("无法创建推理服务: " + e.getMessage());

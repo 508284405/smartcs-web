@@ -426,4 +426,29 @@ public interface IntentService {
      * @return 回滚结果
      */
     Response rollbackSnapshot(IntentSnapshotRollbackCmd cmd);
+    
+    // ============ 槽位模板管理 ============
+    
+    /**
+     * 获取意图槽位模板
+     * @param intentId 意图ID
+     * @return 槽位模板详情，如果不存在或未启用则返回空模板
+     */
+    SingleResponse<SlotTemplateDTO> getSlotTemplate(Long intentId);
+    
+    /**
+     * 更新意图槽位模板
+     * @param intentId 意图ID
+     * @param slotTemplate 槽位模板数据
+     * @return 更新结果
+     */
+    Response updateSlotTemplate(Long intentId, SlotTemplateDTO slotTemplate);
+    
+    /**
+     * 测试槽位填充
+     * @param intentId 意图ID
+     * @param cmd 测试命令
+     * @return 测试结果
+     */
+    SingleResponse<SlotFillingTestResultDTO> testSlotFilling(Long intentId, SlotFillingTestCmd cmd);
 }

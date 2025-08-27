@@ -2,6 +2,7 @@ package com.leyue.smartcs.rag.transformer.gateway;
 
 import com.leyue.smartcs.domain.rag.transformer.gateway.QueryExpansionGateway;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,8 @@ public class QueryExpansionGatewayImpl implements QueryExpansionGateway {
             log.debug("开始生成查询扩展: modelId={}, promptLength={}", modelId, prompt.length());
             
             ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
-            String result = chatModel.generate(prompt).content();
+            String result = chatModel.chat(UserMessage.from(prompt))
+                    .aiMessage().text();
             
             log.debug("查询扩展生成完成: modelId={}, resultLength={}", modelId, result.length());
             return result;

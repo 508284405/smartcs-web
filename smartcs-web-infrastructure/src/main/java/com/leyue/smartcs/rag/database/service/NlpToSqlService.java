@@ -1,7 +1,7 @@
 package com.leyue.smartcs.rag.database.service;
 
 import com.leyue.smartcs.domain.database.entity.DatabaseTableSchema;
-import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.model.gateway.ModelProvider;
 import com.leyue.smartcs.rag.database.service.SchemaRetrievalService.SchemaRetrievalResult;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class NlpToSqlService {
     
     private final SchemaRetrievalService schemaRetrievalService;
-    private final DynamicModelManager dynamicModelManager;
+    private final ModelProvider modelProvider;
     
     @Value("${smartcs.nlp2sql.max-tables-for-sql:5}")
     private Integer maxTablesForSql;
@@ -94,7 +94,7 @@ public class NlpToSqlService {
             String sqlPrompt = buildSqlGenerationPrompt(nlpQuery, schemaResult);
             
             // 3. 调用LLM生成SQL
-            ChatModel chatModel = dynamicModelManager.getChatModel(chatModelId);
+            ChatModel chatModel = modelProvider.getChatModel(chatModelId);
             String llmResponse = chatModel.chat(UserMessage.from(sqlPrompt))
                     .aiMessage().text();
             

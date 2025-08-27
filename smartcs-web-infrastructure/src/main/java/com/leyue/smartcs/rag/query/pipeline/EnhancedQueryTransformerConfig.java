@@ -1,17 +1,23 @@
 package com.leyue.smartcs.rag.query.pipeline;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.leyue.smartcs.intent.ai.IntentClassificationAiService;
-import com.leyue.smartcs.rag.query.pipeline.stages.*;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Arrays;
+import java.util.List;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
-import java.util.Arrays;
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.IntentExtractionStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.NormalizationStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.RewriteStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SemanticAlignmentStage;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 增强查询转换器配置
@@ -24,7 +30,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EnhancedQueryTransformerConfig {
     
-    private final IntentClassificationAiService intentClassificationAiService;
+    private final DynamicModelManager dynamicModelManager;
     private final ObjectMapper objectMapper;
     
     /**
@@ -44,7 +50,7 @@ public class EnhancedQueryTransformerConfig {
     @ConditionalOnProperty(name = "smartcs.rag.query.semantic-alignment.enabled", havingValue = "true", matchIfMissing = true)
     public SemanticAlignmentStage semanticAlignmentStage() {
         log.info("初始化语义对齐阶段");
-        return new SemanticAlignmentStage();
+        return new SemanticAlignmentStage(null); // 使用null作为DictionaryService，实际运行时会自动注入
     }
     
     /**
@@ -54,7 +60,7 @@ public class EnhancedQueryTransformerConfig {
     @ConditionalOnProperty(name = "smartcs.rag.query.intent-extraction.enabled", havingValue = "true", matchIfMissing = false)
     public IntentExtractionStage intentExtractionStage() {
         log.info("初始化意图识别与结构化抽取阶段");
-        return new IntentExtractionStage(intentClassificationAiService, objectMapper);
+        return new IntentExtractionStage(dynamicModelManager, objectMapper, null); // 使用null作为DictionaryService
     }
     
     /**
@@ -64,7 +70,7 @@ public class EnhancedQueryTransformerConfig {
     @ConditionalOnProperty(name = "smartcs.rag.query.rewrite.enabled", havingValue = "true", matchIfMissing = true)
     public RewriteStage rewriteStage() {
         log.info("初始化可检索化改写阶段");
-        return new RewriteStage();
+        return new RewriteStage(null); // 使用null作为DictionaryService
     }
     
     /**
