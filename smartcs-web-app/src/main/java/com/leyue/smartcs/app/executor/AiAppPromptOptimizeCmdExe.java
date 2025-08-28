@@ -1,18 +1,20 @@
 package com.leyue.smartcs.app.executor;
 
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.dto.SingleResponse;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.dto.app.AiAppPromptOptimizeCmd;
 import com.leyue.smartcs.dto.app.AiAppPromptOptimizeResponse;
-import com.leyue.smartcs.dto.model.ModelInferRequest;
-import com.leyue.smartcs.dto.model.ModelInferResponse;
-import com.leyue.smartcs.api.ModelService;
-import com.leyue.smartcs.domain.model.gateway.ModelGateway;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
 
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * AI应用Prompt优化命令执行器
@@ -22,7 +24,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AiAppPromptOptimizeCmdExe {
     
-    private final ModelService modelService;
+    private final DynamicModelManager dynamicModelManager;
     private final ModelGateway modelGateway;
     
     private static final String OPTIMIZE_PROMPT_TEMPLATE = """
@@ -56,29 +58,22 @@ public class AiAppPromptOptimizeCmdExe {
             
             // 使用指定的模型或默认模型
             Long modelId = cmd.getModelId();
-            if (modelId == null) {
-                // 获取默认的文本生成模型
-                modelId = getDefaultTextModel();
-            }
             
             // 构建优化prompt
             String optimizePrompt = buildOptimizePrompt(cmd);
             
-            // 调用模型进行同步推理
-            ModelInferRequest inferRequest = new ModelInferRequest();
-            inferRequest.setModelId(modelId);
-            inferRequest.setMessage(optimizePrompt);
-            inferRequest.setInferenceParams("{\"max_tokens\":2000,\"temperature\":0.7}");
+            // 直接调用LLM进行优化（绕过RAG流程）
+            ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
+            UserMessage userMessage = UserMessage.from(optimizePrompt);
+            ChatResponse llmResponse = chatModel.chat(userMessage);
             
-            SingleResponse<ModelInferResponse> inferResponse = modelService.infer(inferRequest);
-            
-            if (!inferResponse.isSuccess()) {
-                log.error("模型推理失败: {}", inferResponse.getErrMessage());
-                return SingleResponse.buildFailure("OPTIMIZE_FAILED", "Prompt优化失败: " + inferResponse.getErrMessage());
+            if (llmResponse == null || llmResponse.aiMessage() == null) {
+                log.error("LLM响应为空: modelId={}", modelId);
+                return SingleResponse.buildFailure("OPTIMIZE_FAILED", "LLM响应为空");
             }
             
             // 解析响应并构建结果
-            String responseText = inferResponse.getData().getContent();
+            String responseText = llmResponse.aiMessage().text();
             AiAppPromptOptimizeResponse response = parseOptimizeResponse(responseText, cmd, modelId);
             
             log.info("Prompt优化完成: appId={}", cmd.getAppId());
@@ -213,12 +208,6 @@ public class AiAppPromptOptimizeCmdExe {
         }
         
         return result.toString();
-    }
-    
-    private Long getDefaultTextModel() {
-        // 获取默认的文本生成模型ID，这里先返回固定值
-        // 实际实现中应该查询数据库获取默认模型
-        return 1L;
     }
     
     private String getModelName(Long modelId) {

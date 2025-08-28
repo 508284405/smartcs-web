@@ -1,18 +1,19 @@
 package com.leyue.smartcs.app.executor;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
+import com.leyue.smartcs.domain.app.AiApp;
+import com.leyue.smartcs.domain.app.gateway.AiAppGateway;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigCmd;
 import com.leyue.smartcs.dto.app.AiAppFunctionConfigResponse;
-import com.leyue.smartcs.domain.app.gateway.AiAppGateway;
-import com.leyue.smartcs.domain.app.AiApp;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * AI应用功能配置命令执行器

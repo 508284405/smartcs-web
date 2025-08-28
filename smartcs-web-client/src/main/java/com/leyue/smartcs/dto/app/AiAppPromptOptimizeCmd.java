@@ -32,7 +32,8 @@ public class AiAppPromptOptimizeCmd {
     private String optimizeGoal;
     
     /**
-     * 使用的模型ID（可选，不指定则使用默认模型）
+     * 使用的模型ID
      */
+    @NotNull(message = "模型ID不能为空")
     private Long modelId;
 }

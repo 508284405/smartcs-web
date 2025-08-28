@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `t_intent_catalog` (
 ) COMMENT '意图目录表';
 
 SELECT * FROM t_intent_catalog;
-SELECT * FROM t_intent where catalog_id = 12;
+SELECT * FROM t_intent WHERE is_deleted = 0;
 
 SELECT ti.code,ti.name,tic.name as catalog_name
 FROM
