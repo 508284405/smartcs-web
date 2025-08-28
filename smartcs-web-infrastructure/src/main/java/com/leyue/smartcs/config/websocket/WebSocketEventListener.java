@@ -1,5 +1,6 @@
 package com.leyue.smartcs.config.websocket;
 
+import com.leyue.smartcs.api.OfflineMessageService;
 import com.leyue.smartcs.dto.chat.ws.SystemMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,11 +15,12 @@ import org.springframework.web.socket.messaging.SessionSubscribeEvent;
  * WebSocket事件监听器
  */
 @Slf4j
-//@Component
+@Component
 @RequiredArgsConstructor
 public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
+    private final OfflineMessageService offlineMessageService;
 
     /**
      * 处理WebSocket连接事件
@@ -30,16 +32,20 @@ public class WebSocketEventListener {
         log.debug("WebSocket连接成功: sessionId={}", sessionId);
         String userId = event.getUser().getName();
 
-
         if (userId != null) {
-//            // 注册会话
-//            sessionManager.registerSession(userId, sessionId, "");
-
             // 发送连接成功通知
             SystemMessage systemMessage = new SystemMessage();
             systemMessage.setCode("CONNECT_SUCCESS");
             systemMessage.setContent("连接成功");
             sessionManager.sendToUser(userId, "messages", systemMessage);
+            
+            // 处理用户上线，推送离线消息摘要
+            try {
+                Long userIdLong = Long.valueOf(userId);
+                offlineMessageService.processUserOnline(userIdLong);
+            } catch (Exception e) {
+                log.error("处理用户上线离线消息失败: userId={}", userId, e);
+            }
         }
     }
 

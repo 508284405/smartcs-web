@@ -26,6 +26,16 @@ public class ChatMessage extends WebSocketMessage {
     private String toUserId;
     
     /**
+     * 群组ID（群聊消息）
+     */
+    private Long groupId;
+    
+    /**
+     * 发送者ID
+     */
+    private String fromUserId;
+    
+    /**
      * 消息内容
      */
     private String content;

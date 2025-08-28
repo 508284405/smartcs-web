@@ -4,6 +4,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.leyue.smartcs.api.MessageSendService;
+import com.leyue.smartcs.api.OfflineMessageService;
 import com.leyue.smartcs.chat.convertor.ChatMessageConvertor;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import com.leyue.smartcs.domain.chat.Message;
@@ -30,6 +31,8 @@ public class MessageSendServiceImpl implements MessageSendService {
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final IdGeneratorGateway idGeneratorGateway;
     private final ChatMessageConvertor chatMessageConvertor;
+    private final OfflineMessageService offlineMessageService;
+    private final MessageDistributionService messageDistributionService;
 
     @Override
     public void send(ChatMessage chatMessage) {
@@ -65,13 +68,39 @@ public class MessageSendServiceImpl implements MessageSendService {
 
         // 使用返回的消息ID或原有的消息ID
         String messageIdStr = messageId != null ? messageId : chatMessage.getMsgId();
+        chatMessage.setMsgId(messageIdStr);
 
-        // 5. 通过WebSocket发送给接收者
-        if (sessionManager.isUserOnline(Long.valueOf(receiverId))) {
-            sessionManager.sendToUser(receiverId, "messages", chatMessage);
+        // 5. 通过跨节点分发服务处理消息投递
+        messageDistributionService.publishDirectMessage(chatMessage, receiverId);
+
+        // 6. 发布事件用于审计和统计
+        messageDistributionService.publishEvent(java.util.Map.of(
+                "type", "DIRECT_MESSAGE",
+                "sessionId", chatMessage.getSessionId(),
+                "msgId", messageIdStr,
+                "fromUserId", chatMessage.getFromUserId(),
+                "toUserId", receiverId,
+                "timestamp", System.currentTimeMillis()
+        ));
+    }
+    
+    /**
+     * 生成消息摘要
+     * 
+     * @param content 消息内容
+     * @return 消息摘要
+     */
+    private String generateMessageBrief(String content) {
+        if (content == null || content.isEmpty()) {
+            return "[空消息]";
         }
-
-        // 6. 发送消息到Kafka用于异步处理（例如消息推送、统计等）
-        kafkaTemplate.send("chat-messages", String.valueOf(chatMessage.getSessionId()), messageIdStr);
+        
+        // 截取前50个字符作为摘要
+        int maxLength = 50;
+        if (content.length() <= maxLength) {
+            return content;
+        }
+        
+        return content.substring(0, maxLength) + "...";
     }
 }

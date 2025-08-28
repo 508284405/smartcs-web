@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.chat.mapper.OfflineMessageMapper">
+    
+    <!-- 根据接收者ID和会话ID查询离线消息 -->
+    <select id="findByReceiverAndConversation" resultType="com.leyue.smartcs.chat.dataobject.OfflineMessageDO">
+        SELECT * FROM t_im_offline_message 
+        WHERE receiver_id = #{receiverId} 
+        <if test="conversationId != null">
+            AND conversation_id = #{conversationId}
+        </if>
+        AND is_deleted = 0
+        ORDER BY created_at DESC 
+        LIMIT #{limit}
+    </select>
+    
+    <!-- 根据接收者ID获取所有未读的离线消息摘要（按会话分组，每个会话最新的一条） -->
+    <select id="findUnreadSummaryByReceiver" resultType="com.leyue.smartcs.chat.dataobject.OfflineMessageDO">
+        SELECT t1.* FROM t_im_offline_message t1
+        INNER JOIN (
+            SELECT conversation_id, MAX(created_at) AS max_created_at
+            FROM t_im_offline_message 
+            WHERE receiver_id = #{receiverId} AND is_deleted = 0
+            GROUP BY conversation_id
+        ) t2 ON t1.conversation_id = t2.conversation_id AND t1.created_at = t2.max_created_at
+        WHERE t1.receiver_id = #{receiverId} AND t1.is_deleted = 0
+        ORDER BY t1.created_at DESC
+    </select>
+    
+    <!-- 根据消息ID批量删除离线消息 -->
+    <update id="deleteByMsgIds">
+        UPDATE t_im_offline_message 
+        SET is_deleted = 1 
+        WHERE receiver_id = #{receiverId} 
+        AND msg_id IN 
+        <foreach collection="msgIds" item="msgId" open="(" separator="," close=")">
+            #{msgId}
+        </foreach>
+    </update>
+    
+    <!-- 根据接收者ID和会话ID清除所有离线消息 -->
+    <update id="clearByReceiverAndConversation">
+        UPDATE t_im_offline_message 
+        SET is_deleted = 1 
+        WHERE receiver_id = #{receiverId} 
+        AND conversation_id = #{conversationId}
+        AND is_deleted = 0
+    </update>
+    
+    <!-- 清理过期的离线消息 -->
+    <delete id="cleanExpiredMessages">
+        DELETE FROM t_im_offline_message 
+        WHERE created_at &lt; #{expireTimestamp}
+        AND is_deleted = 1
+    </delete>
+    
+    <!-- 批量插入离线消息 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO t_im_offline_message (
+            receiver_id, conversation_id, msg_id, msg_brief, created_at, is_deleted
+        ) VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.receiverId}, #{item.conversationId}, #{item.msgId}, 
+                #{item.msgBrief}, #{item.createdAt}, #{item.isDeleted}
+            )
+        </foreach>
+    </insert>
+    
+</mapper>

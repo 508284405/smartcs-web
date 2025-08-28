@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.chat.mapper.UnreadCounterMapper">
+    
+    <!-- 根据用户ID和会话ID查询未读计数 -->
+    <select id="findByUserAndConversation" resultType="com.leyue.smartcs.chat.dataobject.UnreadCounterDO">
+        SELECT * FROM t_im_unread_counter 
+        WHERE user_id = #{userId} 
+        AND conversation_id = #{conversationId}
+    </select>
+    
+    <!-- 增加未读计数 -->
+    <update id="incrementUnreadCount">
+        UPDATE t_im_unread_counter 
+        SET unread_count = unread_count + #{increment}, 
+            updated_at = UNIX_TIMESTAMP() * 1000
+        WHERE user_id = #{userId} 
+        AND conversation_id = #{conversationId}
+    </update>
+    
+    <!-- 减少未读计数 -->
+    <update id="decrementUnreadCount">
+        UPDATE t_im_unread_counter 
+        SET unread_count = GREATEST(0, unread_count - #{decrement}), 
+            updated_at = UNIX_TIMESTAMP() * 1000
+        WHERE user_id = #{userId} 
+        AND conversation_id = #{conversationId}
+    </update>
+    
+    <!-- 重置未读计数为0 -->
+    <update id="resetUnreadCount">
+        UPDATE t_im_unread_counter 
+        SET unread_count = 0, 
+            updated_at = UNIX_TIMESTAMP() * 1000
+        WHERE user_id = #{userId} 
+        AND conversation_id = #{conversationId}
+    </update>
+    
+    <!-- 获取用户的所有会话未读计数 -->
+    <select id="findAllByUser" resultType="com.leyue.smartcs.chat.dataobject.UnreadCounterDO">
+        SELECT * FROM t_im_unread_counter 
+        WHERE user_id = #{userId} 
+        AND unread_count > 0
+        ORDER BY updated_at DESC
+    </select>
+    
+    <!-- 批量获取用户未读计数 -->
+    <select id="findByUserAndConversations" resultType="com.leyue.smartcs.chat.dataobject.UnreadCounterDO">
+        SELECT * FROM t_im_unread_counter 
+        WHERE user_id = #{userId} 
+        AND conversation_id IN 
+        <foreach collection="conversationIds" item="conversationId" open="(" separator="," close=")">
+            #{conversationId}
+        </foreach>
+    </select>
+    
+    <!-- 删除用户的未读计数记录 -->
+    <delete id="deleteByUserAndConversation">
+        DELETE FROM t_im_unread_counter 
+        WHERE user_id = #{userId} 
+        AND conversation_id = #{conversationId}
+    </delete>
+    
+    <!-- 保存或更新未读计数（MySQL UPSERT） -->
+    <insert id="saveOrUpdate">
+        INSERT INTO t_im_unread_counter (
+            user_id, conversation_id, unread_count, updated_at
+        ) VALUES (
+            #{unreadCounter.userId}, #{unreadCounter.conversationId}, 
+            #{unreadCounter.unreadCount}, #{unreadCounter.updatedAt}
+        ) ON DUPLICATE KEY UPDATE 
+            unread_count = VALUES(unread_count),
+            updated_at = VALUES(updated_at)
+    </insert>
+    
+</mapper>

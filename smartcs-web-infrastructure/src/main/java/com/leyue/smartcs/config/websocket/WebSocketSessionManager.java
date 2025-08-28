@@ -161,7 +161,24 @@ public class WebSocketSessionManager {
      * @return 是否在线
      */
     public boolean isUserOnline(Long userId) {
-        return true;
-//        return redissonClient.getKeys().countExists(REDIS_SESSION_PREFIX + userId) > 0;
+        if (userId == null) return false;
+        String uid = String.valueOf(userId);
+
+        // 先查本地缓存
+        if (localUserSessionMap.containsKey(uid)) {
+            return true;
+        }
+
+        // 再查 Redis 是否存在会话映射
+        try {
+            RMap<String, String> sessionMap = redissonClient.getMap(REDIS_SESSION_PREFIX + uid);
+            if (sessionMap != null && sessionMap.isExists()) {
+                String sid = sessionMap.get("sessionId");
+                return sid != null && !sid.isEmpty();
+            }
+        } catch (Exception e) {
+            log.warn("检查用户在线状态失败，降级为离线: userId={}, error={}", uid, e.getMessage());
+        }
+        return false;
     }
 }

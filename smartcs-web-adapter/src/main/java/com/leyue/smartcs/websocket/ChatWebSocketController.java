@@ -6,6 +6,8 @@ import com.leyue.smartcs.dto.chat.ws.WebSocketMessage;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import com.leyue.smartcs.api.MessageSendService;
 import com.leyue.smartcs.api.MessageValidatorService;
+import com.leyue.smartcs.api.GroupChatService;
+import com.leyue.smartcs.dto.chat.group.GroupMessageCmd;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.Header;
@@ -29,6 +31,7 @@ public class ChatWebSocketController {
     private final WebSocketSessionManager sessionManager;
     private final MessageSendService messageSendService;
     private final MessageValidatorService messageValidatorService;
+    private final GroupChatService groupChatService;
 
     /**
      * 处理客户或客服发送的聊天消息
@@ -89,6 +92,65 @@ public class ChatWebSocketController {
             log.error("发送消息失败: {}", e.getMessage(), e);
             ackMessage.setStatus("FAIL");
             ackMessage.setErrorCode("MESSAGE_SEND_FAILED");
+            ackMessage.setErrorMessage(e.getMessage());
+        }
+
+        return ackMessage;
+    }
+
+    /**
+     * 处理群聊消息
+     * 客户端发送消息到: /app/group.sendMessage
+     */
+    @MessageMapping("/group.sendMessage")
+    @SendToUser("/queue/reply")
+    public AckMessage sendGroupMessage(@Payload ChatMessage chatMessage,
+                                     SimpMessageHeaderAccessor headerAccessor) {
+        Long userId = (Long) headerAccessor.getSessionAttributes().get("userId");
+        String sessionId = headerAccessor.getSessionId();
+        log.info("接收到群聊WebSocket消息: userId={}, sessionId={}, message={}", userId, sessionId, chatMessage);
+
+        // 设置消息ID（如果客户端未提供）
+        if (chatMessage.getMsgId() == null) {
+            chatMessage.setMsgId(java.util.UUID.randomUUID().toString());
+        }
+
+        AckMessage ackMessage = new AckMessage();
+        ackMessage.setOriginalMsgId(chatMessage.getMsgId());
+
+        try {
+            // 验证消息基本字段
+            if (chatMessage.getGroupId() == null) {
+                throw new IllegalArgumentException("群组ID不能为空");
+            }
+
+            // 构建群消息命令
+            GroupMessageCmd groupMessageCmd = GroupMessageCmd.builder()
+                    .groupId(chatMessage.getGroupId())
+                    .senderId(userId)
+                    .content(chatMessage.getContent())
+                    .messageType(chatMessage.getChatType())
+                    .msgId(chatMessage.getMsgId())
+                    .build();
+
+            // 发送群消息
+            groupChatService.sendGroupMessage(groupMessageCmd);
+
+            // 注册会话状态
+            if (userId != null && sessionId != null && !sessionManager.isUserOnline(userId)) {
+                String userType = "CUSTOMER";
+                java.util.Map<String, Object> sessionAttrs = headerAccessor.getSessionAttributes();
+                if (sessionAttrs != null && sessionAttrs.get("userType") != null) {
+                    userType = sessionAttrs.get("userType").toString();
+                }
+                sessionManager.registerSession(String.valueOf(userId), sessionId, userType);
+            }
+
+            ackMessage.setStatus("SUCCESS");
+        } catch (Exception e) {
+            log.error("发送群消息失败: {}", e.getMessage(), e);
+            ackMessage.setStatus("FAIL");
+            ackMessage.setErrorCode("GROUP_MESSAGE_SEND_FAILED");
             ackMessage.setErrorMessage(e.getMessage());
         }
 
