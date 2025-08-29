@@ -15,7 +15,10 @@ import lombok.Setter;
     @JsonSubTypes.Type(value = ChatMessage.class, name = "CHAT"),
     @JsonSubTypes.Type(value = SystemMessage.class, name = "SYSTEM"),
     @JsonSubTypes.Type(value = AckMessage.class, name = "ACK"),
-    @JsonSubTypes.Type(value = SessionStatusMessage.class, name = "SESSION_STATUS")
+    @JsonSubTypes.Type(value = SessionStatusMessage.class, name = "SESSION_STATUS"),
+    @JsonSubTypes.Type(value = RecallMessage.class, name = "RECALL"),
+    @JsonSubTypes.Type(value = TypingMessage.class, name = "TYPING"),
+    @JsonSubTypes.Type(value = UserStatusMessage.class, name = "USER_STATUS")
 })
 public abstract class WebSocketMessage {
     

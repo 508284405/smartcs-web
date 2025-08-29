@@ -1,6 +1,7 @@
 package com.leyue.smartcs.config.websocket;
 
 import com.leyue.smartcs.api.OfflineMessageService;
+import com.leyue.smartcs.chat.service.UserStatusService;
 import com.leyue.smartcs.dto.chat.ws.SystemMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,7 @@ public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
     private final OfflineMessageService offlineMessageService;
+    private final UserStatusService userStatusService;
 
     /**
      * 处理WebSocket连接事件
@@ -38,6 +40,14 @@ public class WebSocketEventListener {
             systemMessage.setCode("CONNECT_SUCCESS");
             systemMessage.setContent("连接成功");
             sessionManager.sendToUser(userId, "messages", systemMessage);
+            
+            // 用户上线状态更新
+            try {
+                userStatusService.userOnline(userId);
+                log.debug("用户上线状态已更新: userId={}", userId);
+            } catch (Exception e) {
+                log.error("更新用户上线状态失败: userId={}", userId, e);
+            }
             
             // 处理用户上线，推送离线消息摘要
             try {
@@ -64,6 +74,20 @@ public class WebSocketEventListener {
 
         String sessionId = headerAccessor.getSessionId();
         log.info("WebSocket断开连接: sessionId={}", sessionId);
+
+        // 获取用户ID（如果可能的话）
+        try {
+            if (event.getUser() != null) {
+                String userId = event.getUser().getName();
+                if (userId != null) {
+                    // 用户离线状态更新
+                    userStatusService.userOffline(userId);
+                    log.debug("用户离线状态已更新: userId={}", userId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("更新用户离线状态失败: sessionId={}", sessionId, e);
+        }
 
         // 处理断开连接
         sessionManager.handleDisconnectEvent(event);

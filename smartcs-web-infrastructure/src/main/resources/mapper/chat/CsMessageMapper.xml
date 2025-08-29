@@ -45,4 +45,124 @@
         </foreach>
     </insert>
     
+    <!-- 更新消息撤回状态 -->
+    <update id="updateRecallStatus">
+        UPDATE t_cs_message 
+        SET is_recalled = 1,
+            recalled_at = #{recalledAt},
+            recalled_by = #{recalledBy},
+            recall_reason = #{recallReason},
+            updated_at = #{recalledAt}
+        WHERE msg_id = #{msgId} 
+        AND is_deleted = 0 
+        AND is_recalled = 0
+    </update>
+    
+    <!-- 根据消息ID更新消息 -->
+    <update id="updateByMessageId" parameterType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        UPDATE t_cs_message 
+        SET content = #{content},
+            content_type = #{contentType},
+            is_recalled = #{isRecalled},
+            recalled_at = #{recalledAt},
+            recalled_by = #{recalledBy},
+            recall_reason = #{recallReason},
+            is_deleted_by_sender = #{isDeletedBySender},
+            is_deleted_by_receiver = #{isDeletedByReceiver},
+            deleted_by_sender_at = #{deletedBySenderAt},
+            deleted_by_receiver_at = #{deletedByReceiverAt},
+            delete_type = #{deleteType},
+            deleted_reason = #{deletedReason},
+            is_edited = #{isEdited},
+            edited_at = #{editedAt},
+            original_content = #{originalContent},
+            edit_count = #{editCount},
+            is_read = #{isRead},
+            read_at = #{readAt},
+            read_by = #{readBy},
+            send_status = #{sendStatus},
+            send_fail_reason = #{sendFailReason},
+            retry_count = #{retryCount},
+            updated_at = #{updatedAt}
+        WHERE msg_id = #{msgId}
+        AND is_deleted = 0
+    </update>
+    
+    <!-- 搜索消息 -->
+    <select id="searchMessages" resultType="com.leyue.smartcs.chat.dataobject.CsMessageDO">
+        SELECT * FROM t_cs_message 
+        WHERE is_deleted = 0
+        AND is_recalled = 0
+        <if test="keyword != null and keyword != ''">
+            AND content LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="sessionId != null">
+            AND session_id = #{sessionId}
+        </if>
+        <if test="messageType != null">
+            AND msg_type = #{messageType}
+        </if>
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        <if test="userId != null">
+            <!-- 用户能看到自己发送的消息和发送给自己的消息 -->
+            AND (created_by = #{userId} OR session_id IN (
+                SELECT session_id FROM cs_session 
+                WHERE (user_one_id = #{userId} OR user_two_id = #{userId})
+                AND is_deleted = 0
+            ))
+        </if>
+        <choose>
+            <when test="sortBy == 'relevance'">
+                <!-- 按相关性排序，这里简单按关键词匹配度排序 -->
+                ORDER BY 
+                    CASE 
+                        WHEN content LIKE CONCAT(#{keyword}, '%') THEN 1
+                        WHEN content LIKE CONCAT('%', #{keyword}, '%') THEN 2
+                        ELSE 3
+                    END,
+                    created_at DESC
+            </when>
+            <otherwise>
+                <!-- 默认按时间排序 -->
+                ORDER BY created_at DESC
+            </otherwise>
+        </choose>
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+    
+    <!-- 统计搜索消息数量 -->
+    <select id="countSearchMessages" resultType="long">
+        SELECT COUNT(*) FROM t_cs_message 
+        WHERE is_deleted = 0
+        AND is_recalled = 0
+        <if test="keyword != null and keyword != ''">
+            AND content LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="sessionId != null">
+            AND session_id = #{sessionId}
+        </if>
+        <if test="messageType != null">
+            AND msg_type = #{messageType}
+        </if>
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at &lt;= #{endTime}
+        </if>
+        <if test="userId != null">
+            <!-- 用户能看到自己发送的消息和发送给自己的消息 -->
+            AND (created_by = #{userId} OR session_id IN (
+                SELECT session_id FROM cs_session 
+                WHERE (user_one_id = #{userId} OR user_two_id = #{userId})
+                AND is_deleted = 0
+            ))
+        </if>
+    </select>
+    
 </mapper> 

@@ -21,6 +21,11 @@ public interface MessageConvertor {
      * @param message 消息领域模型
      * @return 消息数据对象
      */
+    @Mapping(source = "isRecalled", target = "isRecalled", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isDeletedBySender", target = "isDeletedBySender", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isDeletedByReceiver", target = "isDeletedByReceiver", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isEdited", target = "isEdited", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isRead", target = "isRead", qualifiedByName = "booleanToInteger")
     CsMessageDO toDataObject(Message message);
     
     /**
@@ -29,6 +34,11 @@ public interface MessageConvertor {
      * @param csMessageDO 消息数据对象
      * @return 消息领域模型
      */
+    @Mapping(source = "isRecalled", target = "isRecalled", qualifiedByName = "integerToBoolean")
+    @Mapping(source = "isDeletedBySender", target = "isDeletedBySender", qualifiedByName = "integerToBoolean")
+    @Mapping(source = "isDeletedByReceiver", target = "isDeletedByReceiver", qualifiedByName = "integerToBoolean")
+    @Mapping(source = "isEdited", target = "isEdited", qualifiedByName = "integerToBoolean")
+    @Mapping(source = "isRead", target = "isRead", qualifiedByName = "integerToBoolean")
     Message toDomain(CsMessageDO csMessageDO);
     
     /**
@@ -51,5 +61,23 @@ public interface MessageConvertor {
      */
     default MessageType map(Integer code) {
         return code != null ? MessageType.fromCode(code) : null;
+    }
+    
+    /**
+     * Boolean转换为Integer（用于撤回状态）
+     */
+    @Named("booleanToInteger")
+    default Integer booleanToInteger(Boolean value) {
+        if (value == null) return null;
+        return value ? 1 : 0;
+    }
+    
+    /**
+     * Integer转换为Boolean（用于撤回状态）
+     */
+    @Named("integerToBoolean")
+    default Boolean integerToBoolean(Integer value) {
+        if (value == null) return null;
+        return value == 1;
     }
 }

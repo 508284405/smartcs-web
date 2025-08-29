@@ -134,4 +134,36 @@ public class MessageDomainService {
         
         return messageGateway.findMessagesBySessionIdWithPagination(sessionId, offset, limit);
     }
+    
+    /**
+     * 撤回消息
+     *
+     * @param msgId 消息ID
+     * @param userId 操作用户ID
+     * @param reason 撤回原因
+     * @return 撤回后的消息
+     */
+    public Message recallMessage(String msgId, String userId, String reason) {
+        // 查找消息
+        Optional<Message> messageOpt = messageGateway.findById(msgId);
+        if (messageOpt.isEmpty()) {
+            throw new BizException("消息不存在: " + msgId);
+        }
+        
+        Message message = messageOpt.get();
+        
+        // 检查消息是否可以撤回
+        if (!message.canRecall(userId)) {
+            throw new BizException("消息无法撤回：超出时间限制或无权限");
+        }
+        
+        // 更新撤回状态
+        boolean updated = messageGateway.updateMessageRecallStatus(msgId, userId, reason);
+        if (!updated) {
+            throw new BizException("消息撤回失败");
+        }
+        
+        // 重新获取更新后的消息
+        return messageGateway.findById(msgId).orElseThrow(() -> new BizException("撤回后获取消息失败"));
+    }
 }

@@ -22,7 +22,12 @@ public enum MessageType {
     /**
      * 系统消息
      */
-    SYSTEM(3);
+    SYSTEM(3),
+    
+    /**
+     * 撤回通知消息
+     */
+    RECALL_NOTICE(4);
     
     private final int code;
     

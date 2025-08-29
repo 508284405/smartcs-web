@@ -1,6 +1,9 @@
 package com.leyue.smartcs.domain.chat.gateway;
 
+import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.chat.Message;
+import com.leyue.smartcs.dto.chat.MessageSearchQry;
+import com.leyue.smartcs.dto.chat.MessageSearchResult;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,4 +63,38 @@ public interface MessageGateway {
      * @return 是否成功
      */
     boolean batchSaveMessages(List<Message> messages);
+    
+    /**
+     * 更新消息撤回状态
+     * 
+     * @param msgId 消息ID
+     * @param recalledBy 撤回操作者ID
+     * @param recallReason 撤回原因
+     * @return 是否成功
+     */
+    boolean updateMessageRecallStatus(String msgId, String recalledBy, String recallReason);
+
+    /**
+     * 根据消息ID查找消息
+     * 
+     * @param msgId 消息ID
+     * @return 消息对象
+     */
+    Message findByMsgId(String msgId);
+
+    /**
+     * 更新消息
+     * 
+     * @param message 消息对象
+     * @return 是否成功
+     */
+    boolean updateMessage(Message message);
+    
+    /**
+     * 搜索消息
+     * 
+     * @param qry 搜索条件
+     * @return 搜索结果分页数据
+     */
+    PageResponse<MessageSearchResult> searchMessages(MessageSearchQry qry);
 }
