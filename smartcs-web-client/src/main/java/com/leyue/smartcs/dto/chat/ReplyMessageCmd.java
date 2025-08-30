@@ -1,8 +1,8 @@
 package com.leyue.smartcs.dto.chat;
 
 import lombok.Data;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 /**
  * 回复消息命令

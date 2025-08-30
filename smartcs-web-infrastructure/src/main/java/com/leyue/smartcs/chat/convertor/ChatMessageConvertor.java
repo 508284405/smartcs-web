@@ -2,6 +2,7 @@ package com.leyue.smartcs.chat.convertor;
 
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.MessageSendStatus;
 import com.leyue.smartcs.dto.chat.MessageDTO;
 import com.leyue.smartcs.dto.chat.MessageVO;
 import com.leyue.smartcs.dto.chat.ws.ChatMessage;
@@ -66,6 +67,30 @@ public interface ChatMessageConvertor {
         if (value == null)
             return null;
         return MessageType.fromCode(value);
+    }
+    
+    /**
+     * 将MessageSendStatus转换为Integer
+     *
+     * @param value
+     * @return
+     */
+    default Integer map(MessageSendStatus value) {
+        if (value == null)
+            return null;
+        return value.getCode();
+    }
+    
+    /**
+     * 将Integer转换为MessageSendStatus
+     *
+     * @param value
+     * @return
+     */
+    default MessageSendStatus mapToMessageSendStatus(Integer value) {
+        if (value == null)
+            return null;
+        return MessageSendStatus.fromCode(value);
     }
 
     /**

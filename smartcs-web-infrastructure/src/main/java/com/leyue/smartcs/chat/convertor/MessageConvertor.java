@@ -3,6 +3,7 @@ package com.leyue.smartcs.chat.convertor;
 import com.leyue.smartcs.chat.dataobject.CsMessageDO;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.enums.MessageType;
+import com.leyue.smartcs.domain.chat.enums.MessageSendStatus;
 import com.leyue.smartcs.domain.chat.enums.SenderRole;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -47,6 +48,11 @@ public interface MessageConvertor {
      * @param source 源对象
      * @param target 目标对象
      */
+    @Mapping(source = "isRecalled", target = "isRecalled", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isDeletedBySender", target = "isDeletedBySender", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isDeletedByReceiver", target = "isDeletedByReceiver", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isEdited", target = "isEdited", qualifiedByName = "booleanToInteger")
+    @Mapping(source = "isRead", target = "isRead", qualifiedByName = "booleanToInteger")
     void updateDataObject(Message source, @MappingTarget CsMessageDO target);
     
     /**
@@ -80,4 +86,5 @@ public interface MessageConvertor {
         if (value == null) return null;
         return value == 1;
     }
+    
 }

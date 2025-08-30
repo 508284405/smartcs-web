@@ -1,7 +1,8 @@
 package com.leyue.smartcs.domain.intent.gateway;
 
-import com.leyue.smartcs.dto.intent.IntentDictionaryDTO;
-import com.leyue.smartcs.dto.intent.SlotTemplateDTO;
+// TODO: 重构插槽模板网关，移除对client层DTO的依赖
+// import com.leyue.smartcs.dto.intent.IntentDictionaryDTO;
+// import com.leyue.smartcs.dto.intent.SlotTemplateDTO;
 
 import java.util.Map;
 
@@ -31,7 +32,8 @@ public interface SlotTemplateGateway {
      * @param domain 领域标识
      * @return 意图编码到槽位模板的映射
      */
-    Map<String, SlotTemplateDTO> getIntentSlotTemplates(String tenant, String channel, String domain);
+    // TODO: 参数和返回值需要改为域模型类型
+    // Map<String, SlotTemplateDTO> getIntentSlotTemplates(String tenant, String channel, String domain);
     
     /**
      * 获取指定意图的槽位模板
@@ -42,7 +44,8 @@ public interface SlotTemplateGateway {
      * @param domain 领域标识
      * @return 槽位模板，如果不存在则返回null
      */
-    SlotTemplateDTO getSlotTemplateByIntent(String intentCode, String tenant, String channel, String domain);
+    // TODO: 参数和返回值需要改为域模型类型
+    // SlotTemplateDTO getSlotTemplateByIntent(String intentCode, String tenant, String channel, String domain);
     
     /**
      * 获取意图字典映射
@@ -52,7 +55,8 @@ public interface SlotTemplateGateway {
      * @param domain 领域标识
      * @return 意图编码到意图字典的映射
      */
-    Map<String, IntentDictionaryDTO> getIntentDictionaries(String tenant, String channel, String domain);
+    // TODO: 参数和返回值需要改为域模型类型
+    // Map<String, IntentDictionaryDTO> getIntentDictionaries(String tenant, String channel, String domain);
     
     /**
      * 获取指定意图的字典信息
@@ -63,5 +67,6 @@ public interface SlotTemplateGateway {
      * @param domain 领域标识
      * @return 意图字典，如果不存在则返回null
      */
-    IntentDictionaryDTO getIntentDictionary(String intentCode, String tenant, String channel, String domain);
+    // TODO: 参数和返回值需要改为域模型类型
+    // IntentDictionaryDTO getIntentDictionary(String intentCode, String tenant, String channel, String domain);
 }

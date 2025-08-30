@@ -7,7 +7,6 @@ import lombok.Getter;
  * 文档分段策略名称枚举
  */
 @Getter
-@AllArgsConstructor
 public enum StrategyNameEnum {
     
     /**
@@ -44,6 +43,17 @@ public enum StrategyNameEnum {
      * 策略描述
      */
     private final String description;
+    
+    /**
+     * 构造器
+     *
+     * @param code 策略代码
+     * @param description 策略描述
+     */
+    StrategyNameEnum(String code, String description) {
+        this.code = code;
+        this.description = description;
+    }
     
     /**
      * 根据代码获取枚举

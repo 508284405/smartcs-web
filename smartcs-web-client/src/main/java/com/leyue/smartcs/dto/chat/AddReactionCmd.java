@@ -2,8 +2,8 @@ package com.leyue.smartcs.dto.chat;
 
 import lombok.Data;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 添加表情反应命令

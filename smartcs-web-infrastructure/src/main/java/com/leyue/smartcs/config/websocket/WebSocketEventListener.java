@@ -1,7 +1,8 @@
 package com.leyue.smartcs.config.websocket;
 
 import com.leyue.smartcs.api.OfflineMessageService;
-import com.leyue.smartcs.chat.service.UserStatusService;
+// TODO: UserStatusService应该在app层，infrastructure层不应该直接依赖
+// import com.leyue.smartcs.chat.service.UserStatusService;
 import com.leyue.smartcs.dto.chat.ws.SystemMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,8 @@ public class WebSocketEventListener {
 
     private final WebSocketSessionManager sessionManager;
     private final OfflineMessageService offlineMessageService;
-    private final UserStatusService userStatusService;
+    // TODO: 重构为使用事件驱动架构，而不是直接依赖app层service
+    // private final UserStatusService userStatusService;
 
     /**
      * 处理WebSocket连接事件
@@ -41,13 +43,13 @@ public class WebSocketEventListener {
             systemMessage.setContent("连接成功");
             sessionManager.sendToUser(userId, "messages", systemMessage);
             
-            // 用户上线状态更新
-            try {
-                userStatusService.userOnline(userId);
-                log.debug("用户上线状态已更新: userId={}", userId);
-            } catch (Exception e) {
-                log.error("更新用户上线状态失败: userId={}", userId, e);
-            }
+            // TODO: 用户上线状态更新 - 需要重构为事件驱动
+            // try {
+            //     userStatusService.userOnline(userId);
+            //     log.debug("用户上线状态已更新: userId={}", userId);
+            // } catch (Exception e) {
+            //     log.error("更新用户上线状态失败: userId={}", userId, e);
+            // }
             
             // 处理用户上线，推送离线消息摘要
             try {
@@ -80,9 +82,9 @@ public class WebSocketEventListener {
             if (event.getUser() != null) {
                 String userId = event.getUser().getName();
                 if (userId != null) {
-                    // 用户离线状态更新
-                    userStatusService.userOffline(userId);
-                    log.debug("用户离线状态已更新: userId={}", userId);
+                    // TODO: 用户离线状态更新 - 需要重构为事件驱动
+                    // userStatusService.userOffline(userId);
+                    log.debug("用户离线状态更新被跳过（需重构为事件驱动）: userId={}", userId);
                 }
             }
         } catch (Exception e) {

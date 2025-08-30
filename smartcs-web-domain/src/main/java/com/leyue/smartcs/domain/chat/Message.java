@@ -340,6 +340,7 @@ public class Message {
         this.isRead = true;
         this.readAt = System.currentTimeMillis();
         this.readBy = userId;
+        this.sendStatus = MessageSendStatus.READ.getCode();
     }
 
     /**
@@ -424,15 +425,6 @@ public class Message {
         this.sendFailReason = reason;
     }
 
-    /**
-     * 标记为已读（更新原有markAsRead方法以包含状态更新）
-     */
-    public void markAsRead(String userId) {
-        this.isRead = true;
-        this.readAt = System.currentTimeMillis();
-        this.readBy = userId;
-        this.sendStatus = MessageSendStatus.READ.getCode();
-    }
 
     /**
      * 检查是否可以重试发送

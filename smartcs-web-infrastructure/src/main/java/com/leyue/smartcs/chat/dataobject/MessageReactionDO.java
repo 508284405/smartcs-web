@@ -22,12 +22,6 @@ import lombok.NoArgsConstructor;
 public class MessageReactionDO extends BaseDO {
     
     /**
-     * 主键ID
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
-    
-    /**
      * 消息ID
      */
     private String msgId;
