@@ -1,6 +1,9 @@
 package com.leyue.smartcs.chat.executor;
 
 import com.alibaba.cola.dto.PageResponse;
+import com.leyue.smartcs.chat.convertor.MessageSearchConvertor;
+import com.leyue.smartcs.domain.chat.MessageSearchQuery;
+import com.leyue.smartcs.domain.chat.PageResult;
 import com.leyue.smartcs.dto.chat.MessageSearchQry;
 import com.leyue.smartcs.dto.chat.MessageSearchResult;
 import com.leyue.smartcs.domain.chat.gateway.MessageGateway;
@@ -23,6 +26,7 @@ import java.util.regex.Pattern;
 public class SearchMessagesQryExe {
     
     private final MessageGateway messageGateway;
+    private final MessageSearchConvertor messageSearchConvertor;
     
     /**
      * 执行消息搜索
@@ -38,8 +42,14 @@ public class SearchMessagesQryExe {
             // 参数验证
             validateSearchParams(qry);
             
+            // 转换查询条件
+            MessageSearchQuery searchQuery = messageSearchConvertor.toSearchQuery(qry);
+            
             // 执行搜索
-            PageResponse<MessageSearchResult> results = messageGateway.searchMessages(qry);
+            PageResult<com.leyue.smartcs.domain.chat.MessageSearchResult> domainResults = messageGateway.searchMessages(searchQuery);
+            
+            // 转换结果
+            PageResponse<MessageSearchResult> results = messageSearchConvertor.toPageResponse(domainResults);
             
             // 高亮关键词
             if (results.getData() != null && !results.getData().isEmpty()) {

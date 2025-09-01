@@ -29,8 +29,8 @@ public class MessageReactionGatewayImpl implements MessageReactionGateway {
     
     private final MessageReactionMapper reactionMapper;
     private final CsMessageMapper messageMapper;
-    private final MessageReactionConvertor convertor = MessageReactionConvertor.INSTANCE;
-    
+    private final MessageReactionConvertor convertor;
+
     @Override
     public MessageReaction addReaction(MessageReaction reaction) {
         try {

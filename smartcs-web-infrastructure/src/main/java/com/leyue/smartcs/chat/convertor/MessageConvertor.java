@@ -70,6 +70,13 @@ public interface MessageConvertor {
     }
     
     /**
+     * 消息发送状态枚举转换为整数代码
+     */
+    default Integer map(MessageSendStatus sendStatus) {
+        return sendStatus != null ? sendStatus.getCode() : null;
+    }
+    
+    /**
      * Boolean转换为Integer（用于撤回状态）
      */
     @Named("booleanToInteger")

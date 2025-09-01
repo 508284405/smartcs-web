@@ -2,6 +2,9 @@ package com.leyue.smartcs.domain.chat.gateway;
 
 import com.alibaba.cola.dto.PageResponse;
 import com.leyue.smartcs.domain.chat.Message;
+import com.leyue.smartcs.domain.chat.MessageSearchQuery;
+import com.leyue.smartcs.domain.chat.MessageSearchResult;
+import com.leyue.smartcs.domain.chat.PageResult;
 import java.util.List;
 import java.util.Optional;
 
@@ -88,6 +91,11 @@ public interface MessageGateway {
      */
     boolean updateMessage(Message message);
     
-    // TODO: 搜索功能需要重新设计，避免域层依赖client层
-    // PageResponse<MessageSearchResult> searchMessages(MessageSearchQry qry);
+    /**
+     * 搜索消息
+     * 
+     * @param query 搜索查询条件
+     * @return 搜索结果
+     */
+    PageResult<MessageSearchResult> searchMessages(MessageSearchQuery query);
 }

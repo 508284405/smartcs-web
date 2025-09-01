@@ -8,7 +8,7 @@ import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.gateway.MessageGateway;
 import com.leyue.smartcs.dto.chat.DeleteMessageCmd;
 import com.leyue.smartcs.dto.chat.ws.DeleteMessage;
-import com.leyue.smartcs.chat.service.WebSocketNotificationService;
+import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 public class DeleteMessageCmdExe {
     
     private final MessageGateway messageGateway;
-    private final WebSocketNotificationService webSocketNotificationService;
+    private final WebSocketSessionManager webSocketSessionManager;
     
     /**
      * 执行删除消息命令
@@ -78,7 +78,7 @@ public class DeleteMessageCmdExe {
             deleteMessage.setDeleteTime(System.currentTimeMillis());
             
             // 发送给会话中的所有用户
-            webSocketNotificationService.sendToSession(cmd.getSessionId().toString(), deleteMessage);
+            webSocketSessionManager.sendToUser(cmd.getUserId().toString(), "messages", deleteMessage);
             
         } catch (Exception e) {
             log.error("发送删除通知失败", e);

@@ -1,8 +1,9 @@
 package com.leyue.smartcs.domain.eval.gateway;
 
 // TODO: 重构评估网关，移除对client层DTO的依赖
-// import com.leyue.smartcs.dto.eval.SimpleEvalRequest;
-// import com.leyue.smartcs.dto.eval.SimpleEvalResponse;
+
+import com.leyue.smartcs.dto.eval.SimpleEvalRequest;
+import com.leyue.smartcs.dto.eval.SimpleEvalResponse;
 
 /**
  * 简化评估网关接口
@@ -18,7 +19,7 @@ public interface SimpleEvalGateway {
      * @param request 评估请求
      * @return 评估响应
      */
-    // SimpleEvalResponse evaluate(SimpleEvalRequest request);
+     SimpleEvalResponse evaluate(SimpleEvalRequest request);
     
     /**
      * 检查评估服务健康状态

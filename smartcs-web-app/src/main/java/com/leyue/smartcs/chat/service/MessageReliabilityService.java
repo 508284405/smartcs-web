@@ -1,5 +1,6 @@
 package com.leyue.smartcs.chat.service;
 
+import com.leyue.smartcs.chat.serviceimpl.MessageDistributionService;
 import com.leyue.smartcs.domain.chat.Message;
 import com.leyue.smartcs.domain.chat.enums.MessageDeliveryStatus;
 import com.leyue.smartcs.domain.chat.gateway.MessageGateway;

@@ -159,4 +159,14 @@ public class CsMessageDO extends BaseDO {
      * 被回复的消息发送者
      */
     private String quotedFromUser;
+
+    /**
+     * 表情反应总数
+     */
+    private Integer reactionCount;
+
+    /**
+     * 表情反应摘要统计（JSON格式）
+     */
+    private String reactionsSummary;
 }

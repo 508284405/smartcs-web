@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.leyue.smartcs.api.OfflineMessageService;
 import com.leyue.smartcs.config.websocket.WebSocketSessionManager;
 import com.leyue.smartcs.dto.chat.ws.ChatMessage;
+import com.leyue.smartcs.domain.chat.Message;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -222,6 +223,38 @@ public class MessageDistributionService {
             
         } catch (Exception e) {
             log.error("处理系统事件失败: partition={}", partition, e);
+        }
+    }
+
+    /**
+     * 分发消息
+     * 
+     * @param message 消息对象
+     */
+    public void distributeMessage(Message message) {
+        try {
+            // 构建ChatMessage对象
+            ChatMessage chatMessage = new ChatMessage();
+            chatMessage.setMsgId(message.getMsgId());
+            chatMessage.setContent(message.getContent());
+            chatMessage.setSessionId(message.getSessionId());
+            chatMessage.setMsgType(message.getMsgType() != null ? message.getMsgType().name() : "TEXT");
+            chatMessage.setSendTime(message.getCreatedAt());
+            
+            // 根据聊天类型分发消息
+            if ("USER".equals(message.getChatType())) {
+                // 用户消息，简化处理为直接消息
+                publishDirectMessage(chatMessage, "default_receiver");
+            } else {
+                // 其他类型消息，发布为事件
+                publishEvent(chatMessage);
+            }
+            
+            log.info("消息分发成功: msgId={}, chatType={}", message.getMsgId(), message.getChatType());
+            
+        } catch (Exception e) {
+            log.error("消息分发失败: msgId={}", message.getMsgId(), e);
+            throw e;
         }
     }
 
