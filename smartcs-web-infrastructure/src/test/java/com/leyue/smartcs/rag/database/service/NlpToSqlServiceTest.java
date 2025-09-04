@@ -54,6 +54,7 @@ class NlpToSqlServiceTest {
         
         // 设置配置值
         ReflectionTestUtils.setField(nlpToSqlService, "chatModelId", 1L);
+        ReflectionTestUtils.setField(nlpToSqlService, "embeddingModelId", 1L);
         ReflectionTestUtils.setField(nlpToSqlService, "maxTablesForSql", 5);
         ReflectionTestUtils.setField(nlpToSqlService, "enableComplexQueries", true);
         ReflectionTestUtils.setField(nlpToSqlService, "similarityThreshold", 0.6);
@@ -113,7 +114,7 @@ class NlpToSqlServiceTest {
                 """;
         
         // 设置Mock行为
-        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), anyInt(), anyDouble()))
+        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), eq(1L), anyInt(), anyDouble()))
                 .thenReturn(schemaResult);
         when(dynamicModelManager.getChatModel(1L)).thenReturn(chatModel);
         when(chatModel.chat(any(UserMessage.class))).thenReturn(chatResponse);
@@ -121,7 +122,7 @@ class NlpToSqlServiceTest {
         when(aiMessage.text()).thenReturn(llmResponse);
         
         // When
-        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery);
+        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery, 1L, 1L);
         
         // Then
         assertTrue(result.getSuccess());
@@ -144,11 +145,11 @@ class NlpToSqlServiceTest {
                 .totalResults(0)
                 .build();
         
-        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), anyInt(), anyDouble()))
+        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), eq(1L), anyInt(), anyDouble()))
                 .thenReturn(emptyResult);
         
         // When
-        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery);
+        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery, 1L, 1L);
         
         // Then
         assertFalse(result.getSuccess());
@@ -180,7 +181,7 @@ class NlpToSqlServiceTest {
                 ```
                 """;
         
-        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), anyInt(), anyDouble()))
+        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), eq(1L), anyInt(), anyDouble()))
                 .thenReturn(schemaResult);
         when(dynamicModelManager.getChatModel(1L)).thenReturn(chatModel);
         when(chatModel.chat(any(UserMessage.class))).thenReturn(chatResponse);
@@ -188,7 +189,7 @@ class NlpToSqlServiceTest {
         when(aiMessage.text()).thenReturn(dangerousResponse);
         
         // When
-        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery);
+        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery, 1L, 1L);
         
         // Then
         assertFalse(result.getSuccess());
@@ -216,7 +217,7 @@ class NlpToSqlServiceTest {
         // 模拟LLM返回无效响应
         String invalidResponse = "抱歉，我无法理解您的查询";
         
-        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), anyInt(), anyDouble()))
+        when(schemaRetrievalService.retrieveRelevantSchemas(eq(nlpQuery), eq(1L), anyInt(), anyDouble()))
                 .thenReturn(schemaResult);
         when(dynamicModelManager.getChatModel(1L)).thenReturn(chatModel);
         when(chatModel.chat(any(UserMessage.class))).thenReturn(chatResponse);
@@ -224,7 +225,7 @@ class NlpToSqlServiceTest {
         when(aiMessage.text()).thenReturn(invalidResponse);
         
         // When
-        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery);
+        SqlGenerationResult result = nlpToSqlService.generateSql(nlpQuery, 1L, 1L);
         
         // Then
         assertFalse(result.getSuccess());

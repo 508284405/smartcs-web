@@ -240,7 +240,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus
+        include: health,info,metrics,prometheus,tracing
   endpoint:
     health:
       show-details: always
@@ -253,6 +253,18 @@ management:
     metrics:
       export:
         enabled: true
+  # OpenTelemetry和Micrometer Tracing配置
+  tracing:
+    enabled: true
+    sampling:
+      probability: 1.0  # 开发环境100%采样，生产环境建议调低
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces  # 替换为实际OTEL Collector地址
+      timeout: 10s
+      compression: gzip
+      headers:
+        authorization: Bearer your-token  # 如果需要认证
 
 # 日志配置
 logging:
@@ -378,6 +390,7 @@ resilience4j:
 permission:
   white-list:
     - "/smartcs/api/app/**"
+    - "/api/test/**"
 
 # server:
 #  servlet:

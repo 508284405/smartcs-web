@@ -11,11 +11,15 @@ import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -72,7 +76,7 @@ public class AiAppChatCmdExe {
         CompletableFuture.runAsync(() -> {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
-                
+
                 // 1. 内容审核预检（输入阶段）
                 sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在进行内容安全检查..."));
                 boolean inputSafe = performInputModeration(cmd.getMessage(), cmd.getModelId(), sessionId);
@@ -81,7 +85,7 @@ public class AiAppChatCmdExe {
                     emitter.complete();
                     return;
                 }
-                
+
                 // 2. 验证和处理RAG配置
                 RagComponentConfig ragConfig = validateAndProcessRagConfig(cmd.getRagConfig());
                 if (ragConfig != null) {
@@ -89,10 +93,17 @@ public class AiAppChatCmdExe {
                 } else {
                     log.info("使用默认RAG配置: sessionId={}", sessionId);
                 }
-                
-                // 3. 动态创建SmartChatService实例并执行对话
-                SmartChatService smartChatService = createSmartChatService(cmd.getModelId(), ragConfig);
-                processChatStream(emitter, cmd, sessionId, smartChatService);
+
+                // 3. 根据是否包含图片选择推理路径
+                if (hasImages(cmd)) {
+                    log.info("检测到图片输入，走多模态推理路径: sessionId={} images={}", sessionId,
+                            cmd.getImageUrls() != null ? cmd.getImageUrls().size() : 0);
+                    processVisionChatStream(emitter, cmd, sessionId);
+                } else {
+                    // 无图片：动态创建SmartChatService实例并执行对话（包含RAG与记忆）
+                    SmartChatService smartChatService = createSmartChatService(cmd.getModelId(), ragConfig);
+                    processChatStream(emitter, cmd, sessionId, smartChatService);
+                }
                 
             } catch (Exception e) {
                 handleError(emitter, cmd.getAppId(), sessionId, e);
@@ -181,6 +192,119 @@ public class AiAppChatCmdExe {
                 }
             })
             .start();
+    }
+
+    /**
+     * 处理多模态（文本+图片）流式聊天。
+     * 说明：为尽量减少侵入性改动，图片路径直接使用底层StreamingChatModel进行推理。
+     * RAG与记忆由后续扩展至注解服务(@UserMessageProvider)时统一接入。
+     */
+    private void processVisionChatStream(SseEmitter emitter, AiAppChatCmd cmd, String sessionId) throws Exception {
+        sendSSEMessage(emitter, AiAppChatSSEMessage.progress(sessionId, "正在分析图片与文本..."));
+
+        // 校验并规范化图片输入
+        var imageUrls = cmd.getImageUrls();
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            throw new IllegalArgumentException("图片输入为空");
+        }
+        validateImageUrls(imageUrls);
+
+        // 构造多模态UserMessage
+        String text = cmd.getMessage() != null ? cmd.getMessage().trim() : "";
+        ImageContent[] images = imageUrls.stream()
+                .map(ImageContent::from)
+                .toArray(ImageContent[]::new);
+
+        UserMessage userMessage = (text.isEmpty())
+                ? UserMessage.from(images)
+                : UserMessage.from(text, images);
+
+        // 推理并流式发送
+        StreamingChatModel streamingChatModel = modelProvider.getStreamingChatModel(cmd.getModelId());
+        StringBuilder fullResponse = new StringBuilder();
+
+        // 构建消息列表
+        java.util.List<dev.langchain4j.data.message.ChatMessage> messages = java.util.List.of(userMessage);
+        
+        // 使用chat方法直接生成流式响应
+        streamingChatModel.chat(messages, new StreamingChatResponseHandler() {
+            @Override
+            public void onPartialResponse(String partialResponse) {
+                String response = partialResponse != null ? partialResponse : "";
+                if (!response.isEmpty()) {
+                    fullResponse.append(response);
+                    try {
+                        AiAppChatResponse partial = AiAppChatResponse.builder()
+                                .sessionId(sessionId)
+                                .content(response)
+                                .finished(false)
+                                .timestamp(System.currentTimeMillis())
+                                .build();
+                        sendSSEMessage(emitter, AiAppChatSSEMessage.data(sessionId, partial));
+                    } catch (Exception e) {
+                        if (isClientDisconnectException(e)) {
+                            log.warn("发送流式消息时检测到客户端断开: sessionId={}", sessionId);
+                        } else {
+                            log.error("发送流式数据失败: sessionId={}", sessionId, e);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse response) {
+                try {
+                    String finalContent = fullResponse.toString();
+                    CompletableFuture.runAsync(() -> {
+                        performOutputModeration(finalContent, cmd.getModelId(), sessionId);
+                    });
+
+                    AiAppChatResponse completeResponse = AiAppChatResponse.builder()
+                            .sessionId(sessionId)
+                            .content(finalContent)
+                            .finished(true)
+                            .timestamp(System.currentTimeMillis())
+                            .build();
+                    sendSSEMessage(emitter, AiAppChatSSEMessage.complete(sessionId, completeResponse));
+                } catch (Exception e) {
+                    if (isClientDisconnectException(e)) {
+                        log.warn("发送完成消息时检测到客户端断开: sessionId={}", sessionId);
+                    } else {
+                        log.error("发送完成消息失败: sessionId={}", sessionId, e);
+                    }
+                } finally {
+                    try { emitter.complete(); } catch (Exception ignore) { }
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+                if (throwable instanceof Exception) {
+                    handleError(emitter, cmd.getAppId(), sessionId, (Exception) throwable);
+                } else {
+                    handleError(emitter, cmd.getAppId(), sessionId, new RuntimeException("Vision streaming异常", throwable));
+                }
+            }
+        });
+    }
+
+    private boolean hasImages(AiAppChatCmd cmd) {
+        return cmd.getImageUrls() != null && !cmd.getImageUrls().isEmpty();
+    }
+
+    private void validateImageUrls(java.util.List<String> imageUrls) {
+        if (imageUrls.size() > 5) {
+            throw new IllegalArgumentException("单次最多支持5张图片");
+        }
+        for (String url : imageUrls) {
+            if (url == null || url.isBlank()) {
+                throw new IllegalArgumentException("图片URL不能为空");
+            }
+            String u = url.trim().toLowerCase();
+            if (!(u.startsWith("http://") || u.startsWith("https://"))) {
+                throw new IllegalArgumentException("仅支持http/https图片URL");
+            }
+        }
     }
 
     /**
@@ -397,7 +521,8 @@ public class AiAppChatCmdExe {
      */
     private boolean performInputModeration(String content, Long modelId, String sessionId) {
         try {
-            log.debug("开始输入内容审核: sessionId={}, contentLength={}", sessionId, content.length());
+            int len = content == null ? 0 : content.length();
+            log.debug("开始输入内容审核: sessionId={}, contentLength={}", sessionId, len);
             
             // 使用LangChain4j审核服务进行快速审核
             var moderationResult = langChain4jModerationService.quickModerate(content, modelId);
@@ -466,7 +591,7 @@ public class AiAppChatCmdExe {
         
         try {
             // 获取模型对应的ChatModel和StreamingChatModel
-            ChatModel chatModel = modelProvider.getChatModel(modelId);
+//            ChatModel chatModel = modelProvider.getChatModel(modelId);
             StreamingChatModel streamingChatModel = modelProvider.getStreamingChatModel(modelId);
             
             // 创建RAG增强器
@@ -474,7 +599,7 @@ public class AiAppChatCmdExe {
             
             // 使用LangChain4j AiServices框架创建推理服务
             return AiServices.builder(SmartChatService.class)
-                    .chatModel(chatModel)
+//                    .chatModel(chatModel)
                     .streamingChatModel(streamingChatModel)
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
                             .id(memoryId)

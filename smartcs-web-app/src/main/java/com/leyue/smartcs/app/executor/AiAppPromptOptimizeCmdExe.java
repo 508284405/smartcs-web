@@ -62,7 +62,6 @@ public class AiAppPromptOptimizeCmdExe {
             // 构建优化prompt
             String optimizePrompt = buildOptimizePrompt(cmd);
             
-            // 直接调用LLM进行优化（绕过RAG流程）
             ChatModel chatModel = dynamicModelManager.getChatModel(modelId);
             UserMessage userMessage = UserMessage.from(optimizePrompt);
             ChatResponse llmResponse = chatModel.chat(userMessage);

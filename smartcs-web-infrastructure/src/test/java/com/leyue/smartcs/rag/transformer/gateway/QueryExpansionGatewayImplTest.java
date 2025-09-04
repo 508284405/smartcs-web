@@ -1,8 +1,10 @@
 package com.leyue.smartcs.rag.transformer.gateway;
 
 import com.leyue.smartcs.model.ai.DynamicModelManager;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 /**
@@ -30,7 +32,10 @@ class QueryExpansionGatewayImplTest {
     private ChatModel chatModel;
 
     @Mock
-    private Response<String> mockResponse;
+    private ChatResponse chatResponse;
+
+    @Mock
+    private AiMessage aiMessage;
 
     private QueryExpansionGatewayImpl gateway;
 
@@ -47,8 +52,9 @@ class QueryExpansionGatewayImplTest {
         String expectedResult = "扩展查询1\n扩展查询2\n扩展查询3";
 
         when(dynamicModelManager.getChatModel(modelId)).thenReturn(chatModel);
-        when(chatModel.generate(anyString())).thenReturn(mockResponse);
-        when(mockResponse.content()).thenReturn(expectedResult);
+        when(chatModel.chat(any(UserMessage.class))).thenReturn(chatResponse);
+        when(chatResponse.aiMessage()).thenReturn(aiMessage);
+        when(aiMessage.text()).thenReturn(expectedResult);
 
         // When
         String result = gateway.generateExpansion(prompt, modelId);

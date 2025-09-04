@@ -1,11 +1,13 @@
 package com.leyue.smartcs.rag.query.pipeline.stages;
 
+import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import dev.langchain4j.rag.query.Query;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
@@ -22,12 +24,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("语义对齐阶段测试")
 class SemanticAlignmentStageTest {
     
+    @Mock
+    private DictionaryService dictionaryService;
+    
     private SemanticAlignmentStage semanticAlignmentStage;
     private QueryContext context;
     
     @BeforeEach
     void setUp() {
-        semanticAlignmentStage = new SemanticAlignmentStage();
+        semanticAlignmentStage = new SemanticAlignmentStage(dictionaryService);
         
         // 创建测试上下文
         context = QueryContext.builder()

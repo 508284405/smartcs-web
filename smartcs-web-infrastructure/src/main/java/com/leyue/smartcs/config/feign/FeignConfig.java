@@ -2,6 +2,7 @@ package com.leyue.smartcs.config.feign;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.leyue.smartcs.config.context.TraceContextHolder;
 import feign.Feign;
 import feign.Logger;
 import feign.RequestInterceptor;
@@ -9,7 +10,9 @@ import feign.RequestTemplate;
 import feign.codec.Encoder;
 import jakarta.servlet.http.HttpServletRequest;
 import okhttp3.OkHttpClient;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.ObjectFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.cloud.openfeign.support.SpringEncoder;
@@ -18,6 +21,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.codec.json.Jackson2JsonEncoder;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -73,6 +77,66 @@ public class FeignConfig {
                 }
             }
         };
+    }
+
+    /**
+     * W3C Trace Context传播拦截器
+     */
+    @Bean 
+    public RequestInterceptor traceContextPropagationInterceptor(TraceContextHolder traceContextHolder) {
+        return template -> {
+            propagateTraceContext(template, traceContextHolder);
+        };
+    }
+    
+    /**
+     * 传播追踪上下文，支持W3C协议和自定义协议
+     */
+    private void propagateTraceContext(RequestTemplate template, TraceContextHolder traceContextHolder) {
+        // 获取当前traceId
+        String traceId = MDC.get(TraceContextHolder.TRACE_ID_KEY);
+        if (!StringUtils.hasText(traceId)) {
+            traceId = traceContextHolder.getCurrentTraceId();
+        }
+        if (!StringUtils.hasText(traceId)) {
+            // 场景：定时任务/非请求线程触发的调用，初始化一个traceId
+            traceId = traceContextHolder.initTraceContext();
+        }
+        
+        // 生成W3C格式的traceparent
+        String spanId = Long.toHexString(System.nanoTime() & 0xFFFFFFFFFFFFFFFFL);
+        
+        // 标准化traceId和spanId
+        String normalizedTraceId = normalizeTraceId(traceId);
+        String normalizedSpanId = spanId.length() > 16 ? spanId.substring(0, 16) : String.format("%016s", spanId);
+        
+        String traceparent = String.format("00-%s-%s-01", normalizedTraceId, normalizedSpanId);
+        
+        // 设置W3C和自定义追踪头
+        template.header("traceparent", traceparent);
+        template.header(TraceContextHolder.TRACE_ID_HEADER, traceId);
+    }
+    
+    /**
+     * 标准化traceId为32位十六进制格式
+     */
+    private String normalizeTraceId(String traceId) {
+        if (traceId == null || traceId.isEmpty()) {
+            return String.format("%032x", System.nanoTime());
+        }
+        
+        // 移除非十六进制字符
+        String cleanTraceId = traceId.replaceAll("[^0-9a-fA-F]", "");
+        
+        if (cleanTraceId.length() >= 32) {
+            return cleanTraceId.substring(0, 32).toLowerCase();
+        } else if (cleanTraceId.length() >= 16) {
+            return String.format("%032s", cleanTraceId).replace(' ', '0').toLowerCase();
+        } else {
+            // 使用hash补齐
+            String hash = Integer.toHexString(traceId.hashCode());
+            return String.format("%032s", cleanTraceId + hash).replace(' ', '0').toLowerCase();
+        }
     }
 
     /**

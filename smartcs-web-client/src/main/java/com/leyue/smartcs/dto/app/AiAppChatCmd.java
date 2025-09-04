@@ -1,7 +1,7 @@
 package com.leyue.smartcs.dto.app;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -50,9 +50,8 @@ public class AiAppChatCmd {
     private Long appId;
 
     /**
-     * 用户消息内容
+     * 用户消息内容（可选）。当图片存在时可为空。
      */
-    @NotBlank(message = "消息内容不能为空")
     @Size(max = 4000, message = "消息内容长度不能超过4000个字符")
     private String message;
 
@@ -73,6 +72,13 @@ public class AiAppChatCmd {
      * 知识库ID列表（可选，支持多选）
      */
     private List<Long> knowledgeBaseIds;
+
+    /**
+     * 图片URL列表（可选）。当文本为空时，至少需要一张图片。
+     * 建议为公网可访问的 http/https URL。
+     */
+    @Size(max = 5, message = "单次最多支持上传5张图片")
+    private List<String> imageUrls;
 
     /**
      * 推理参数（JSON格式）
@@ -106,4 +112,14 @@ public class AiAppChatCmd {
      * 连接超时时间（毫秒）
      */
     private Long timeout = 300000L;
+
+    /**
+     * 跨字段校验：文本与图片至少提供一个
+     */
+    @AssertTrue(message = "消息内容与图片至少需要提供一个")
+    public boolean isTextOrImagesPresent() {
+        boolean hasText = message != null && !message.trim().isEmpty();
+        boolean hasImages = imageUrls != null && !imageUrls.isEmpty();
+        return hasText || hasImages;
+    }
 }

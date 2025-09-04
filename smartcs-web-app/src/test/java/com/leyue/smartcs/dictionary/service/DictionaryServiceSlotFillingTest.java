@@ -5,7 +5,7 @@ import com.leyue.smartcs.domain.dictionary.gateway.DictionaryGateway;
 import com.leyue.smartcs.dto.intent.IntentDictionaryDTO;
 import com.leyue.smartcs.dto.intent.IntentRuntimeConfigDTO;
 import com.leyue.smartcs.dto.intent.SlotTemplateDTO;
-import com.leyue.smartcs.intent.service.IntentRuntimeConfigCacheService;
+import com.leyue.smartcs.domain.intent.gateway.SlotTemplateGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,7 +31,7 @@ class DictionaryServiceSlotFillingTest {
     private DictionaryGateway dictionaryGateway;
     
     @Mock
-    private IntentRuntimeConfigCacheService intentRuntimeConfigCacheService;
+    private SlotTemplateGateway slotTemplateGateway;
     
     private ObjectMapper objectMapper;
     private DictionaryServiceImpl dictionaryService;
@@ -39,7 +39,7 @@ class DictionaryServiceSlotFillingTest {
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        dictionaryService = new DictionaryServiceImpl(dictionaryGateway, objectMapper, intentRuntimeConfigCacheService);
+        dictionaryService = new DictionaryServiceImpl(dictionaryGateway, objectMapper, slotTemplateGateway);
     }
     
     @Test
@@ -61,7 +61,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setSlotTemplates(slotTemplates);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
@@ -81,7 +81,7 @@ class DictionaryServiceSlotFillingTest {
         String channel = "test_channel";
         String domain = "test_domain";
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(null);
         
         // When
@@ -99,7 +99,7 @@ class DictionaryServiceSlotFillingTest {
         String channel = "test_channel";
         String domain = "test_domain";
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenThrow(new RuntimeException("Service unavailable"));
         
         // When
@@ -130,7 +130,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setSlotTemplates(slotTemplates);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
@@ -156,7 +156,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setSlotTemplates(slotTemplates);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
@@ -214,7 +214,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setIntentDictionaries(intentDictionaries);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
@@ -246,7 +246,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setIntentDictionaries(intentDictionaries);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
@@ -272,7 +272,7 @@ class DictionaryServiceSlotFillingTest {
         IntentRuntimeConfigDTO runtimeConfig = new IntentRuntimeConfigDTO();
         runtimeConfig.setIntentDictionaries(intentDictionaries);
         
-        when(intentRuntimeConfigCacheService.getConfig(channel, tenant, domain, "prod"))
+        when(slotTemplateGateway.getConfig(channel, tenant, domain, "prod"))
                 .thenReturn(runtimeConfig);
         
         // When
