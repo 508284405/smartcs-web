@@ -47,7 +47,7 @@ public class RedisEmbeddingStoreConfig {
         
         RedisEmbeddingStore.Builder builder = RedisEmbeddingStore.builder()
                 .host(redisHost)
-                .port(6379)
+                .port(redisPort)
                 .indexName(indexName)
                 .prefix(keyPrefix)
                 .user("default")

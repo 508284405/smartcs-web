@@ -241,8 +241,25 @@ pdf:
 
 # LangChain4j配置
 langchain4j:
+  community:
+    redis:
+      # 为社区版 Redis 向量存储 Starter 提供连接参数，避免端口为 null 的 NPE
+      host: ${spring.redis.host:localhost}
+      port: ${spring.redis.port:6379}
+      user: ${spring.redis.username:}
+      password: ${spring.redis.password:}
+      index-name: "smartcs_embedding_index"
+      prefix: "smartcs:embedding:"
+      dimension: 1536
   embedding-store:
     redis:
+      # 补齐 Redis 连接配置，避免 Starter 读取端口为 null 导致启动失败
+      # 默认从 spring.redis 透传；如未配置则使用本地默认 localhost:6379
+      host: ${spring.redis.host:localhost}
+      port: ${spring.redis.port:6379}
+      user: ${spring.redis.username:}
+      password: ${spring.redis.password:}
+      database: ${spring.redis.database:0}
       index-name: "smartcs_embedding_index"
       prefix: "smartcs:embedding:"
       dimension: 1536
