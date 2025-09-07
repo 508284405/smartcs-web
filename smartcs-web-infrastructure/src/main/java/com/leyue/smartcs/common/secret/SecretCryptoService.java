@@ -158,6 +158,10 @@ public class SecretCryptoService {
             throw new RuntimeException("密钥生成失败", e);
         }
     }
+
+    public static void main(String[] args) {
+        System.out.println(generateTestKey());
+    }
     
     /**
      * 获取密钥对象

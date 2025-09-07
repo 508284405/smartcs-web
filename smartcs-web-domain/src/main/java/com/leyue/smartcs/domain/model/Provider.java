@@ -85,9 +85,17 @@ public class Provider {
      * 验证提供商配置是否有效
      */
     public boolean isValid() {
-        return providerType != null
-                && endpoint != null && !endpoint.trim().isEmpty()
-                && (hasApiKey == Boolean.TRUE || (apiKey != null && !apiKey.trim().isEmpty()));
+        if (providerType == null || endpoint == null || endpoint.trim().isEmpty()) {
+            return false;
+        }
+        
+        // 对于不需要API Key的提供商（如Ollama），只需验证端点
+        if (!providerType.requiresApiKey()) {
+            return true;
+        }
+        
+        // 对于需要API Key的提供商，验证API Key是否存在
+        return hasApiKey == Boolean.TRUE || (apiKey != null && !apiKey.trim().isEmpty());
     }
     
     /**

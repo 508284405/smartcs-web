@@ -1,5 +1,6 @@
 package com.leyue.smartcs.model.ai;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.Provider;
+import com.leyue.smartcs.domain.model.enums.ProviderType;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ProviderGateway;
 import com.leyue.smartcs.model.gateway.ModelProvider;
@@ -28,6 +30,10 @@ import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.ollama.OllamaChatModel;
+import dev.langchain4j.model.ollama.OllamaEmbeddingModel;
+import dev.langchain4j.model.ollama.OllamaStreamingChatModel;
+import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.scoring.ScoringModel;
 // import dev.langchain4j.model.openai.OpenAiScoringModel; // 1.1.0版本暂未提供
 import dev.langchain4j.store.embedding.EmbeddingStore;
@@ -238,6 +244,8 @@ public class DynamicModelManager implements ModelProvider {
                 // 立即清空明文API Key引用
                 apiKey = null;
             }
+        } else if (provider.getProviderType() == ProviderType.OLLAMA) {
+            return buildOllamaChatModel(provider, model);
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
@@ -275,6 +283,8 @@ public class DynamicModelManager implements ModelProvider {
                 // 立即清空明文API Key引用
                 apiKey = null;
             }
+        } else if (provider.getProviderType() == ProviderType.OLLAMA) {
+            return buildOllamaStreamingChatModel(provider, model);
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
@@ -312,6 +322,8 @@ public class DynamicModelManager implements ModelProvider {
                 // 立即清空明文API Key引用
                 apiKey = null;
             }
+        } else if (provider.getProviderType() == ProviderType.OLLAMA) {
+            return buildOllamaEmbeddingModel(provider, model);
         }
         throw new IllegalStateException("不支持的提供商类型: " + provider.getProviderType().getKey());
     }
@@ -332,6 +344,87 @@ public class DynamicModelManager implements ModelProvider {
         }
         log.warn("不支持的提供商类型用于ScoringModel: {}", provider.getProviderType().getKey());
         return null;
+    }
+
+    /**
+     * 构建Ollama ChatModel实例
+     */
+    private ChatModel buildOllamaChatModel(Provider provider, Model model) {
+        try {
+            log.info("构建Ollama ChatModel: providerId={}, endpoint={}, model={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel());
+                    
+            OllamaChatModel chatModel = OllamaChatModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .modelName(model.getLabel())
+                    .httpClientBuilder(new JdkHttpClientBuilder())
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+                    
+            log.debug("Ollama ChatModel构建成功");
+            return chatModel;
+            
+        } catch (Exception e) {
+            log.error("Ollama ChatModel构建失败: providerId={}, endpoint={}, model={}, error={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel(), e.getMessage(), e);
+            throw new IllegalStateException(
+                String.format("Ollama服务不可用或模型未下载: %s at %s (检查服务状态: ollama list)", 
+                             model.getLabel(), provider.getEndpoint()), e);
+        }
+    }
+
+    /**
+     * 构建Ollama StreamingChatModel实例
+     */
+    private StreamingChatModel buildOllamaStreamingChatModel(Provider provider, Model model) {
+        try {
+            log.info("构建Ollama StreamingChatModel: providerId={}, endpoint={}, model={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel());
+                    
+            OllamaStreamingChatModel streamingChatModel = OllamaStreamingChatModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .modelName(model.getLabel())
+                    .httpClientBuilder(new JdkHttpClientBuilder())
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+                    
+            log.debug("Ollama StreamingChatModel构建成功");
+            return streamingChatModel;
+            
+        } catch (Exception e) {
+            log.error("Ollama StreamingChatModel构建失败: providerId={}, endpoint={}, model={}, error={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel(), e.getMessage(), e);
+            throw new IllegalStateException(
+                String.format("Ollama服务不可用或模型未下载: %s at %s (检查服务状态: ollama list)", 
+                             model.getLabel(), provider.getEndpoint()), e);
+        }
+    }
+
+    /**
+     * 构建Ollama EmbeddingModel实例
+     */
+    private EmbeddingModel buildOllamaEmbeddingModel(Provider provider, Model model) {
+        try {
+            log.info("构建Ollama EmbeddingModel: providerId={}, endpoint={}, model={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel());
+                    
+            OllamaEmbeddingModel embeddingModel = OllamaEmbeddingModel.builder()
+                    .baseUrl(provider.getEndpoint())
+                    .modelName(model.getLabel())
+                    .httpClientBuilder(new JdkHttpClientBuilder())
+                    .timeout(Duration.ofMinutes(2))
+                    .build();
+                    
+            log.debug("Ollama EmbeddingModel构建成功");
+            return embeddingModel;
+            
+        } catch (Exception e) {
+            log.error("Ollama EmbeddingModel构建失败: providerId={}, endpoint={}, model={}, error={}", 
+                    provider.getId(), provider.getEndpoint(), model.getLabel(), e.getMessage(), e);
+            throw new IllegalStateException(
+                String.format("Ollama服务不可用或模型未下载: %s at %s (检查服务状态: ollama list)", 
+                             model.getLabel(), provider.getEndpoint()), e);
+        }
     }
 
 }

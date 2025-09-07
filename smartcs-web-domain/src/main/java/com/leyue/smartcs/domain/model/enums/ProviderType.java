@@ -18,7 +18,8 @@ public enum ProviderType {
     BAIDU("baidu", "百度文心"),
     TENCENT("tencent", "腾讯混元"),
     ZHIPU("zhipu", "智谱AI"),
-    MODELSCOPE("modelscope", "摩登社区");
+    MODELSCOPE("modelscope", "摩登社区"),
+    OLLAMA("ollama", "Ollama");
 
     /**
      * 提供商键值
@@ -43,6 +44,13 @@ public enum ProviderType {
             }
         }
         return null;
+    }
+
+    /**
+     * 检查提供商是否需要API Key
+     */
+    public boolean requiresApiKey() {
+        return this != OLLAMA;
     }
 
     /**

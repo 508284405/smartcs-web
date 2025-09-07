@@ -1,32 +1,34 @@
 package com.leyue.smartcs.app.executor;
 
-import com.leyue.smartcs.rag.SmartChatService;
+import java.io.IOException;
+import java.util.List;
+
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
 import com.leyue.smartcs.model.gateway.ModelProvider;
-import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
-import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.chat.StreamingChatModel;
+import com.leyue.smartcs.rag.SmartChatService;
+import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
+import com.leyue.smartcs.service.TracingSupport;
+
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.rag.RetrievalAugmentor;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.service.AiServices;
-import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import dev.langchain4j.service.TokenStream;
-import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
+import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.TokenStream;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * AI应用聊天命令执行器
@@ -64,6 +66,7 @@ public class AiAppChatCmdExe {
     private final ChatMemoryStore chatMemoryStore;
     private final IdGeneratorGateway idGeneratorGateway;
     private final LangChain4jModerationService langChain4jModerationService;
+    private final List<Object> enabledTools;
 
     /**
      * 执行SSE聊天
@@ -73,7 +76,7 @@ public class AiAppChatCmdExe {
         SseEmitter emitter = new SseEmitter(cmd.getTimeout() != null ? cmd.getTimeout() : 30000L);
         String sessionId = generateSessionId(cmd);
 
-        CompletableFuture.runAsync(() -> {
+        TracingSupport.runAsync(() -> {
             try {
                 sendSSEMessage(emitter, AiAppChatSSEMessage.start(sessionId));
 
@@ -154,7 +157,7 @@ public class AiAppChatCmdExe {
                     
                     // 5. 输出内容审核（异步）
                     String finalContent = fullResponse.toString();
-                    CompletableFuture.runAsync(() -> {
+                    TracingSupport.runAsync(() -> {
                         performOutputModeration(finalContent, cmd.getModelId(), sessionId);
                     });
                     
@@ -255,7 +258,7 @@ public class AiAppChatCmdExe {
             public void onCompleteResponse(ChatResponse response) {
                 try {
                     String finalContent = fullResponse.toString();
-                    CompletableFuture.runAsync(() -> {
+                    TracingSupport.runAsync(() -> {
                         performOutputModeration(finalContent, cmd.getModelId(), sessionId);
                     });
 
@@ -420,7 +423,7 @@ public class AiAppChatCmdExe {
         // 检查是否为客户端断开相关异常
         if (isClientDisconnectException(e)) {
             log.warn("客户端断开连接: appId={}, sessionId={}, error={}", 
-                     appId, sessionId, e.getMessage());
+                     appId, sessionId, e);
         } else {
             log.error("AI应用聊天处理失败: appId={}, sessionId={}, error={}", 
                      appId, sessionId, e.getMessage(), e);
@@ -597,8 +600,8 @@ public class AiAppChatCmdExe {
             // 创建RAG增强器
             RetrievalAugmentor retrievalAugmentor = ragAugmentorFactory.createRetrievalAugmentor(modelId, ragConfig);
             
-            // 使用LangChain4j AiServices框架创建推理服务
-            return AiServices.builder(SmartChatService.class)
+            // 使用LangChain4j AiServices框架创建推理服务（支持ReAct）
+            var builder = AiServices.builder(SmartChatService.class)
 //                    .chatModel(chatModel)
                     .streamingChatModel(streamingChatModel)
                     .chatMemoryProvider(memoryId -> MessageWindowChatMemory.builder()
@@ -606,8 +609,17 @@ public class AiAppChatCmdExe {
                             .maxMessages(20)
                             .chatMemoryStore(chatMemoryStore)
                             .build())
-                    .retrievalAugmentor(retrievalAugmentor)
-                    .build();
+                    .retrievalAugmentor(retrievalAugmentor);
+            
+            // 启用ReAct工具调用（如果有可用工具）
+            if (enabledTools != null && !enabledTools.isEmpty()) {
+                log.info("启用ReAct工具调用: modelId={}, toolsCount={}", modelId, enabledTools.size());
+                builder.tools(enabledTools);
+            } else {
+                log.info("未配置工具，仅使用RAG模式: modelId={}", modelId);
+            }
+            
+            return builder.build();
             
         } catch (Exception e) {
             log.error("创建SmartChatService失败: modelId={}, ragConfig={}", modelId, ragConfig, e);

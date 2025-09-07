@@ -1,7 +1,7 @@
 package com.leyue.smartcs.rag.memory;
 
+import dev.langchain4j.community.store.memory.chat.redis.RedisChatMemoryStore;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import dev.langchain4j.store.memory.chat.redis.RedisChatMemoryStore;
 import org.redisson.api.RedissonClient;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Configuration;

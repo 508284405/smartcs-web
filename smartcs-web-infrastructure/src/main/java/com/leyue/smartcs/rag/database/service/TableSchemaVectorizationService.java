@@ -17,6 +17,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 表结构向量化服务
@@ -48,7 +49,7 @@ public class TableSchemaVectorizationService {
      * @return 向量化的表数量
      */
     public CompletableFuture<Integer> vectorizeAllTableSchemas(Long embeddingModelId) {
-        return CompletableFuture.supplyAsync(() -> {
+        return TracingSupport.supplyAsync(() -> {
             try {
                 log.info("开始向量化数据库表结构");
                 

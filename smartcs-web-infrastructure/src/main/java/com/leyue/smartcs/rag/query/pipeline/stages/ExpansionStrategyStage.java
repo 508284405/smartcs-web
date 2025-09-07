@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 检索增强策略阶段
@@ -124,14 +125,14 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
         
         try {
             // 0. 基于字典的查询扩展（优先级最高）
-            CompletableFuture<List<Query>> dictionaryExpansionFuture = CompletableFuture
+            CompletableFuture<List<Query>> dictionaryExpansionFuture = TracingSupport
                     .supplyAsync(() -> expandQueriesWithDictionary(context, originalText))
                     .orTimeout(5, TimeUnit.SECONDS);
             expansionFutures.add(dictionaryExpansionFuture);
             
             // 1. 多路Query生成
             if (config.getN() > 1) {
-                CompletableFuture<List<Query>> multiQueryFuture = CompletableFuture
+                CompletableFuture<List<Query>> multiQueryFuture = TracingSupport
                         .supplyAsync(() -> generateMultipleQueries(originalText, config))
                         .orTimeout(10, TimeUnit.SECONDS);
                 expansionFutures.add(multiQueryFuture);
@@ -139,7 +140,7 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
             
             // 2. Step-back策略（对复杂查询）
             if (isComplexQuery) {
-                CompletableFuture<List<Query>> stepBackFuture = CompletableFuture
+                CompletableFuture<List<Query>> stepBackFuture = TracingSupport
                         .supplyAsync(() -> generateStepBackQueries(originalText))
                         .orTimeout(8, TimeUnit.SECONDS);
                 expansionFutures.add(stepBackFuture);
@@ -147,7 +148,7 @@ public class ExpansionStrategyStage implements QueryTransformerStage {
             
             // 3. HyDE策略（对抽象查询）
             if (isAbstractQuery(originalText)) {
-                CompletableFuture<List<Query>> hydeFuture = CompletableFuture
+                CompletableFuture<List<Query>> hydeFuture = TracingSupport
                         .supplyAsync(() -> generateHyDEQueries(originalText))
                         .orTimeout(15, TimeUnit.SECONDS);
                 expansionFutures.add(hydeFuture);

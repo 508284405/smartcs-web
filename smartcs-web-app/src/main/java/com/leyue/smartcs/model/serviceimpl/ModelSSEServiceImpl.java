@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 模型流式推理服务实现
@@ -36,7 +37,7 @@ public class ModelSSEServiceImpl implements ModelSSEService {
 
         // 异步处理流式推理请求
         RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
-        CompletableFuture.runAsync(() -> {
+        TracingSupport.runAsync(() -> {
             RequestContextHolder.setRequestAttributes(attributes);
             try {
                 // 执行流式推理命令

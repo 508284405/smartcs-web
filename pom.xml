@@ -123,12 +123,16 @@
                 <version>1.4.0-beta10</version>
                 <type>pom</type>
             </dependency>
-
             <dependency>
                 <groupId>dev.langchain4j</groupId>
-                <artifactId>langchain4j-redis</artifactId>
-                <version>1.0.0-alpha1</version>
+                <artifactId>langchain4j-community-redis-spring-boot-starter</artifactId>
+                <version>1.4.0-beta10</version>
             </dependency>
+<!--            <dependency>-->
+<!--                <groupId>dev.langchain4j</groupId>-->
+<!--                <artifactId>langchain4j-redis</artifactId>-->
+<!--                 <version>1.0.0-alpha1</version>-->
+<!--            </dependency>-->
             <!-- 如需Milvus/PGVector等可按需添加 -->
             
             <!--Project modules-->

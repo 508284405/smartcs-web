@@ -20,7 +20,7 @@ public class SecretConfig {
     /**
      * 当前使用的密钥ID（用于密钥轮换）
      */
-    private String activeKid = "default";
+    private String activeKid = "prod-key-2024";
     
     /**
      * 密钥映射表：密钥ID -> 密钥值（Base64编码）

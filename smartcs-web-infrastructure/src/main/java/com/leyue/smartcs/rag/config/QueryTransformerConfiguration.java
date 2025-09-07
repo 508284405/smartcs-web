@@ -14,6 +14,7 @@ import com.leyue.smartcs.api.DictionaryService;
 import com.leyue.smartcs.domain.intent.domainservice.ClassificationDomainService;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import com.leyue.smartcs.model.service.DefaultModelService;
+import com.leyue.smartcs.rag.metrics.SlotFillingMetricsCollector;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
@@ -30,7 +31,6 @@ import com.leyue.smartcs.rag.query.pipeline.stages.RewriteStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.SemanticAlignmentStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.SlotFillingStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.SynonymRecallStage;
-import com.leyue.smartcs.rag.metrics.SlotFillingMetricsCollector;
 
 import dev.langchain4j.rag.query.transformer.QueryTransformer;
 import lombok.RequiredArgsConstructor;

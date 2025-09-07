@@ -3,6 +3,7 @@ package com.leyue.smartcs.knowledge.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import redis.clients.jedis.DefaultJedisClientConfig;
 import redis.clients.jedis.HostAndPort;
@@ -30,6 +31,7 @@ public class JedisConfig {
     private int timeout;
 
     @Bean
+    @Primary
     public UnifiedJedis jedisPool() {
         HostAndPort hostAndPort = new HostAndPort(host, port);
         DefaultJedisClientConfig jedisClientConfig = DefaultJedisClientConfig.builder()

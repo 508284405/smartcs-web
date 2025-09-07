@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 基于LangChain4j的AI内容审核服务
@@ -96,7 +97,7 @@ public class LangChain4jModerationService {
             );
         }
 
-        return CompletableFuture.supplyAsync(() -> {
+        return TracingSupport.supplyAsync(() -> {
             try {
                 // 1. 生成动态prompt
                 String targetScenario = scenario != null ? scenario : defaultScenario;
@@ -162,7 +163,7 @@ public class LangChain4jModerationService {
             return CompletableFuture.completedFuture(QuickModerationResult.error());
         }
 
-        return CompletableFuture.supplyAsync(() -> {
+        return TracingSupport.supplyAsync(() -> {
             try {
                 // 1. 生成快速审核prompt
                 String targetLanguage = language != null ? language : "zh-CN";

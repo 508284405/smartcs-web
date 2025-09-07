@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 关键词规则引擎
@@ -386,7 +387,7 @@ public class KeywordRuleEngine {
      */
     private void updateRuleHitCount(Long ruleId) {
         // 异步更新，避免影响审核性能
-        CompletableFuture.runAsync(() -> {
+        TracingSupport.runAsync(() -> {
             try {
                 moderationGateway.updateKeywordRuleHitCount(ruleId, 1, System.currentTimeMillis());
             } catch (Exception e) {

@@ -131,6 +131,27 @@ smartcs:
       include-column-descriptions: true
       include-business-context: true
 
+  # 敏感信息加密配置（开发环境）
+  secrets:
+    # 当前使用的密钥ID，用于新加密操作
+    activeKid: "dev-key-2024"
+    
+    # 加密算法配置
+    algorithm: "AES"
+    transformation: "AES/GCM/NoPadding"
+    ivLength: 12    # GCM模式IV长度（字节）
+    tagLength: 128  # GCM认证标签长度（位）
+    
+    # 密钥映射表：密钥ID -> 密钥值（Base64编码的256位AES密钥）
+    keys:
+      # 开发环境密钥（256位AES密钥，Base64编码）
+      "dev-key-2024": "7zMZ79gIhnvzDE+BpCc/kCyDWn/xU7Ku3YXvh7eqk10="
+
+  # 迁移配置
+  migration:
+    # 是否启用API Key加密迁移（首次部署时设置为true，迁移完成后设置为false）
+    encrypt-api-keys: false
+
   # 文档导入与下载相关配置
 import:
   download:
@@ -234,6 +255,27 @@ langchain4j:
     streaming-chat-model:
       model-name: "gpt-3.5-turbo"
       temperature: 0.7
+
+  # Ollama 配置示例（注释形式，实际使用请通过数据库配置Provider和Model）
+  # ollama:
+  #   chat-model:
+  #     base-url: "http://localhost:11434"
+  #     model-name: "llama3"
+  #     timeout: "2m"
+  #   streaming-chat-model:
+  #     base-url: "http://localhost:11434"
+  #     model-name: "llama3"
+  #     timeout: "2m"
+  #   embedding-model:
+  #     base-url: "http://localhost:11434"
+  #     model-name: "nomic-embed-text"
+  #     timeout: "2m"
+  #
+  # Ollama 使用说明：
+  # 1. 安装并启动 Ollama 服务
+  # 2. 拉取模型：ollama pull llama3 && ollama pull nomic-embed-text
+  # 3. 在管理界面创建 Provider，类型选择 OLLAMA，端点设置为 http://localhost:11434
+  # 4. 创建 Model，关联到上述 Provider，模型名称设置为已拉取的模型名
 
 # 指标配置
 management:

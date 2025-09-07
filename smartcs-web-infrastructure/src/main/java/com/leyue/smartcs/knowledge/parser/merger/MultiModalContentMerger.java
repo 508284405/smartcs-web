@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 多模态内容合并器
@@ -76,7 +77,7 @@ public class MultiModalContentMerger {
             byte[] data = inputStream.readAllBytes();
 
             // 并行提取不同类型的内容
-            CompletableFuture<Document> textFuture = CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<Document> textFuture = TracingSupport.supplyAsync(() -> {
                 try {
                     return tikaTextExtractor.extractText(
                             new java.io.ByteArrayInputStream(data), sourceFileName);
@@ -86,7 +87,7 @@ public class MultiModalContentMerger {
                 }
             }, executor);
 
-            CompletableFuture<List<TikaTableExtractor.TableData>> tableFuture = CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<List<TikaTableExtractor.TableData>> tableFuture = TracingSupport.supplyAsync(() -> {
                 try {
                     return tikaTableExtractor.extractTables(
                             new java.io.ByteArrayInputStream(data), sourceFileName);
@@ -96,7 +97,7 @@ public class MultiModalContentMerger {
                 }
             }, executor);
 
-            CompletableFuture<List<Document>> ocrFuture = CompletableFuture.supplyAsync(() -> {
+            CompletableFuture<List<Document>> ocrFuture = TracingSupport.supplyAsync(() -> {
                 try {
                     // OCR处理暂时返回空列表，后续可以扩展
                     return new ArrayList<Document>();

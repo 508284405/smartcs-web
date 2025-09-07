@@ -17,15 +17,13 @@ import java.util.concurrent.Executor;
  */
 @Slf4j
 @Configuration
-@EnableAsync
-public class AsyncConfig implements AsyncConfigurer {
+public class AsyncConfig {
     
     /**
      * 自定义异步任务执行器，支持MDC传递
      */
     @Bean("mdcTaskExecutor")
-    @Override
-    public Executor getAsyncExecutor() {
+    public Executor mdcTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor() {
             @Override
             public void execute(Runnable task) {
@@ -55,15 +53,5 @@ public class AsyncConfig implements AsyncConfigurer {
                 executor.getCorePoolSize(), executor.getMaxPoolSize());
         
         return executor;
-    }
-    
-    /**
-     * 异步任务异常处理
-     */
-    @Override
-    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-        return (ex, method, params) -> {
-            log.error("异步任务执行异常: method={}, params={}", method.getName(), params, ex);
-        };
     }
 }

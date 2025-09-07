@@ -3,6 +3,7 @@ package com.leyue.smartcs.rag.memory;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import com.leyue.smartcs.service.TracingSupport;
 
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -116,7 +117,7 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
      * 异步获取消息（用于TimeLimiter）
      */
     public CompletableFuture<List<ChatMessage>> getMessagesAsync(Object memoryId) {
-        return CompletableFuture.supplyAsync(() -> {
+        return TracingSupport.supplyAsync(() -> {
             log.debug("异步从Redis获取消息: memoryId={}", memoryId);
             return chatMemoryStore.getMessages(memoryId);
         });

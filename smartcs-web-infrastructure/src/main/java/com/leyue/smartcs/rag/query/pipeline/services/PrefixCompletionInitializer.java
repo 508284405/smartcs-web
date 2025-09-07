@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 前缀补全服务初始化器
@@ -46,9 +47,9 @@ public class PrefixCompletionInitializer {
                 
                 // 异步初始化各个组件
                 List<CompletableFuture<Void>> initTasks = Arrays.asList(
-                    CompletableFuture.runAsync(this::loadDefaultDictionaries),
-                    CompletableFuture.runAsync(this::loadFromSearchLogs),
-                    CompletableFuture.runAsync(this::warmupCache)
+                    TracingSupport.runAsync(this::loadDefaultDictionaries),
+                    TracingSupport.runAsync(this::loadFromSearchLogs),
+                    TracingSupport.runAsync(this::warmupCache)
                 );
                 
                 // 等待所有初始化任务完成

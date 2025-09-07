@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
+import com.leyue.smartcs.service.TracingSupport;
 
 /**
  * 并行查询转换器管线实现
@@ -397,7 +398,7 @@ public class ParallelQueryTransformerPipeline implements dev.langchain4j.rag.que
             List<List<Query>> batches = partition(queryList, batchSize);
             
             List<CompletableFuture<Collection<Query>>> futures = batches.stream()
-                    .map(batch -> CompletableFuture.supplyAsync(() -> {
+                    .map(batch -> TracingSupport.supplyAsync(() -> {
                         try {
                             return stage.apply(context, batch);
                         } catch (Exception e) {
