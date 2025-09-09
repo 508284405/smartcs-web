@@ -49,6 +49,11 @@ public class QueryTransformerPipeline implements QueryTransformer {
      * 模型ID，用于LLM配置
      */
     private final Long modelId;
+
+    /**
+     * 预加载到每次 QueryContext.attributes 的默认属性（用于会话态注入）
+     */
+    private final Map<String, Object> defaultAttributes;
     
     @Override
     public Collection<Query> transform(Query query) {
@@ -146,7 +151,7 @@ public class QueryTransformerPipeline implements QueryTransformer {
     private QueryContext createQueryContext(Query originalQuery) {
         long currentTime = System.currentTimeMillis();
         
-        return QueryContext.builder()
+        QueryContext context = QueryContext.builder()
                 .originalQuery(originalQuery)
                 .tenant(defaultTenant)
                 .channel(defaultChannel)
@@ -171,6 +176,12 @@ public class QueryTransformerPipeline implements QueryTransformer {
                         .chatModelId(modelId)
                         .build())
                 .build();
+
+        // 预置会话属性
+        if (defaultAttributes != null && !defaultAttributes.isEmpty()) {
+            try { context.getAttributes().putAll(defaultAttributes); } catch (Exception ignore) {}
+        }
+        return context;
     }
     
     /**

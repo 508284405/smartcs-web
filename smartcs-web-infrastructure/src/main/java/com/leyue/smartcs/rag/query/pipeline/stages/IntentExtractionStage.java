@@ -304,9 +304,15 @@ public class IntentExtractionStage implements QueryTransformerStage {
             // 构建意图列表（这里简化处理，实际应从配置或数据库获取）
             String intentList = buildIntentList(context);
             
-            // 调用AI服务进行意图分类
-            String result = aiService.classifyIntent(
-                text, intentList, context.getChannel(), context.getTenant()
+            // 构建历史线索
+            String lastIntentCode = getLastIntentFromContext(context);
+            String lastSlots = getLastSlotsJsonFromContext(context);
+            String recentMessages = getRecentMessages(context);
+            
+            // 调用AI服务进行历史感知的意图分类
+            String result = aiService.classifyIntentWithHistory(
+                text, intentList, context.getChannel(), context.getTenant(),
+                lastIntentCode, lastSlots, recentMessages
             );
             
             // 解析JSON结果
@@ -315,6 +321,40 @@ public class IntentExtractionStage implements QueryTransformerStage {
         } catch (Exception e) {
             log.warn("意图分类失败，使用默认分类: text={}", text, e);
             return createDefaultIntentResult();
+        }
+    }
+
+    private String getLastIntentFromContext(QueryContext context) {
+        try {
+            Object intentObj = context.getAttribute("intent");
+            if (intentObj instanceof Map) {
+                Object last = ((Map<?, ?>) intentObj).get("lastCode");
+                return last != null ? last.toString() : null;
+            }
+        } catch (Exception ignore) {}
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String getLastSlotsJsonFromContext(QueryContext context) {
+        try {
+            Object slotObj = context.getAttribute("slot_filling");
+            if (slotObj instanceof Map) {
+                Object extracted = ((Map<String, Object>) slotObj).get("extracted");
+                if (extracted instanceof Map) {
+                    return objectMapper.writeValueAsString(extracted);
+                }
+            }
+        } catch (Exception ignore) {}
+        return "{}";
+    }
+
+    private String getRecentMessages(QueryContext context) {
+        try {
+            Object recent = context.getAttribute("recent_messages");
+            return recent != null ? recent.toString() : "";
+        } catch (Exception ignore) {
+            return "";
         }
     }
     
@@ -759,6 +799,19 @@ public class IntentExtractionStage implements QueryTransformerStage {
         }
         
         intentStats.merge(intent.getIntentCode(), 1, Integer::sum);
+
+        // 更新集中意图视图，供其他阶段/上层读取
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> intentView = (Map<String, Object>) context.getAttribute("intent");
+            if (intentView == null) {
+                intentView = new HashMap<>();
+            }
+            intentView.put("currentCode", intent.getIntentCode());
+            intentView.put("catalogCode", intent.getCatalogCode());
+            intentView.put("confidence", intent.getConfidence());
+            context.setAttribute("intent", intentView);
+        } catch (Exception ignore) {}
     }
     
     // 静态初始化方法

@@ -60,6 +60,50 @@ public interface IntentClassificationAiService {
                          @V("intentList") String intentList,
                          @V("channel") String channel, 
                          @V("tenant") String tenant);
+
+    /**
+     * 单文本意图分类（历史感知）
+     * 增强：引入上一轮意图/已知槽位/最近消息，做多轮消歧。
+     */
+    @SystemMessage("""
+        你是一个历史感知的两级意图分类系统。根据用户输入和会话上下文，进行层次化意图识别。
+        
+        **上下文线索（可为空）：**
+        - 上一轮意图：{{lastIntentCode}}
+        - 已知槽位（JSON）：{{lastSlots}}
+        - 最近消息（拼接）：{{recentMessages}}
+        
+        **分类流程：**
+        1. 首先识别用户文本属于哪个意图目录（CATALOG_xxx）
+        2. 然后在该目录下识别具体意图
+        3. 结合历史线索提高稳定性（连续话题应倾向于同一意图，除非当前文本明显不同）
+        4. 计算两级分类的置信度分数
+        5. 如果没有合适的意图匹配，返回"UNKNOWN"
+        
+        **意图层次结构：**
+        {{intentList}}
+        
+        **输出格式（严格JSON）：**
+        {
+          "intentCode": "...",
+          "intentName": "...",
+          "catalogCode": "...",
+          "catalogName": "...",
+          "confidenceScore": 0.95,
+          "catalogConfidence": 0.98,
+          "intentConfidence": 0.92,
+          "reasonCode": "MATCH|LOW_CONFIDENCE|NO_MATCH",
+          "reasoning": "结合历史线索的推理过程"
+        }
+        """)
+    @UserMessage("{{text}}")
+    String classifyIntentWithHistory(@V("text") String text,
+                                     @V("intentList") String intentList,
+                                     @V("channel") String channel,
+                                     @V("tenant") String tenant,
+                                     @V("lastIntentCode") String lastIntentCode,
+                                     @V("lastSlots") String lastSlots,
+                                     @V("recentMessages") String recentMessages);
     
     /**
      * 批量文本意图分类

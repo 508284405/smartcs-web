@@ -20,6 +20,7 @@ import com.leyue.smartcs.service.TracingSupport;
 import com.leyue.smartcs.intent.service.SessionIntentStateStore;
 
 import dev.langchain4j.data.message.ImageContent;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.StreamingChatModel;
@@ -101,19 +102,29 @@ public class AiAppChatCmdExe {
                     log.info("使用默认RAG配置: sessionId={}", sessionId);
                 }
 
-                // 3. 插入最小澄清闭环（M0）：基于查询转换器的槽位填充阶段预检
+                // 3. 多轮澄清融合：先尝试用本轮输入补全上轮缺失槽位；若仍缺失则直接返回澄清问题
+                String augmented = tryConsumePreviousClarificationOrPrompt(emitter, cmd, sessionId);
+                if (augmented == null) {
+                    // 仍需澄清，已发送问题并结束本轮
+                    return;
+                }
+                if (!augmented.isEmpty()) {
+                    cmd.setMessage(augmented);
+                }
+
+                // 4. 插入最小澄清闭环（M0）：基于查询转换器的槽位填充阶段预检
                 if (maybeHandleClarification(emitter, cmd, ragConfig, sessionId)) {
                     return; // 已发送澄清问题，结束此次请求
                 }
 
-                // 4. 根据是否包含图片选择推理路径
+                // 5. 根据是否包含图片选择推理路径
                 if (hasImages(cmd)) {
                     log.info("检测到图片输入，走多模态推理路径: sessionId={} images={}", sessionId,
                             cmd.getImageUrls() != null ? cmd.getImageUrls().size() : 0);
                     processVisionChatStream(emitter, cmd, sessionId);
                 } else {
                     // 无图片：动态创建SmartChatService实例并执行对话（包含RAG与记忆）
-                    SmartChatService smartChatService = createSmartChatService(cmd.getModelId(), ragConfig);
+                    SmartChatService smartChatService = createSmartChatService(cmd.getModelId(), ragConfig, sessionId);
                     processChatStream(emitter, cmd, sessionId, smartChatService);
                 }
                 
@@ -258,8 +269,8 @@ public class AiAppChatCmdExe {
                             log.warn("发送流式消息时检测到客户端断开: sessionId={}", sessionId);
                         } else {
                             log.error("发送流式数据失败: sessionId={}", sessionId, e);
-                        }
-                    }
+                }
+                }
                 }
             }
 
@@ -433,6 +444,111 @@ public class AiAppChatCmdExe {
     }
 
     /**
+     * 多轮：尝试用本轮输入补全上轮缺失的槽位；
+     * 若补全后仍有缺失，直接返回澄清问题并结束本轮；
+     * 若补全完成，则返回增强后的 message（将已知槽位拼接进查询以提升检索效果）。
+     * 返回值：
+     * - null: 已返回澄清问题，需结束本轮
+     * - "": 无需增强，继续后续流程
+     * - 非空: 使用增强后的消息继续
+     */
+    @SuppressWarnings("unchecked")
+    private String tryConsumePreviousClarificationOrPrompt(SseEmitter emitter, AiAppChatCmd cmd, String sessionId) throws Exception {
+        Map<String, Object> state = sessionIntentStateStore.get(sessionId);
+        if (state == null || state.isEmpty()) {
+            return ""; // 无会话待澄清信息
+        }
+
+        Object missingObj = state.get("missing");
+        Object extractedObj = state.get("extracted");
+        List<String> missing = (missingObj instanceof List) ? (List<String>) missingObj : java.util.Collections.emptyList();
+        Map<String, Object> extracted = (extractedObj instanceof Map) ? (Map<String, Object>) extractedObj : new java.util.HashMap<>();
+
+        if (missing.isEmpty()) {
+            return buildAugmentedMessage(cmd.getMessage(), extracted);
+        }
+
+        // 将本轮输入作为对第一个缺失槽位的回答（简化规则）
+        String answer = cmd.getMessage() == null ? "" : cmd.getMessage().trim();
+        if (!answer.isEmpty()) {
+            String slot = missing.get(0);
+            extracted.put(slot, answer);
+            missing.remove(0);
+            state.put("extracted", extracted);
+            state.put("missing", missing);
+            sessionIntentStateStore.put(sessionId, state);
+        }
+
+        if (!missing.isEmpty()) {
+            // 仍有缺失，提示剩余问题
+            List<String> questions = (List<String>) state.getOrDefault("questions", java.util.Collections.emptyList());
+            StringBuilder sb = new StringBuilder();
+            sb.append("为更好回答，请补充以下信息：\n");
+            int i = 1;
+            for (String q : questions) {
+                sb.append(i++).append(". ").append(q).append("\n");
+            }
+            AiAppChatResponse partial = AiAppChatResponse.builder()
+                    .sessionId(sessionId)
+                    .content(sb.toString())
+                    .finished(false)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            sendSSEMessage(emitter, AiAppChatSSEMessage.data(sessionId, partial));
+
+            AiAppChatResponse complete = AiAppChatResponse.builder()
+                    .sessionId(sessionId)
+                    .content("等待澄清信息…")
+                    .finished(true)
+                    .timestamp(System.currentTimeMillis())
+                    .build();
+            sendSSEMessage(emitter, AiAppChatSSEMessage.complete(sessionId, complete));
+            try { emitter.complete(); } catch (Exception ignore) {}
+            return null; // 本轮结束
+        }
+
+        // 缺失已补全：构造增强后的消息，携带已知槽位信息
+        return buildAugmentedMessage(cmd.getMessage(), extracted);
+    }
+
+    private String buildAugmentedMessage(String original, Map<String, Object> extracted) {
+        if (extracted == null || extracted.isEmpty()) return original;
+        StringBuilder ctx = new StringBuilder();
+        ctx.append("[已知参数]");
+        int i = 0;
+        for (Map.Entry<String, Object> e : extracted.entrySet()) {
+            if (i++ == 0) ctx.append(" "); else ctx.append(", ");
+            ctx.append(e.getKey()).append("=").append(String.valueOf(e.getValue()));
+        }
+        ctx.append("\n");
+        return ctx.toString() + (original == null ? "" : original);
+    }
+
+    /**
+     * 从 ChatMemoryStore 构造最近消息的简要文本（用户/助手，最近N条）。
+     */
+    private String buildRecentMessages(String sessionId, int limit) {
+        try {
+            java.util.List<ChatMessage> messages = chatMemoryStore.getMessages(sessionId);
+            if (messages == null || messages.isEmpty()) return "";
+            StringBuilder sb = new StringBuilder();
+            int start = Math.max(0, messages.size() - Math.max(1, limit));
+            for (int idx = start; idx < messages.size(); idx++) {
+                ChatMessage m = messages.get(idx);
+                String role = m.type() != null ? m.type().name() : "MSG";
+                String content = m != null ? m.toString() : "";
+                if (content == null) content = "";
+                if (content.length() > 200) content = content.substring(0, 200);
+                sb.append("[").append(role).append("] ").append(content).append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            log.debug("获取最近消息失败: sessionId={}, error={}", sessionId, e.getMessage());
+            return "";
+        }
+    }
+
+    /**
      * M0：在RAG对话前做一次查询转换器的澄清预检。
      * 如果槽位缺失且需要澄清，则直接返回澄清问题并暂存会话状态。
      */
@@ -441,15 +557,41 @@ public class AiAppChatCmdExe {
         try {
             Long modelId = cmd.getModelId();
             // 使用与增强器一致的查询转换器实例
+            Map<String, Object> state = sessionIntentStateStore.get(sessionId);
+            Map<String, Object> defaultAttrs = new java.util.HashMap<>();
+            if (state != null && !state.isEmpty()) {
+                defaultAttrs.put("slot_filling", state);
+                Object lastIntent = state.get("intent");
+                java.util.Map<String, Object> intentMap = new java.util.HashMap<>();
+                if (lastIntent != null) intentMap.put("lastCode", lastIntent);
+                defaultAttrs.put("intent", intentMap);
+            }
+            String recent = buildRecentMessages(sessionId, 8);
+            if (!recent.isEmpty()) {
+                defaultAttrs.put("recent_messages", recent);
+            }
             dev.langchain4j.rag.query.transformer.QueryTransformer transformer =
                     (ragConfig != null)
-                            ? ragAugmentorFactory.createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault())
-                            : ragAugmentorFactory.createQueryTransformer(modelId);
+                            ? ragAugmentorFactory.createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault(), defaultAttrs)
+                            : ragAugmentorFactory.createQueryTransformer(modelId, null, defaultAttrs);
 
             if (transformer instanceof com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline pipeline) {
                 var trace = pipeline.transformWithTrace(Query.from(cmd.getMessage()));
                 var attrs = trace.getAttributesSnapshot();
-                if (attrs != null && attrs.containsKey("slot_filling")) {
+                if (attrs != null) {
+                    // 写回当前意图
+                    Object intentObj = attrs.get("intent");
+                    if (intentObj instanceof java.util.Map) {
+                        Object current = ((java.util.Map<?, ?>) intentObj).get("currentCode");
+                        if (current != null) {
+                            Map<String, Object> st = state != null ? state : new java.util.HashMap<>();
+                            st.put("intent", current.toString());
+                            sessionIntentStateStore.put(sessionId, st);
+                            state = st;
+                        }
+                    }
+
+                    if (attrs.containsKey("slot_filling")) {
                     Map<String, Object> slotInfo = (Map<String, Object>) attrs.get("slot_filling");
                     Object questionsObj = slotInfo.get("questions");
                     boolean block = Boolean.TRUE.equals(slotInfo.get("block_retrieval"));
@@ -487,6 +629,7 @@ public class AiAppChatCmdExe {
                         return true;
                     }
                 }
+            }
             }
             return false;
         } catch (Exception e) {
@@ -669,7 +812,7 @@ public class AiAppChatCmdExe {
      * @param ragConfig RAG配置
      * @return SmartChatService实例
      */
-    private SmartChatService createSmartChatService(Long modelId, RagComponentConfig ragConfig) {
+    private SmartChatService createSmartChatService(Long modelId, RagComponentConfig ragConfig, String sessionId) {
         log.info("创建SmartChatService: modelId={}, ragConfig={}", modelId, ragConfig);
         
         try {
@@ -677,8 +820,21 @@ public class AiAppChatCmdExe {
 //            ChatModel chatModel = modelProvider.getChatModel(modelId);
             StreamingChatModel streamingChatModel = modelProvider.getStreamingChatModel(modelId);
             
-            // 创建RAG增强器
-            RetrievalAugmentor retrievalAugmentor = ragAugmentorFactory.createRetrievalAugmentor(modelId, ragConfig);
+            // 创建RAG增强器（带会话属性）
+            Map<String, Object> state = sessionIntentStateStore.get(sessionId);
+            Map<String, Object> defaultAttrs = new java.util.HashMap<>();
+            if (state != null && !state.isEmpty()) {
+                defaultAttrs.put("slot_filling", state);
+                Object lastIntent = state.get("intent");
+                java.util.Map<String, Object> intentMap = new java.util.HashMap<>();
+                if (lastIntent != null) intentMap.put("lastCode", lastIntent);
+                defaultAttrs.put("intent", intentMap);
+            }
+            String recent = buildRecentMessages(sessionId, 8);
+            if (!recent.isEmpty()) {
+                defaultAttrs.put("recent_messages", recent);
+            }
+            RetrievalAugmentor retrievalAugmentor = ragAugmentorFactory.createRetrievalAugmentor(modelId, ragConfig, defaultAttrs);
             
             // 使用LangChain4j AiServices框架创建推理服务（支持ReAct）
             var builder = AiServices.builder(SmartChatService.class)

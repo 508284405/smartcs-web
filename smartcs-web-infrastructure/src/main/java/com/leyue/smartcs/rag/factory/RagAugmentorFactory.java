@@ -130,7 +130,7 @@ public class RagAugmentorFactory {
                     .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault(), 
                             ragConfig.getKnowledgeSearchOrDefault(), ragConfig.getWebSearchOrDefault(), 
                             ragConfig.getSqlQueryOrDefault()))
-                    .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault()))
+                    .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault(), null))
                     .contentAggregator(createContentAggregator(modelId, ragConfig.getContentAggregatorOrDefault()))
                     .contentInjector(createContentInjector(modelId, ragConfig.getContentInjectorOrDefault()))
                     .build();
@@ -141,11 +141,39 @@ public class RagAugmentorFactory {
             
             return DefaultRetrievalAugmentor.builder()
                     .queryRouter(createQueryRouter(id))
-                    .queryTransformer(createQueryTransformer(id))
+                    .queryTransformer(createQueryTransformer(id, null, null))
                     .contentAggregator(createContentAggregator(id))
                     .contentInjector(createContentInjector(id))
                     .build();
         });
+    }
+
+    /**
+     * 根据模型ID和配置创建RetrievalAugmentor（带默认属性，会话态注入）
+     */
+    public RetrievalAugmentor createRetrievalAugmentor(Long modelId, RagComponentConfig ragConfig,
+                                                       Map<String, Object> defaultAttributes) {
+        if (ragConfig != null) {
+            log.debug("创建自定义配置的RetrievalAugmentor实例(带默认属性): modelId={}, attrs={} keys",
+                    modelId, defaultAttributes != null ? defaultAttributes.keySet() : null);
+
+            return DefaultRetrievalAugmentor.builder()
+                    .queryRouter(createQueryRouter(modelId, ragConfig.getQueryRouterOrDefault(),
+                            ragConfig.getKnowledgeSearchOrDefault(), ragConfig.getWebSearchOrDefault(), ragConfig.getSqlQueryOrDefault()))
+                    .queryTransformer(createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault(), defaultAttributes))
+                    .contentAggregator(createContentAggregator(modelId, ragConfig.getContentAggregatorOrDefault()))
+                    .contentInjector(createContentInjector(modelId, ragConfig.getContentInjectorOrDefault()))
+                    .build();
+        }
+
+        log.debug("创建默认配置的RetrievalAugmentor实例(带默认属性): modelId={}, attrs={} keys",
+                modelId, defaultAttributes != null ? defaultAttributes.keySet() : null);
+        return DefaultRetrievalAugmentor.builder()
+                .queryRouter(createQueryRouter(modelId))
+                .queryTransformer(createQueryTransformer(modelId, null, defaultAttributes))
+                .contentAggregator(createContentAggregator(modelId))
+                .contentInjector(createContentInjector(modelId))
+                .build();
     }
     
     /**
@@ -234,8 +262,18 @@ public class RagAugmentorFactory {
     private QueryTransformer createSimpleQueryTransformer(Long modelId, RagComponentConfig.QueryTransformerConfig config) {
         // 创建管线实现
         ChatModel chatModel = modelProvider.getChatModel(modelId);
-        QueryTransformerPipeline pipeline = createQueryTransformerPipeline(chatModel, config);
+        QueryTransformerPipeline pipeline = createQueryTransformerPipeline(chatModel, config, null);
         return pipeline;
+    }
+
+    /**
+     * 带默认属性的查询转换器创建（用于多轮会话态注入）
+     */
+    public QueryTransformer createQueryTransformer(Long modelId,
+                                                   RagComponentConfig.QueryTransformerConfig config,
+                                                   Map<String, Object> defaultAttributes) {
+        ChatModel chatModel = modelProvider.getChatModel(modelId);
+        return createQueryTransformerPipeline(chatModel, config != null ? config : RagComponentConfig.QueryTransformerConfig.builder().build(), defaultAttributes);
     }
     
     /**
@@ -246,7 +284,8 @@ public class RagAugmentorFactory {
      * @return QueryTransformerPipeline实例
      */
     private QueryTransformerPipeline createQueryTransformerPipeline(ChatModel chatModel, 
-                                                                   RagComponentConfig.QueryTransformerConfig config) {
+                                                                   RagComponentConfig.QueryTransformerConfig config,
+                                                                   Map<String, Object> defaultAttributes) {
         log.debug("构建查询转换器管线: config={}", config);
         
         // 创建管线配置
@@ -332,6 +371,7 @@ public class RagAugmentorFactory {
                 .metricsCollector(metricsCollector)
                 .defaultTenant(config.getDefaultTenant())
                 .defaultChannel(config.getDefaultChannel())
+                .defaultAttributes(defaultAttributes)
                 .build();
     }
     

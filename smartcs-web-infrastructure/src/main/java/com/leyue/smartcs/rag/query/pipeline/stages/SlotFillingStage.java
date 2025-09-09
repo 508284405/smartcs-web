@@ -95,8 +95,12 @@ public class SlotFillingStage implements QueryTransformerStage {
         // 1. 获取意图识别结果
         String intentCode = extractIntentCode(context, query);
         if (intentCode == null || intentCode.trim().isEmpty()) {
-            log.debug("未找到意图识别结果，跳过槽位填充: query={}", query.text());
-            return query;
+            // 尝试从会话态获取上一次意图
+            intentCode = extractLastIntentFromContext(context);
+            if (intentCode == null || intentCode.trim().isEmpty()) {
+                log.debug("未找到意图识别结果，跳过槽位填充: query={}", query.text());
+                return query;
+            }
         }
         
         // 记录查询开始
@@ -109,8 +113,15 @@ public class SlotFillingStage implements QueryTransformerStage {
             return query;
         }
         
-        // 3. 提取已有槽位
-        Map<String, Object> extractedSlots = extractSlotsFromQuery(query, template);
+        // 3. 提取已有槽位（融合会话态）
+        Map<String, Object> extractedSlots = new HashMap<>();
+        // 3.1 融合历史已知槽位
+        Map<String, Object> historySlots = extractKnownSlotsFromContext(context);
+        if (historySlots != null) {
+            extractedSlots.putAll(historySlots);
+        }
+        // 3.2 当前轮从查询中提取
+        extractedSlots.putAll(extractSlotsFromQuery(query, template));
         
         // 记录槽位填充激活
         metricsCollector.recordSlotFillingActivated(intentCode, 
@@ -162,6 +173,34 @@ public class SlotFillingStage implements QueryTransformerStage {
             }
         }
         
+        return null;
+    }
+
+    /** 从会话上下文中提取上一次的意图编码 */
+    @SuppressWarnings("unchecked")
+    private String extractLastIntentFromContext(QueryContext context) {
+        Map<String, Object> attributes = context.getAttributes();
+        if (attributes == null) return null;
+        Object intentObj = attributes.get("intent");
+        if (intentObj instanceof Map) {
+            Object last = ((Map<String, Object>) intentObj).get("lastCode");
+            return last != null ? last.toString() : null;
+        }
+        return null;
+    }
+
+    /** 从会话上下文中提取已知槽位（历史） */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractKnownSlotsFromContext(QueryContext context) {
+        Map<String, Object> attributes = context.getAttributes();
+        if (attributes == null) return null;
+        Object slotFilling = attributes.get("slot_filling");
+        if (slotFilling instanceof Map) {
+            Object extracted = ((Map<String, Object>) slotFilling).get("extracted");
+            if (extracted instanceof Map) {
+                return new HashMap<>((Map<String, Object>) extracted);
+            }
+        }
         return null;
     }
     
