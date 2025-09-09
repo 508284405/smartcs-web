@@ -26,6 +26,11 @@ public class QueryTransformationTrace {
     /** 错误信息（如果处理失败） */
     private String error;
 
+    /**
+     * 管线结束时的上下文属性快照（用于外部读取阶段产出，比如槽位澄清信息）
+     */
+    private java.util.Map<String, Object> attributesSnapshot;
+
     @Data
     @Builder
     public static class StageTrace {
@@ -47,4 +52,3 @@ public class QueryTransformationTrace {
         private String note;
     }
 }
-

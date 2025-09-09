@@ -49,6 +49,9 @@ mcp:
 
 # SmartCS AI配置
 smartcs:
+  rag:
+    query-transformer:
+      enable-pipeline: true
   ai:
     # RAG系统配置
     rag:

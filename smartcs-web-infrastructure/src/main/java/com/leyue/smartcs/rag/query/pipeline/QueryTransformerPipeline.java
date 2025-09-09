@@ -198,7 +198,17 @@ public class QueryTransformerPipeline implements QueryTransformer {
             }
         }
         trace.setFinalQueries(finalQueries);
-        
+
+        try {
+            // 记录属性快照，便于外部读取（例如槽位澄清信息）
+            if (context.getAttributes() != null) {
+                java.util.Map<String, Object> snapshot = new java.util.HashMap<>(context.getAttributes());
+                trace.setAttributesSnapshot(snapshot);
+            }
+        } catch (Exception ignore) {
+            // 保守处理，避免调试流程影响主流程
+        }
+
         return trace;
     }
     

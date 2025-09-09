@@ -19,15 +19,21 @@ import com.leyue.smartcs.rag.query.pipeline.QueryContext;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.IntentExtractionStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.NormalizationStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.PhoneticCorrectionStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.PrefixCompletionStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.RewriteStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.SemanticAlignmentStage;
+import com.leyue.smartcs.rag.query.pipeline.stages.SlotFillingStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.SynonymRecallStage;
 import com.leyue.smartcs.rag.query.pipeline.services.PhoneticCorrectionService;
 import com.leyue.smartcs.rag.query.pipeline.services.PrefixCompletionService;
 import com.leyue.smartcs.rag.query.pipeline.services.SynonymRecallService;
+import com.leyue.smartcs.api.DictionaryService;
+import com.leyue.smartcs.model.ai.DynamicModelManager;
+import com.leyue.smartcs.rag.metrics.SlotFillingMetricsCollector;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.langchain4j.community.web.search.searxng.SearXNGWebSearchEngine;
 import dev.langchain4j.data.segment.TextSegment;
@@ -86,6 +92,10 @@ public class RagAugmentorFactory {
     private final WebSearchProperties webSearchProperties;
     private final JdbcTemplate jdbcTemplate;
     private final NlpToSqlService nlpToSqlService;
+    private final DictionaryService dictionaryService;
+    private final DynamicModelManager dynamicModelManager;
+    private final ObjectMapper objectMapper;
+    private final SlotFillingMetricsCollector slotFillingMetricsCollector;
     
     // 缓存RAG组件实例，避免重复创建
     private final Map<Long, RetrievalAugmentor> retrievalAugmentorCache = new ConcurrentHashMap<>();
@@ -244,6 +254,7 @@ public class RagAugmentorFactory {
                 .enableNormalization(config.isEnableNormalization())
                 .enableExpanding(config.isEnableExpanding())
                 .enableIntentRecognition(config.isIntentRecognitionEnabled())
+                .enableSlotFilling(true)
                 .enablePhoneticCorrection(config.isEnablePhoneticCorrection())
                 .enablePrefixCompletion(config.isEnablePrefixCompletion())
                 .enableSynonymRecall(config.isEnableSynonymRecall())
@@ -340,41 +351,44 @@ public class RagAugmentorFactory {
             stages.add(new NormalizationStage());
         }
 
-        // 语义对齐（保持与 Spring Bean 装配一致）
-        stages.add(new SemanticAlignmentStage(null)); // 使用null作为DictionaryService
+        // 语义对齐（接入字典服务）
+        stages.add(new SemanticAlignmentStage(dictionaryService));
 
-        // 意图抽取阶段 - 暂时禁用以避免循环依赖
-        // TODO: 重构IntentExtractionStage以避免循环依赖
+        // 意图抽取阶段（启用并注入动态模型与字典服务）
         if (config.isEnableIntentRecognition()) {
-            log.debug("IntentExtractionStage 暂时禁用以避免循环依赖");
-            // stages.add(new com.leyue.smartcs.rag.query.pipeline.stages.IntentExtractionStage(this, new com.fasterxml.jackson.databind.ObjectMapper()));
+            stages.add(new IntentExtractionStage(dynamicModelManager, objectMapper, dictionaryService));
         }
 
         // 拼音改写阶段
         if (config.isEnablePhoneticCorrection()) {
             double minConf = config.getPhoneticConfig() != null ? config.getPhoneticConfig().getMinConfidence() : 0.6;
             PhoneticCorrectionService phoneticService = new PhoneticCorrectionService(minConf);
-            stages.add(new PhoneticCorrectionStage(phoneticService, null));
+            stages.add(new PhoneticCorrectionStage(phoneticService, dictionaryService));
         }
 
-        // 可检索化改写阶段（沿用已存在）
-        stages.add(new RewriteStage(null)); // 使用null作为DictionaryService
+        // 可检索化改写阶段（接入字典服务）
+        stages.add(new RewriteStage(dictionaryService));
 
         // 前缀补全阶段
         if (config.isEnablePrefixCompletion()) {
-            PrefixCompletionService prefixService = new PrefixCompletionService(Collections.emptyList(), null);
-            stages.add(new PrefixCompletionStage(prefixService, null));
+            PrefixCompletionService prefixService = new PrefixCompletionService(Collections.emptyList(), dictionaryService);
+            stages.add(new PrefixCompletionStage(prefixService, dictionaryService));
         }
 
         // 近义词召回阶段
         if (config.isEnableSynonymRecall()) {
-            SynonymRecallService synService = new SynonymRecallService(null);
-            stages.add(new SynonymRecallStage(synService, null));
+            SynonymRecallService synService = new SynonymRecallService(dictionaryService);
+            stages.add(new SynonymRecallStage(synService, dictionaryService));
         }
 
         // 添加扩展阶段
         if (config.isEnableExpanding()) {
             stages.add(new ExpandingStage(modelProvider));
+        }
+
+        // 槽位填充阶段（基于意图模板生成澄清问题）
+        if (config.isEnableSlotFilling()) {
+            stages.add(new SlotFillingStage(dictionaryService, objectMapper, slotFillingMetricsCollector));
         }
 
         log.debug("创建管线处理阶段完成: stageCount={}, 动态LLM支持=已启用", stages.size());

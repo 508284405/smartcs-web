@@ -2,6 +2,7 @@ package com.leyue.smartcs.app.executor;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -16,6 +17,7 @@ import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import com.leyue.smartcs.service.TracingSupport;
+import com.leyue.smartcs.intent.service.SessionIntentStateStore;
 
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.UserMessage;
@@ -24,6 +26,7 @@ import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import dev.langchain4j.rag.RetrievalAugmentor;
+import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
@@ -67,6 +70,7 @@ public class AiAppChatCmdExe {
     private final IdGeneratorGateway idGeneratorGateway;
     private final LangChain4jModerationService langChain4jModerationService;
     private final List<Object> enabledTools;
+    private final SessionIntentStateStore sessionIntentStateStore;
 
     /**
      * 执行SSE聊天
@@ -97,7 +101,12 @@ public class AiAppChatCmdExe {
                     log.info("使用默认RAG配置: sessionId={}", sessionId);
                 }
 
-                // 3. 根据是否包含图片选择推理路径
+                // 3. 插入最小澄清闭环（M0）：基于查询转换器的槽位填充阶段预检
+                if (maybeHandleClarification(emitter, cmd, ragConfig, sessionId)) {
+                    return; // 已发送澄清问题，结束此次请求
+                }
+
+                // 4. 根据是否包含图片选择推理路径
                 if (hasImages(cmd)) {
                     log.info("检测到图片输入，走多模态推理路径: sessionId={} images={}", sessionId,
                             cmd.getImageUrls() != null ? cmd.getImageUrls().size() : 0);
@@ -413,7 +422,78 @@ public class AiAppChatCmdExe {
      * 生成会话ID
      */
     private String generateSessionId(AiAppChatCmd cmd) {
+        try {
+            String sid = null;
+            try { sid = (String) AiAppChatCmd.class.getMethod("getSessionId").invoke(cmd); } catch (Exception ignore) {}
+            if (sid != null && !sid.trim().isEmpty()) {
+                return sid;
+            }
+        } catch (Exception ignore) {}
         return idGeneratorGateway.generateIdStr();
+    }
+
+    /**
+     * M0：在RAG对话前做一次查询转换器的澄清预检。
+     * 如果槽位缺失且需要澄清，则直接返回澄清问题并暂存会话状态。
+     */
+    @SuppressWarnings("unchecked")
+    private boolean maybeHandleClarification(SseEmitter emitter, AiAppChatCmd cmd, RagComponentConfig ragConfig, String sessionId) throws Exception {
+        try {
+            Long modelId = cmd.getModelId();
+            // 使用与增强器一致的查询转换器实例
+            dev.langchain4j.rag.query.transformer.QueryTransformer transformer =
+                    (ragConfig != null)
+                            ? ragAugmentorFactory.createQueryTransformer(modelId, ragConfig.getQueryTransformerOrDefault())
+                            : ragAugmentorFactory.createQueryTransformer(modelId);
+
+            if (transformer instanceof com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline pipeline) {
+                var trace = pipeline.transformWithTrace(Query.from(cmd.getMessage()));
+                var attrs = trace.getAttributesSnapshot();
+                if (attrs != null && attrs.containsKey("slot_filling")) {
+                    Map<String, Object> slotInfo = (Map<String, Object>) attrs.get("slot_filling");
+                    Object questionsObj = slotInfo.get("questions");
+                    boolean block = Boolean.TRUE.equals(slotInfo.get("block_retrieval"));
+                    java.util.List<String> questions = (questionsObj instanceof java.util.List)
+                            ? (java.util.List<String>) questionsObj : java.util.List.of();
+
+                    if (block || (questions != null && !questions.isEmpty())) {
+                        // 暂存会话槽位状态（M1：会话级状态存储）
+                        sessionIntentStateStore.put(sessionId, slotInfo);
+
+                        // 返回澄清问题并结束本次请求
+                        StringBuilder sb = new StringBuilder();
+                        sb.append("为更好回答，请先补充以下信息：\n");
+                        int i = 1;
+                        for (String q : questions) {
+                            sb.append(i++).append(". ").append(q).append("\n");
+                        }
+
+                        AiAppChatResponse data = AiAppChatResponse.builder()
+                                .sessionId(sessionId)
+                                .content(sb.toString())
+                                .finished(false)
+                                .timestamp(System.currentTimeMillis())
+                                .build();
+                        sendSSEMessage(emitter, AiAppChatSSEMessage.data(sessionId, data));
+
+                        AiAppChatResponse complete = AiAppChatResponse.builder()
+                                .sessionId(sessionId)
+                                .content("等待澄清信息…")
+                                .finished(true)
+                                .timestamp(System.currentTimeMillis())
+                                .build();
+                        sendSSEMessage(emitter, AiAppChatSSEMessage.complete(sessionId, complete));
+                        try { emitter.complete(); } catch (Exception ignore) {}
+                        return true;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            // 预检失败不阻断主流程
+            log.debug("澄清预检失败，忽略并进入主流程: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
