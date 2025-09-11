@@ -4,6 +4,7 @@ import com.leyue.smartcs.dto.eval.event.RagEvent;
 import com.leyue.smartcs.domain.eval.gateway.RagEventGateway;
 import com.leyue.smartcs.eval.sampling.SamplingDecider;
 import com.leyue.smartcs.eval.trace.SkyWalkingTraceContext;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -15,9 +16,16 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import dev.langchain4j.rag.content.Content;
 
 /**
  * RAG评估事件收集切面
@@ -41,8 +49,7 @@ public class RagEventCollectorAspect {
      * 拦截聊天命令执行
      * 主要拦截点：AiAppChatCmdExe.execute方法
      */
-    @Around("execution(* com.leyue.smartcs.app.executor.AiAppChatCmdExe.execute(..)) || " +
-            "execution(* com.leyue.smartcs.app.executor.AiAppChatCmdExe.processChatStream(..))")
+    @Around("execution(* com.leyue.smartcs.app.executor.AiAppChatCmdExe.execute(..))")
     public Object collectChatExecution(ProceedingJoinPoint joinPoint) throws Throwable {
         // 提取执行上下文信息
         String traceId = getTraceId();
@@ -167,7 +174,8 @@ public class RagEventCollectorAspect {
             ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attributes != null) {
                 HttpServletRequest request = attributes.getRequest();
-                return request.getHeader("user-id");
+                String uid = request.getHeader("user-id");
+                return anonymizeUserId(uid);
             }
         } catch (Exception e) {
             log.debug("提取用户ID失败", e);
@@ -243,6 +251,7 @@ public class RagEventCollectorAspect {
      * RAG事件上下文
      */
     private static class RagEventContext {
+        @Getter
         private final String eventId;
         private final String traceId;
         private final String userId;
@@ -251,6 +260,7 @@ public class RagEventCollectorAspect {
         private long totalRetrievalDuration = 0;
         private int retrievalCount = 0;
         private int retrievalErrorCount = 0;
+        private final List<RagEvent.RetrievedContext> retrievedContexts = new ArrayList<>();
         
         public RagEventContext(String eventId, String traceId, String userId, String question) {
             this.eventId = eventId;
@@ -259,14 +269,42 @@ public class RagEventCollectorAspect {
             this.question = question;
             this.startTime = System.currentTimeMillis();
         }
-        
-        public String getEventId() {
-            return eventId;
-        }
-        
+
         public void addRetrievalMetrics(Object result, long duration) {
             totalRetrievalDuration += duration;
             retrievalCount++;
+
+            // 富集检索上下文（尽力而为，识别返回的 Content 列表）
+            try {
+                if (result instanceof List<?>) {
+                    List<?> list = (List<?>) result;
+                    int baseRank = retrievedContexts.size();
+                    for (int i = 0; i < list.size(); i++) {
+                        Object item = list.get(i);
+                        if (item instanceof Content content) {
+                            String text = content.textSegment() != null ? content.textSegment().text() : null;
+                            Map<String, Object> meta = content.textSegment() != null && content.textSegment().metadata() != null
+                                    ? content.textSegment().metadata().toMap() : java.util.Collections.emptyMap();
+
+                            String docId = firstNonNullStr(meta, "docId", "id", "chunkId", "documentId");
+                            String source = firstNonNullStr(meta, "source", "kb", "index");
+                            Double score = firstNonNullDouble(meta, "score", "similarity", "sim", "distance");
+
+                            RagEvent.RetrievedContext rc = RagEvent.RetrievedContext.builder()
+                                    .docId(docId)
+                                    .text(text)
+                                    .score(score)
+                                    .rank(baseRank + i + 1)
+                                    .source(source)
+                                    .chunkId(firstNonNullStr(meta, "chunkId", "id"))
+                                    .build();
+                            retrievedContexts.add(rc);
+                        }
+                    }
+                }
+            } catch (Exception ignore) {
+                // 观测性增强不影响主流程
+            }
         }
         
         public void addRetrievalError(Throwable error, long duration) {
@@ -275,6 +313,10 @@ public class RagEventCollectorAspect {
         }
         
         public RagEvent buildEvent(String answer, long totalDuration, Throwable error) {
+            RagEvent.RetrieverConfig retrieverCfg = RagEvent.RetrieverConfig.builder()
+                    .k(!retrievedContexts.isEmpty() ? retrievedContexts.size() : null)
+                    .build();
+
             return RagEvent.builder()
                     .eventId(eventId)
                     .traceId(traceId)
@@ -282,6 +324,8 @@ public class RagEventCollectorAspect {
                     .userId(userId)
                     .question(question)
                     .answer(answer != null ? answer : "")
+                    .retrievedContexts(retrievedContexts.isEmpty() ? null : retrievedContexts)
+                    .retriever(retrieverCfg)
                     .latencyMs(totalDuration)
                     .app(RagEvent.AppInfo.builder()
                             .service("smartcs-web")
@@ -308,5 +352,41 @@ public class RagEventCollectorAspect {
         public static void clear() {
             contextHolder.remove();
         }
+    }
+
+    // ========= 工具方法 =========
+
+    private String anonymizeUserId(String userId) {
+        try {
+            if (userId == null || userId.isBlank()) return "anonymous";
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(userId.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.substring(0, 12); // 截断展示
+        } catch (Exception e) {
+            return "anonymous";
+        }
+    }
+
+    private static String firstNonNullStr(Map<String, Object> meta, String... keys) {
+        if (meta == null) return null;
+        for (String k : keys) {
+            Object v = meta.get(k);
+            if (v != null && !v.toString().isBlank()) return v.toString();
+        }
+        return null;
+    }
+
+    private static Double firstNonNullDouble(Map<String, Object> meta, String... keys) {
+        if (meta == null) return null;
+        for (String k : keys) {
+            Object v = meta.get(k);
+            if (v instanceof Number) return ((Number) v).doubleValue();
+            if (v != null) {
+                try { return Double.parseDouble(v.toString()); } catch (Exception ignore) {}
+            }
+        }
+        return null;
     }
 }

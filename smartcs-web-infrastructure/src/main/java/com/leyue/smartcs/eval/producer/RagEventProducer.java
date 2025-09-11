@@ -63,7 +63,8 @@ public class RagEventProducer {
             });
             
         } catch (Exception e) {
-             ;
+            log.error("发送RAG事件到Kafka失败(构建阶段): eventId={}, topic={}, error={}",
+                    event != null ? event.getEventId() : "null", topicRagEvents, e.getMessage(), e);
         }
     }
     
