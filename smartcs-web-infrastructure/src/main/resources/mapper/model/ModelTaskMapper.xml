@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.model.mapper.ModelTaskMapper">
+
+    <!-- 根据任务ID查询 -->
+    <select id="selectByTaskId" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE task_id = #{taskId}
+        AND is_deleted = 0
+    </select>
+
+    <!-- 检查任务ID是否已存在 -->
+    <select id="countByTaskId" resultType="int">
+        SELECT COUNT(*)
+        FROM t_model_task
+        WHERE task_id = #{taskId}
+        AND is_deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <!-- 根据模型ID查询任务列表 -->
+    <select id="selectByModelId" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE model_id = #{modelId}
+        AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据任务类型查询任务 -->
+    <select id="selectByTaskType" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE task_type = #{taskType}
+        AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 根据状态查询任务 -->
+    <select id="selectByStatus" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE status = #{status}
+        AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询运行中的任务 -->
+    <select id="selectRunningTasks" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE status = 'RUNNING'
+        AND is_deleted = 0
+        ORDER BY started_at ASC
+    </select>
+
+    <!-- 根据优先级查询待执行任务 -->
+    <select id="selectPendingTasksByPriority" resultType="com.leyue.smartcs.model.dataobject.ModelTaskDO">
+        SELECT *
+        FROM t_model_task
+        WHERE status = 'PENDING'
+        AND is_deleted = 0
+        ORDER BY priority DESC, created_at ASC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 更新任务状态 -->
+    <update id="updateStatus">
+        UPDATE t_model_task
+        SET status = #{status},
+            updated_at = UNIX_TIMESTAMP(NOW()) * 1000
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+    <!-- 更新任务进度 -->
+    <update id="updateProgress">
+        UPDATE t_model_task
+        SET progress = #{progress},
+            updated_at = UNIX_TIMESTAMP(NOW()) * 1000
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+</mapper>

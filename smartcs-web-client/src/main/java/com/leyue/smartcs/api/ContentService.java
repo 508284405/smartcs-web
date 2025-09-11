@@ -11,6 +11,9 @@ import com.leyue.smartcs.dto.knowledge.ContentStatusUpdateCmd;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchRequest;
 import com.leyue.smartcs.dto.knowledge.DocumentSearchResultDTO;
 import com.leyue.smartcs.dto.knowledge.ContentListQry;
+import com.leyue.smartcs.dto.knowledge.DocumentProcessCmd;
+import com.leyue.smartcs.dto.knowledge.DocumentProcessResultDTO;
+import com.leyue.smartcs.dto.knowledge.UrlDocumentImportCmd;
 
 /**
  * 内容管理服务接口
@@ -73,4 +76,18 @@ public interface ContentService {
      * @return 搜索结果
      */
     MultiResponse<DocumentSearchResultDTO> vectorSearch(DocumentSearchRequest request);
+    
+    /**
+     * 文档处理（包含分块和向量化）
+     * @param cmd 处理命令
+     * @return 处理结果
+     */
+    SingleResponse<DocumentProcessResultDTO> processDocument(DocumentProcessCmd cmd);
+
+    /**
+     * 通过URL导入文档并进行完整处理
+     * @param cmd 导入命令
+     * @return 处理结果
+     */
+    SingleResponse<DocumentProcessResultDTO> importByUrl(UrlDocumentImportCmd cmd);
 } 

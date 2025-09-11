@@ -1,18 +1,17 @@
 package com.leyue.smartcs.startup;
 
-import com.leyue.smartcs.domain.common.Constants;
-import com.leyue.smartcs.domain.knowledge.gateway.SearchGateway;
-import com.leyue.smartcs.knowledge.gateway.impl.JedisSearchGatewayImpl;
-import com.leyue.smartcs.knowledge.gateway.impl.RedissonSearchGatewayImpl;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import static com.leyue.smartcs.domain.common.Constants.*;
+
 import org.redisson.api.search.index.FieldIndex;
 import org.redisson.api.search.index.VectorDistParam;
 import org.redisson.api.search.index.VectorTypeParam;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.stereotype.Component;
 
-import static com.leyue.smartcs.domain.common.Constants.EMBEDDING_INDEX_REDISEARCH;
+import com.leyue.smartcs.domain.common.Constants;
+import com.leyue.smartcs.knowledge.gateway.impl.RedissonSearchGatewayImpl;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 应用启动时初始化 RediSearch 索引

@@ -1,14 +1,19 @@
 package com.leyue.smartcs.common.gateway;
 
+import org.springframework.stereotype.Component;
+
 import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.common.feign.IdGeneratorFeignClient;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.common.ApiResponse;
 import com.leyue.smartcs.dto.common.IdGeneratorRequest;
 import com.leyue.smartcs.dto.common.IdGeneratorResponse;
+
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 /**
  * 分布式ID生成器网关实现类
@@ -21,6 +26,9 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     private final IdGeneratorFeignClient idGeneratorFeignClient;
 
     @Override
+    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
+    @Retry(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
+    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
     public Long generateId() {
         try {
             ApiResponse<IdGeneratorResponse> response = idGeneratorFeignClient.generateId(new IdGeneratorRequest());
@@ -43,7 +51,19 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
         }
     }
 
+    /**
+     * 生成ID的降级方法
+     */
+    public Long generateIdFallback(Exception e) {
+        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+        // 返回一个基于时间戳的ID
+        return System.currentTimeMillis();
+    }
+
     @Override
+    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
+    @Retry(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
+    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
     public Long[] generateBatchIds(int batchSize) {
         if (batchSize <= 0) {
             batchSize = 1;
@@ -78,9 +98,35 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
         }
     }
 
+    /**
+     * 批量生成ID的降级方法
+     */
+    public Long[] generateBatchIdsFallback(int batchSize, Exception e) {
+        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+        // 返回基于时间戳的批量ID
+        Long[] fallbackIds = new Long[batchSize];
+        long baseTime = System.currentTimeMillis();
+        for (int i = 0; i < batchSize; i++) {
+            fallbackIds[i] = baseTime + i;
+        }
+        return fallbackIds;
+    }
+
     @Override
+    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
+    @Retry(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
+    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
     public String generateIdStr() {
         Long id = generateId();
         return String.format("%019d", id);
+    }
+
+    /**
+     * 生成ID字符串的降级方法
+     */
+    public String generateIdStrFallback(Exception e) {
+        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+        // 返回基于时间戳的ID字符串
+        return String.format("%019d", System.currentTimeMillis());
     }
 }

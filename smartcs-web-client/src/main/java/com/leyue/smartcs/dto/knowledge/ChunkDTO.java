@@ -31,6 +31,7 @@ public class ChunkDTO {
     
     /**
      * 切片内容文本
+     * 对于图片分块，图片描述会被合成到content字段文本中
      */
     private String content;
     

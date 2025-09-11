@@ -1,16 +1,14 @@
 package com.leyue.smartcs.knowledge.util;
 
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.PromptTemplate;
-import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 
 /**
@@ -122,15 +120,13 @@ public class TextPreprocessor {
             // 选择提示词模板
             String promptTemplate = "English".equalsIgnoreCase(language) ? QA_PROMPT_ENGLISH : QA_PROMPT_CHINESE;
 
-            // 创建提示词
-            PromptTemplate template = new PromptTemplate(promptTemplate);
-            Prompt prompt = template.create(Map.of("text", text));
-
-            // 调用大模型
-            String response = chatModel.call(prompt).getResult().getOutput().getText();
+            // 创建提示词并调用大模型
+            String prompt = promptTemplate.replace("{text}", text);
+            UserMessage userMessage = UserMessage.from(prompt);
+            ChatResponse response = chatModel.chat(userMessage);
 
             // 解析响应结果
-            List<String> segments = parseQAResponse(response);
+            List<String> segments = parseQAResponse(response.aiMessage().text());
 
             log.info("Q&A分段完成，共生成 {} 个分段", segments.size());
 
@@ -192,20 +188,33 @@ public class TextPreprocessor {
     public List<Document> preprocessText(List<Document> documents, Boolean removeUrls, Boolean useQASegmentation,
             String qaLanguage, ChatModel chatModel) {
 
-        return documents.stream().map(document -> {
-            String processedText = document.getText();
+        List<Document> result = new ArrayList<>();
+        
+        for (Document document : documents) {
+            String processedText = document.text();
 
             // 移除URL和邮箱
             if (Boolean.TRUE.equals(removeUrls)) {
                 processedText = removeUrlsAndEmails(processedText);
             }
-            return Document.builder()
-                    .id(document.getId())
-                    .text(processedText)
-                    .metadata(document.getMetadata())
-                    .media(document.getMedia())
-                    .score(document.getScore())
-                    .build();
-        }).collect(Collectors.toList());
+
+            // 使用Q&A分段
+            if (Boolean.TRUE.equals(useQASegmentation)) {
+                List<String> segments = segmentWithQA(processedText, qaLanguage, chatModel);
+                if (segments.size() > 1) {
+                    // 如果有多个分段，创建多个文档
+                    for (String segment : segments) {
+                        result.add(Document.from(segment, document.metadata()));
+                    }
+                    continue;
+                } else if (!segments.isEmpty()) {
+                    processedText = segments.get(0);
+                }
+            }
+
+            result.add(Document.from(processedText, document.metadata()));
+        }
+        
+        return result;
     }
 }

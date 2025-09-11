@@ -6,7 +6,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.leyue.smartcs.chat.convertor.SessionConverter;
+import com.leyue.smartcs.chat.convertor.SessionConvertor;
 import com.leyue.smartcs.chat.dataobject.CsSessionDO;
 import com.leyue.smartcs.chat.mapper.CsSessionMapper;
 import com.leyue.smartcs.domain.chat.Session;
@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 public class SessionGatewayImpl implements SessionGateway {
 
     private final CsSessionMapper sessionMapper;
-    private final SessionConverter sessionConverter;
+    private final SessionConvertor sessionConverter;
 
     @Override
     public Long createSession(Session session) {

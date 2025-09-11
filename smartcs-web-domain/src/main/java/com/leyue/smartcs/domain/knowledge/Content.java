@@ -53,7 +53,7 @@ public class Content {
     private String textExtracted;
 
     /**
-     * 状态 uploaded/parsed/vectorized/enabled/disabled
+     * 状态 enabled/disabled
      */
     private ContentStatusEnum status;
 
@@ -88,30 +88,76 @@ public class Content {
     private Long updatedAt;
 
     /**
+     * 元数据信息（JSON格式）
+     */
+    private String metadata;
+
+    /**
+     * 原始文件名称
+     */
+    private String originalFileName;
+
+    /**
+     * 文件大小（字节）
+     */
+    private Long fileSize;
+
+    /**
+     * 来源 upload/api/import
+     */
+    private String source;
+
+    /**
+     * 处理时间（毫秒）
+     */
+    private Long processingTime;
+
+    /**
+     * 向量化时间（毫秒）
+     */
+    private Long embeddingTime;
+
+    /**
+     * 嵌入成本（tokens）
+     */
+    private Long embeddingCost;
+
+    /**
+     * 平均段落长度
+     */
+    private Integer averageChunkLength;
+
+    /**
+     * 段落数量
+     */
+    private Integer chunkCount;
+
+    /**
+     * 处理状态 processing/success/failed
+     */
+    private String processingStatus;
+
+    /**
+     * 处理错误信息
+     */
+    private String processingErrorMessage;
+
+    /**
      * 检查内容是否可以处理
      *
      * @return 是否可处理
      */
     public boolean canProcess() {
-        return this.fileUrl != null && !this.fileUrl.isEmpty() && "uploaded".equals(this.status);
+        return this.fileUrl != null && !this.fileUrl.isEmpty();
     }
 
     /**
-     * 检查内容是否已解析
+     * 检查内容是否已处理完成（启用或禁用状态）
      *
-     * @return 是否已解析
+     * @return 是否已处理完成
      */
-    public boolean isParsed() {
-        return this.status == ContentStatusEnum.PARSED || this.status == ContentStatusEnum.VECTORIZED;
-    }
-
-    /**
-     * 检查内容是否已向量化
-     *
-     * @return 是否已向量化
-     */
-    public boolean isVectorized() {
-        return this.status == ContentStatusEnum.VECTORIZED;
+    public boolean isProcessed() {
+        return this.status == ContentStatusEnum.ENABLED || this.status == ContentStatusEnum.DISABLED;
     }
 
     /**
@@ -132,19 +178,6 @@ public class Content {
         return this.status == ContentStatusEnum.DISABLED;
     }
 
-    /**
-     * 标记为已解析状态
-     */
-    public void markAsParsed() {
-        this.status = ContentStatusEnum.PARSED;
-    }
-
-    /**
-     * 标记为已向量化状态
-     */
-    public void markAsVectorized() {
-        this.status = ContentStatusEnum.VECTORIZED;
-    }
 
     /**
      * 启用内容
@@ -209,5 +242,41 @@ public class Content {
      */
     public boolean isValidTitle() {
         return this.title != null && !this.title.trim().isEmpty() && this.title.length() <= 256;
+    }
+
+    /**
+     * 设置处理成功状态
+     */
+    public void setProcessingSuccess() {
+        this.processingStatus = "success";
+        this.processingErrorMessage = null;
+    }
+
+    /**
+     * 设置处理失败状态
+     */
+    public void setProcessingFailed(String errorMessage) {
+        this.processingStatus = "failed";
+        this.processingErrorMessage = errorMessage;
+    }
+
+    /**
+     * 设置处理中状态
+     */
+    public void setProcessingInProgress() {
+        this.processingStatus = "processing";
+        this.processingErrorMessage = null;
+    }
+
+    /**
+     * 计算召回率百分比
+     *
+     * @return 召回率百分比
+     */
+    public Double getRecallRate() {
+        if (this.chunkCount == null || this.chunkCount == 0) {
+            return 0.0;
+        }
+        return (this.recallCount != null ? this.recallCount : 0) * 100.0 / this.chunkCount;
     }
 } 

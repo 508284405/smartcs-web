@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.moderation.mapper.ModerationRecordMapper">
+
+    <!-- 审核记录结果映射 -->
+    <resultMap id="BaseResultMap" type="com.leyue.smartcs.moderation.dataobject.ModerationRecordDO">
+        <id column="id" property="id" />
+        <result column="content_hash" property="contentHash" />
+        <result column="original_content" property="originalContent" />
+        <result column="content_type" property="contentType" />
+        <result column="source_id" property="sourceId" />
+        <result column="source_type" property="sourceType" />
+        <result column="user_id" property="userId" />
+        <result column="session_id" property="sessionId" />
+        <result column="moderation_result" property="moderationResult" />
+        <result column="risk_level" property="riskLevel" />
+        <result column="confidence_score" property="confidenceScore" />
+        <result column="is_blocked" property="isBlocked" />
+        <result column="violation_categories" property="violationCategories" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+        <result column="ai_analysis_result" property="aiAnalysisResult" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+        <result column="keyword_matches" property="keywordMatches" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+        <result column="moderation_methods" property="moderationMethods" />
+        <result column="ai_model_used" property="aiModelUsed" />
+        <result column="processing_time_ms" property="processingTimeMs" />
+        <result column="manual_review_status" property="manualReviewStatus" />
+        <result column="manual_reviewer_id" property="manualReviewerId" />
+        <result column="manual_review_notes" property="manualReviewNotes" />
+        <result column="manual_reviewed_at" property="manualReviewedAt" />
+        <result column="action_taken" property="actionTaken" />
+        <result column="escalated_to" property="escalatedTo" />
+        <result column="escalated_at" property="escalatedAt" />
+        <result column="client_ip" property="clientIp" />
+        <result column="user_agent" property="userAgent" />
+        <result column="request_id" property="requestId" />
+        <result column="metadata" property="metadata" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler" />
+        <result column="created_at" property="createdAt" />
+        <result column="updated_at" property="updatedAt" />
+    </resultMap>
+
+    <!-- 复杂条件分页查询 -->
+    <select id="findRecordsByPage" resultMap="BaseResultMap">
+        SELECT *
+        FROM t_moderation_record
+        <where>
+            <if test="contentType != null and contentType != ''">
+                AND content_type = #{contentType}
+            </if>
+            <if test="sourceType != null and sourceType != ''">
+                AND source_type = #{sourceType}
+            </if>
+            <if test="moderationResult != null and moderationResult != ''">
+                AND moderation_result = #{moderationResult}
+            </if>
+            <if test="riskLevel != null and riskLevel != ''">
+                AND risk_level = #{riskLevel}
+            </if>
+            <if test="userId != null and userId != ''">
+                AND user_id = #{userId}
+            </if>
+            <if test="sessionId != null and sessionId != ''">
+                AND session_id = #{sessionId}
+            </if>
+            <if test="isBlocked != null">
+                AND is_blocked = #{isBlocked}
+            </if>
+            <if test="startTime != null">
+                AND created_at >= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND created_at &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 删除过期记录 -->
+    <delete id="deleteExpiredRecords">
+        DELETE FROM t_moderation_record
+        WHERE created_at &lt; #{expireTime}
+        LIMIT 1000
+    </delete>
+
+</mapper>

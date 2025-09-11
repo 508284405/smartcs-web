@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.model.mapper.ModelMapper">
+
+    <!-- 根据提供商ID查询所有模型 -->
+    <select id="selectByProviderId" resultType="com.leyue.smartcs.model.dataobject.ModelDO">
+        SELECT *
+        FROM t_model
+        WHERE provider_id = #{providerId}
+        AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+
+    <!-- 根据特性查询模型实例 -->
+    <select id="selectByFeature" resultType="com.leyue.smartcs.model.dataobject.ModelDO">
+        SELECT *
+        FROM t_model
+        WHERE FIND_IN_SET(#{feature}, features) > 0
+        AND is_deleted = 0
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 更新模型状态 -->
+    <update id="updateStatus">
+        UPDATE t_model
+        SET status = #{status},
+            updated_at = UNIX_TIMESTAMP(NOW()) * 1000
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+</mapper>

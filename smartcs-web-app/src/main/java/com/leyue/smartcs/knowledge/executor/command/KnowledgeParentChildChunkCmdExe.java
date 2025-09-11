@@ -7,15 +7,19 @@ import com.leyue.smartcs.dto.knowledge.KnowledgeParentChildChunkCmd;
 import com.leyue.smartcs.knowledge.util.TextPreprocessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.document.Document;
-import org.springframework.ai.reader.tika.TikaDocumentReader;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import dev.langchain4j.data.document.Document;
+import dev.langchain4j.data.document.splitter.DocumentSplitters;
+import dev.langchain4j.data.document.DocumentSplitter;
+import dev.langchain4j.data.segment.TextSegment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Component;
+import java.nio.charset.StandardCharsets;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 父子文档分块命令执行器
@@ -34,34 +38,38 @@ public class KnowledgeParentChildChunkCmdExe {
      * @return 分块结果
      */
     public MultiResponse<ChunkDTO> execute(KnowledgeParentChildChunkCmd cmd) {
-        log.info("开始执行父子文档分块，内容长度: {}", cmd.getFileUrl());
+        if (cmd == null || cmd.getFileUrl() == null) {
+            throw new BizException("CHUNK_PARENT_CHILD_FAILED", "文件地址不能为空");
+        }
+        log.info("开始执行父子文档分块，文件: {}", cmd.getFileUrl());
 
         try {
-            // 文本预处理 - 移除URL和邮箱（如果需要）
+            // 读取文档
             Resource resource = new UrlResource(cmd.getFileUrl());
-            TikaDocumentReader tikaDocumentReader = new TikaDocumentReader(resource);
-            List<Document> documents = tikaDocumentReader.read();
+            String content = readResourceContent(resource);
+            if (Boolean.TRUE.equals(cmd.getRemoveAllUrls())) {
+                content = textPreprocessor.removeUrlsAndEmails(content);
+            }
+            Document document = Document.from(content);
 
             // 第一步：创建父块分割器
-            TokenTextSplitter parentSplitter = new TokenTextSplitter(
+            DocumentSplitter parentSplitter = DocumentSplitters.recursive(
                     cmd.getParentChunkSize(),
-                    cmd.getParentOverlapSize(),
-                    cmd.getMinChunkSize(),
-                    cmd.getMaxChunkSize(),
-                    cmd.getKeepSeparator()
+                    cmd.getParentOverlapSize()
             );
 
             // 第二步：创建子块分割器
-            TokenTextSplitter childSplitter = new TokenTextSplitter(
+            DocumentSplitter childSplitter = DocumentSplitters.recursive(
                     cmd.getChildChunkSize(),
-                    cmd.getChildOverlapSize(),
-                    cmd.getMinChunkSize(),
-                    cmd.getMaxChunkSize(),
-                    cmd.getKeepSeparator()
+                    cmd.getChildOverlapSize()
             );
 
             // 执行父块分割
-            List<Document> parentChunks = parentSplitter.apply(documents);
+            List<TextSegment> parentSegments = parentSplitter.split(document);
+            List<Document> parentChunks = parentSegments.stream()
+                    .map(segment -> Document.from(segment.text(), segment.metadata()))
+                    .collect(Collectors.toList());
+            log.info("父块数量: {}", parentChunks.size());
 
             // 为每个父块执行子块分割，并保持父子关系
             List<ChunkDTO> allChunks = new ArrayList<>();
@@ -70,10 +78,15 @@ public class KnowledgeParentChildChunkCmdExe {
                 Document parentChunk = parentChunks.get(parentIndex);
                 
                 // 获取上下文段落
-                String contextText = getContextText(parentChunks, parentIndex, cmd.getContextParagraphs());
+                int ctxPara = cmd.getContextParagraphs() == null ? 0 : cmd.getContextParagraphs();
+                String contextText = getContextText(parentChunks, parentIndex, ctxPara);
                 
                 // 执行子块分割
-                List<Document> childChunks = childSplitter.apply(List.of(parentChunk));
+                List<TextSegment> childSegments = childSplitter.split(parentChunk);
+                List<Document> childChunks = childSegments.stream()
+                        .map(segment -> Document.from(segment.text(), segment.metadata()))
+                        .collect(Collectors.toList());
+                log.debug("父块 {} 生成子块 {} 个", parentIndex, childChunks.size());
                 
                 // 转换子块为ChunkDTO，并添加父块上下文
                 for (int childIndex = 0; childIndex < childChunks.size(); childIndex++) {
@@ -94,18 +107,32 @@ public class KnowledgeParentChildChunkCmdExe {
     }
 
     /**
+     * 读取资源内容
+     */
+    private String readResourceContent(Resource resource) throws IOException {
+        try (var in = resource.getInputStream()) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+    }
+
+    /**
      * 获取上下文文本（父块用作上下文的段落）
      */
     private String getContextText(List<Document> parentChunks, int currentIndex, int contextParagraphs) {
         StringBuilder contextBuilder = new StringBuilder();
-        
+        if (parentChunks == null || parentChunks.isEmpty()) {
+            return "";
+        }
+
+        int paragraphs = contextParagraphs <= 0 ? 0 : contextParagraphs;
+
         // 获取前面的段落作为上下文
-        int startIndex = Math.max(0, currentIndex - contextParagraphs);
-        int endIndex = Math.min(parentChunks.size(), currentIndex + contextParagraphs + 1);
+        int startIndex = Math.max(0, currentIndex - paragraphs);
+        int endIndex = Math.min(parentChunks.size(), currentIndex + paragraphs + 1);
         
         for (int i = startIndex; i < endIndex; i++) {
             if (i != currentIndex) {
-                contextBuilder.append(parentChunks.get(i).getText()).append("\n\n");
+                contextBuilder.append(parentChunks.get(i).text()).append("\n\n");
             }
         }
         
@@ -113,7 +140,7 @@ public class KnowledgeParentChildChunkCmdExe {
     }
 
     /**
-     * 将Spring AI的Document转换为ChunkDTO，包含父子关系和上下文
+     * 将LangChain4j的Document转换为ChunkDTO，包含父子关系和上下文
      */
     private ChunkDTO convertToChunkDTO(Document document, int parentIndex, int childIndex, String contextText) {
         String chunkIndex = String.format("parent_%d_child_%d", parentIndex, childIndex);
@@ -124,23 +151,35 @@ public class KnowledgeParentChildChunkCmdExe {
                 parentIndex, childIndex, contextText.replace("\"", "\\\"")
         );
         
-        return ChunkDTO.builder()
-                .chunkIndex(chunkIndex)
-                .content(document.getText())
-                .tokenSize(estimateTokenSize(document.getText()))
-                .metadata(metadata)
-                .createTime(System.currentTimeMillis())
-                .updateTime(System.currentTimeMillis())
-                .build();
+        ChunkDTO chunkDTO = new ChunkDTO();
+        chunkDTO.setChunkIndex(chunkIndex);
+        chunkDTO.setContent(document.text());
+        chunkDTO.setMetadata(metadata);
+        return chunkDTO;
+    }
+    
+    /**
+     * 从URL中提取文件名
+     */
+    private String extractFileName(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return "unknown_file";
+        }
+        
+        // 从URL中提取文件名
+        String fileName = fileUrl;
+        int lastSlashIndex = fileName.lastIndexOf('/');
+        if (lastSlashIndex >= 0 && lastSlashIndex < fileName.length() - 1) {
+            fileName = fileName.substring(lastSlashIndex + 1);
+        }
+        
+        // 移除URL参数
+        int queryIndex = fileName.indexOf('?');
+        if (queryIndex >= 0) {
+            fileName = fileName.substring(0, queryIndex);
+        }
+        
+        return fileName;
     }
 
-    /**
-     * 估算token数量（简单估算：中文字符 * 1.5）
-     */
-    private Integer estimateTokenSize(String content) {
-        if (content == null || content.isEmpty()) {
-            return 0;
-        }
-        return (int) (content.length() * 1.5);
-    }
 } 

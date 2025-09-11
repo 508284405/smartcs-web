@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.eval.mapper.RagEvalGenerationDetailMapper">
+
+    <!-- RAG评估生成详情结果映射 -->
+    <resultMap id="BaseResultMap" type="com.leyue.smartcs.eval.dataobject.RagEvalGenerationDetailDO">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="run_id" jdbcType="VARCHAR" property="runId"/>
+        <result column="case_id" jdbcType="VARCHAR" property="caseId"/>
+        
+        <!-- 原始查询和输入信息 -->
+        <result column="query_original" jdbcType="LONGVARCHAR" property="queryOriginal"/>
+        <result column="injected_contexts" jdbcType="LONGVARCHAR" property="injectedContexts" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        
+        <!-- 提示构建 -->
+        <result column="final_prompt" jdbcType="LONGVARCHAR" property="finalPrompt"/>
+        <result column="prompt_template" jdbcType="LONGVARCHAR" property="promptTemplate"/>
+        <result column="prompt_tokens" jdbcType="INTEGER" property="promptTokens"/>
+        <result column="context_injection_strategy" jdbcType="VARCHAR" property="contextInjectionStrategy"/>
+        
+        <!-- 生成结果 -->
+        <result column="generated_answer" jdbcType="LONGVARCHAR" property="generatedAnswer"/>
+        <result column="answer_tokens" jdbcType="INTEGER" property="answerTokens"/>
+        <result column="generation_latency_ms" jdbcType="INTEGER" property="generationLatencyMs"/>
+        <result column="model_used" jdbcType="VARCHAR" property="modelUsed"/>
+        <result column="model_params" jdbcType="LONGVARCHAR" property="modelParams" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="streaming_enabled" jdbcType="TINYINT" property="streamingEnabled"/>
+        
+        <!-- 引用和依据 -->
+        <result column="citations" jdbcType="LONGVARCHAR" property="citations" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="supporting_evidence" jdbcType="LONGVARCHAR" property="supportingEvidence" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="citation_accuracy" jdbcType="DECIMAL" property="citationAccuracy"/>
+        <result column="evidence_alignment" jdbcType="DECIMAL" property="evidenceAlignment"/>
+        
+        <!-- RAGAS生成指标 -->
+        <result column="faithfulness_score" jdbcType="DECIMAL" property="faithfulnessScore"/>
+        <result column="answer_relevancy_score" jdbcType="DECIMAL" property="answerRelevancyScore"/>
+        <result column="groundedness_score" jdbcType="DECIMAL" property="groundednessScore"/>
+        
+        <!-- 质量评估指标 -->
+        <result column="factual_correctness_score" jdbcType="DECIMAL" property="factualCorrectnessScore"/>
+        <result column="completeness_score" jdbcType="DECIMAL" property="completenessScore"/>
+        <result column="conciseness_score" jdbcType="DECIMAL" property="concisenessScore"/>
+        <result column="coherence_score" jdbcType="DECIMAL" property="coherenceScore"/>
+        <result column="fluency_score" jdbcType="DECIMAL" property="fluencyScore"/>
+        
+        <!-- 引用一致性检查 -->
+        <result column="citation_consistency_score" jdbcType="DECIMAL" property="citationConsistencyScore"/>
+        <result column="hallucination_detected" jdbcType="TINYINT" property="hallucinationDetected"/>
+        <result column="hallucination_severity" jdbcType="VARCHAR" property="hallucinationSeverity"/>
+        <result column="unsupported_claims" jdbcType="LONGVARCHAR" property="unsupportedClaims" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        
+        <!-- 与期望答案的比较 -->
+        <result column="expected_answer" jdbcType="LONGVARCHAR" property="expectedAnswer"/>
+        <result column="semantic_similarity" jdbcType="DECIMAL" property="semanticSimilarity"/>
+        <result column="bleu_score" jdbcType="DECIMAL" property="bleuScore"/>
+        <result column="rouge_l_score" jdbcType="DECIMAL" property="rougeLScore"/>
+        <result column="bertscore_f1" jdbcType="DECIMAL" property="bertscoreF1"/>
+        
+        <!-- 成本分析 -->
+        <result column="total_tokens" jdbcType="INTEGER" property="totalTokens"/>
+        <result column="cost_usd" jdbcType="DECIMAL" property="costUsd"/>
+        <result column="cost_breakdown" jdbcType="LONGVARCHAR" property="costBreakdown" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        
+        <!-- 错误和异常 -->
+        <result column="has_error" jdbcType="TINYINT" property="hasError"/>
+        <result column="error_message" jdbcType="LONGVARCHAR" property="errorMessage"/>
+        <result column="error_stage" jdbcType="VARCHAR" property="errorStage"/>
+        
+        <!-- 调试和分析 -->
+        <result column="generation_steps" jdbcType="LONGVARCHAR" property="generationSteps" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="attention_weights" jdbcType="LONGVARCHAR" property="attentionWeights" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="debug_info" jdbcType="LONGVARCHAR" property="debugInfo" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="metadata" jdbcType="LONGVARCHAR" property="metadata" typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        
+        <!-- 时间戳 -->
+        <result column="created_at" jdbcType="BIGINT" property="createdAt"/>
+    </resultMap>
+
+    <!-- 根据运行ID查询生成详情列表 -->
+    <select id="selectByRunId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        ORDER BY created_at ASC
+    </select>
+
+    <!-- 根据运行ID和用例ID查询生成详情 -->
+    <select id="selectByRunIdAndCaseId" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND case_id = #{caseId}
+    </select>
+
+    <!-- 根据用例ID查询生成详情列表 -->
+    <select id="selectByCaseId" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE case_id = #{caseId} 
+        ORDER BY created_at DESC
+    </select>
+
+    <!-- 查询有错误的生成详情 -->
+    <select id="selectWithErrors" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NOT NULL 
+        ORDER BY created_at ASC
+    </select>
+
+    <!-- 查询成功的生成详情 -->
+    <select id="selectSuccessful" parameterType="java.lang.String" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL 
+        ORDER BY created_at ASC
+    </select>
+
+    <!-- 统计运行的生成详情数量 -->
+    <select id="countByRunId" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId}
+    </select>
+
+    <!-- 统计运行的成功生成详情数量 -->
+    <select id="countSuccessfulByRunId" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+    </select>
+
+    <!-- 统计运行的失败生成详情数量 -->
+    <select id="countFailedByRunId" parameterType="java.lang.String" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NOT NULL
+    </select>
+
+    <!-- 查询生成延迟统计 -->
+    <select id="selectGenerationLatencyStats" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT 
+            AVG(generation_latency_ms) as avg_generation_latency,
+            MIN(generation_latency_ms) as min_generation_latency,
+            MAX(generation_latency_ms) as max_generation_latency,
+            STDDEV(generation_latency_ms) as std_generation_latency
+        FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+    </select>
+
+    <!-- 查询Token使用统计 -->
+    <select id="selectTokenUsageStats" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT 
+            AVG(prompt_tokens) as avg_input_tokens,
+            MAX(prompt_tokens) as max_input_tokens,
+            MIN(prompt_tokens) as min_input_tokens,
+            AVG(answer_tokens) as avg_output_tokens,
+            MAX(answer_tokens) as max_output_tokens,
+            MIN(answer_tokens) as min_output_tokens,
+            AVG(total_tokens) as avg_total_tokens,
+            SUM(total_tokens) as total_tokens_used,
+            AVG(cost_usd) as avg_cost,
+            SUM(cost_usd) as total_cost
+        FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+    </select>
+
+    <!-- 查询生成质量指标统计 -->
+    <select id="selectQualityMetricsStats" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT 
+            AVG(faithfulness_score) as avg_faithfulness,
+            AVG(answer_relevancy_score) as avg_answer_relevancy,
+            AVG(citation_consistency_score) as avg_citation_consistency,
+            AVG(completeness_score) as avg_completeness,
+            AVG(conciseness_score) as avg_conciseness,
+            AVG(groundedness_score) as avg_groundedness,
+            AVG(factual_correctness_score) as avg_factual_correctness,
+            AVG(semantic_similarity) as avg_semantic_similarity,
+            AVG(bleu_score) as avg_bleu_score
+        FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+    </select>
+
+    <!-- 查询引用统计 -->
+    <select id="selectCitationStats" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT 
+            AVG(citation_accuracy) as avg_citation_accuracy,
+            MAX(citation_accuracy) as max_citation_accuracy,
+            MIN(citation_accuracy) as min_citation_accuracy,
+            AVG(evidence_alignment) as avg_evidence_alignment,
+            COUNT(CASE WHEN citations IS NOT NULL AND citations != '[]' THEN 1 END) as cases_with_citations,
+            COUNT(*) as total_cases
+        FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+    </select>
+
+    <!-- 查询答案长度统计 -->
+    <select id="selectAnswerLengthStats" parameterType="java.lang.String" resultType="java.util.Map">
+        SELECT 
+            AVG(CHAR_LENGTH(generated_answer)) as avg_answer_length,
+            MAX(CHAR_LENGTH(generated_answer)) as max_answer_length,
+            MIN(CHAR_LENGTH(generated_answer)) as min_answer_length,
+            AVG(answer_tokens) as avg_answer_tokens,
+            AVG(coherence_score) as avg_coherence_score,
+            AVG(fluency_score) as avg_fluency_score
+        FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+        AND generated_answer IS NOT NULL
+    </select>
+
+    <!-- 查询高质量答案（所有指标都高于阈值） -->
+    <select id="selectHighQualityAnswers" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+        AND faithfulness_score >= #{faithfulnessThreshold}
+        AND answer_relevancy_score >= #{relevancyThreshold}
+        AND citation_consistency_score >= #{consistencyThreshold}
+        ORDER BY faithfulness_score DESC, answer_relevancy_score DESC
+    </select>
+
+    <!-- 查询需要人工检查的答案（某些指标较低） -->
+    <select id="selectAnswersNeedingReview" resultMap="BaseResultMap">
+        SELECT * FROM t_rag_eval_generation_detail 
+        WHERE run_id = #{runId} 
+        AND error_message IS NULL
+        AND (
+            faithfulness_score &gt; #{faithfulnessThreshold} 
+            OR answer_relevancy_score &gt; #{relevancyThreshold}
+            OR citation_consistency_score &gt; #{consistencyThreshold}
+        )
+        ORDER BY faithfulness_score ASC, answer_relevancy_score ASC
+    </select>
+
+    <!-- 删除运行的所有生成详情 -->
+    <delete id="deleteByRunId" parameterType="java.lang.String">
+        DELETE FROM t_rag_eval_generation_detail WHERE run_id = #{runId}
+    </delete>
+
+    <!-- 根据运行ID列表批量删除生成详情 -->
+    <delete id="deleteByRunIds">
+        DELETE FROM t_rag_eval_generation_detail 
+        WHERE run_id IN
+        <foreach collection="runIds" item="runId" open="(" separator="," close=")">
+            #{runId}
+        </foreach>
+    </delete>
+
+</mapper>

@@ -6,12 +6,16 @@
     <property name="LOG_PATH" value="${user.home}/${APP_NAME}/logs" />
     <property name="LOG_FILE" value="${LOG_PATH}/application.log" />
 
+    <!-- 自定义日志格式，包含traceId和spanId -->
+    <property name="CUSTOM_CONSOLE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %clr([%5level]) %clr([traceId=%X{traceId:-N/A} spanId=%X{spanId:-N/A}]){cyan} %clr([%15.15thread]){magenta} %clr(%-40.40logger{39}){blue} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+    <property name="CUSTOM_FILE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%5level] [traceId=%X{traceId:-N/A} spanId=%X{spanId:-N/A}] [%15.15thread] %-40.40logger{39} : %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
     <appender name="APPLICATION"
         class="ch.qos.logback.core.rolling.RollingFileAppender">
         <!--定义日志输出的路径-->
         <file>${LOG_FILE}</file>
         <encoder>
-            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <pattern>${CUSTOM_FILE_LOG_PATTERN}</pattern>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOG_FILE}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
@@ -23,7 +27,7 @@
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <pattern>${CUSTOM_CONSOLE_LOG_PATTERN}</pattern>
             <charset>utf8</charset>
         </encoder>
     </appender>

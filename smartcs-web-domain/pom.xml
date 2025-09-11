@@ -14,6 +14,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.leyue.smartcs</groupId>
             <artifactId>smartcs-web-client</artifactId>
         </dependency>
@@ -48,36 +52,5 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-
-        <!-- Spring AI -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-openai</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-model</artifactId>
-        </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-transformers</artifactId>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-document-reader-pdf</artifactId>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-document-reader-tika</artifactId>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-vector-store-core</artifactId>-->
-<!--        </dependency>-->
-<!--        &lt;!&ndash; Apache Commons for hash generation &ndash;&gt;-->
-<!--        <dependency>-->
-<!--            <groupId>commons-codec</groupId>-->
-<!--            <artifactId>commons-codec</artifactId>-->
-<!--        </dependency>-->
     </dependencies>
 </project>

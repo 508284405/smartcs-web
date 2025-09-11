@@ -42,5 +42,12 @@
             <artifactId>jakarta.el</artifactId>
         </dependency>
         <!-- Jakarta Bean Validation End-->
+        
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.model.mapper.ModelTaskContextMapper">
+
+    <!-- 根据会话ID查询 -->
+    <select id="selectBySessionId" resultType="com.leyue.smartcs.model.dataobject.ModelTaskContextDO">
+        SELECT *
+        FROM t_model_context
+        WHERE session_id = #{sessionId}
+        AND is_deleted = 0
+    </select>
+
+    <!-- 检查会话ID是否已存在 -->
+    <select id="countBySessionId" resultType="int">
+        SELECT COUNT(*)
+        FROM t_model_context
+        WHERE session_id = #{sessionId}
+        AND is_deleted = 0
+        <if test="excludeId != null">
+            AND id != #{excludeId}
+        </if>
+    </select>
+
+    <!-- 根据模型ID查询上下文列表 -->
+    <select id="selectByModelId" resultType="com.leyue.smartcs.model.dataobject.ModelTaskContextDO">
+        SELECT *
+        FROM t_model_context
+        WHERE model_id = #{modelId}
+        AND is_deleted = 0
+        ORDER BY updated_at DESC
+    </select>
+
+    <!-- 查询超过指定长度的上下文 -->
+    <select id="selectByCurrentLengthGreaterThan" resultType="com.leyue.smartcs.model.dataobject.ModelTaskContextDO">
+        SELECT *
+        FROM t_model_context
+        WHERE current_length > #{maxLength}
+        AND is_deleted = 0
+        ORDER BY current_length DESC
+    </select>
+
+    <!-- 查询长时间未更新的上下文 -->
+    <select id="selectByUpdatedBefore" resultType="com.leyue.smartcs.model.dataobject.ModelTaskContextDO">
+        SELECT *
+        FROM t_model_context
+        WHERE updated_at &lt; #{updatedBefore}
+        AND is_deleted = 0
+        ORDER BY updated_at ASC
+    </select>
+
+    <!-- 更新上下文消息和长度 -->
+    <update id="updateMessagesAndLength">
+        UPDATE t_model_context
+        SET messages = #{messages},
+            current_length = #{currentLength},
+            updated_at = UNIX_TIMESTAMP(NOW()) * 1000
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+    <!-- 清空上下文消息 -->
+    <update id="clearMessages">
+        UPDATE t_model_context
+        SET messages = '[]',
+            current_length = 0,
+            updated_at = UNIX_TIMESTAMP(NOW()) * 1000
+        WHERE id = #{id}
+        AND is_deleted = 0
+    </update>
+
+</mapper>

@@ -19,6 +19,10 @@
             <artifactId>smartcs-web-domain</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.leyue.smartcs</groupId>
+            <artifactId>smartcs-web-client</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
         </dependency>
@@ -76,6 +80,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-micrometer</artifactId>
+            <version>2.1.0</version>
+        </dependency>
 
         <!-- 日志支持 -->
         <dependency>
@@ -132,16 +146,32 @@
 
         <!-- 文档解析相关依赖 -->
         <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-pdfbox</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-tika</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-document-parser-apache-poi</artifactId>
+        </dependency>
+
+        <!-- Tesseract OCR 依赖 -->
+        <dependency>
+            <groupId>net.sourceforge.tess4j</groupId>
+            <artifactId>tess4j</artifactId>
+            <version>5.9.0</version>
+        </dependency>
+
+        <!-- 表格提取使用Apache Tika的表格解析能力 -->
+
+        <!-- 图像处理依赖 -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-imaging</artifactId>
+            <version>1.0.0-alpha5</version>
         </dependency>
         <dependency>
             <groupId>ai.djl.huggingface</groupId>
@@ -155,53 +185,68 @@
             <groupId>com.alibaba</groupId>
             <artifactId>transmittable-thread-local</artifactId>
         </dependency>
-        <!-- Spring AI 矢量数据库Redis -->
+        <!-- Spring AI 相关依赖已全部移除 -->
+        <!-- LangChain4j 依赖 -->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-vector-store-redis</artifactId>
-        </dependency>
-        <!-- Spring AI 聊天记忆JDBC -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
-        </dependency>
-        <!-- Spring AI 聊天客户端 -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-client-chat</artifactId>
-        </dependency>
-        <!-- Spring AI RAG检索增强 -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-advisors-vector-store</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-rag</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>dev.langchain4j</groupId>
+                    <artifactId>langchain4j-http-client-spring-restclient</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-        <!-- Spring AI ETL管道 从各种文档格式（例如 PDF、DOC/DOCX、PPT/PPTX 和 HTML）中提取文本-->
         <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-tika-document-reader</artifactId>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-spring-boot-starter</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>dev.langchain4j</groupId>
+                    <artifactId>langchain4j-http-client-spring-restclient</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-<!--        &lt;!&ndash; Vector Store implementations &ndash;&gt;-->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-redis-spring-boot-starter</artifactId>
+        </dependency>
 <!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-vector-store-simple</artifactId>-->
+<!--            <groupId>dev.langchain4j</groupId>-->
+<!--            <artifactId>langchain4j-redis</artifactId>-->
 <!--        </dependency>-->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-ollama</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-http-client-jdk</artifactId>
+        </dependency>
 <!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-vector-store-milvus</artifactId>-->
+<!--            <groupId>dev.langchain4j</groupId>-->
+<!--            <artifactId>langchain4j-embeddings-all-minilm-l6-v2</artifactId>-->
 <!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.springframework.ai</groupId>-->
-<!--            <artifactId>spring-ai-vector-store-pgvector</artifactId>-->
-<!--        </dependency>-->
-        <!-- Spring AI MCP STDIO -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.springframework.ai</groupId>-->
-        <!--            <artifactId>spring-ai-mcp-server-spring-boot-starter</artifactId>-->
-        <!--        </dependency>-->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-easy-rag</artifactId>
+        </dependency>
+        <!-- SearxNG 搜索引擎依赖 -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-community-web-search-engine-searxng</artifactId>
+            <version>1.4.0-beta10</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>dev.langchain4j</groupId>
+                    <artifactId>langchain4j-http-client-jdk</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
@@ -210,7 +255,6 @@
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-client</artifactId>
         </dependency>
-
         <!-- Spring reactor 上下文传播 -->
         <dependency>
             <groupId>io.micrometer</groupId>

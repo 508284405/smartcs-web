@@ -2,11 +2,13 @@ package com.leyue.smartcs.dto.sse;
 
 import com.alibaba.cola.dto.PageQuery;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 订单查询的请求DTO
  */
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class OrderQueryDTO extends PageQuery {
     /**
      * 订单状态

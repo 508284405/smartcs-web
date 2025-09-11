@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import java.util.List;
 
 /**
  * 通用文档分块命令
@@ -77,4 +78,9 @@ public class KnowledgeGeneralChunkCmd extends Command {
      * Q&A分段语言
      */
     private String qaLanguage = "Chinese";
+    
+    /**
+     * 模型请求
+     */
+    private ModelRequest modelRequest;
 } 

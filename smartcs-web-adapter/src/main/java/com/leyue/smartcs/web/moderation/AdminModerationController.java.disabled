@@ -1,0 +1,138 @@
+package com.leyue.smartcs.web.moderation;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.alibaba.cola.dto.PageResponse;
+import com.alibaba.cola.dto.SingleResponse;
+import com.leyue.smartcs.api.ModerationService;
+import com.leyue.smartcs.dto.moderation.ModerationDTOs;
+import com.leyue.smartcs.dto.moderation.ModerationWithModelRequest;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * 审核管理控制器
+ * 提供内容审核相关的MVP接口
+ *
+ * @author Claude
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/admin/moderation")
+@RequiredArgsConstructor
+public class AdminModerationController {
+
+    private final ModerationService moderationService;
+
+    // ===== AI模型审核接口 =====
+
+    /**
+     * 使用指定AI模型进行内容审核
+     */
+    @PostMapping("/content/ai")
+    public SingleResponse<ModerationDTOs.ModerationTestResultDTO> moderateContentWithModel(
+            @Valid @RequestBody ModerationWithModelRequest request) {
+        log.info("收到AI模型审核请求: modelId={}, contentLength={}", 
+                request.getModelId(), request.getContent().length());
+        return SingleResponse.of(moderationService.moderateContentWithModel(request));
+    }
+
+    /**
+     * 使用指定AI模型进行快速内容预检
+     */
+    @PostMapping("/content/ai/quick")
+    public SingleResponse<ModerationDTOs.ModerationTestResultDTO> quickModerateWithModel(
+            @Valid @RequestBody ModerationWithModelRequest request) {
+        log.info("收到快速AI模型预检请求: modelId={}, contentLength={}", 
+                request.getModelId(), request.getContent().length());
+        return SingleResponse.of(moderationService.quickModerateWithModel(request));
+    }
+
+    // ===== 内容测试 =====
+
+    /**
+     * 测试内容审核
+     */
+    @PostMapping("/test")
+    public SingleResponse<ModerationDTOs.ModerationTestResultDTO> testContent(
+            @Valid @RequestBody ModerationDTOs.ModerationTestCmd cmd) {
+        return SingleResponse.of(moderationService.testContent(cmd));
+    }
+
+    /**
+     * 批量测试内容审核
+     */
+    @PostMapping("/test/batch")
+    public SingleResponse<List<ModerationDTOs.ModerationTestResultDTO>> batchTestContent(
+            @Valid @RequestBody ModerationDTOs.ModerationBatchTestCmd cmd) {
+        return SingleResponse.of(moderationService.batchTestContent(cmd));
+    }
+
+    // ===== 审核分类管理 =====
+
+    /**
+     * 创建审核分类
+     */
+    @PostMapping("/categories")
+    public SingleResponse<Long> createCategory(@Valid @RequestBody ModerationDTOs.ModerationCategoryCreateCmd cmd) {
+        log.info("创建审核分类: name={}, code={}", cmd.getName(), cmd.getCode());
+        return SingleResponse.of(moderationService.createCategory(cmd));
+    }
+
+    /**
+     * 更新审核分类
+     */
+    @PutMapping("/categories/{id}")
+    public SingleResponse<Void> updateCategory(@PathVariable Long id, 
+                                              @Valid @RequestBody ModerationDTOs.ModerationCategoryUpdateCmd cmd) {
+        log.info("更新审核分类: id={}, name={}", id, cmd.getName());
+        cmd.setId(id);
+        moderationService.updateCategory(cmd);
+        return SingleResponse.buildSuccess();
+    }
+
+    /**
+     * 删除审核分类
+     */
+    @DeleteMapping("/categories/{id}")
+    public SingleResponse<Void> deleteCategory(@PathVariable Long id) {
+        log.info("删除审核分类: id={}", id);
+        moderationService.deleteCategory(id);
+        return SingleResponse.buildSuccess();
+    }
+
+    /**
+     * 根据ID查询审核分类
+     */
+    @GetMapping("/categories/{id}")
+    public SingleResponse<ModerationDTOs.ModerationCategoryDTO> getCategory(@PathVariable Long id) {
+        return SingleResponse.of(moderationService.getCategory(id));
+    }
+
+    /**
+     * 分页查询审核分类
+     */
+    @GetMapping("/categories")
+    public PageResponse<ModerationDTOs.ModerationCategoryDTO> listCategories(ModerationDTOs.ModerationCategoryPageQry qry) {
+        return moderationService.listCategories(qry);
+    }
+
+    /**
+     * 获取审核分类树形结构
+     */
+    @GetMapping("/categories/tree")
+    public SingleResponse<List<ModerationDTOs.ModerationCategoryDTO>> getCategoryTree() {
+        return SingleResponse.of(moderationService.getCategoryTree());
+    }
+}

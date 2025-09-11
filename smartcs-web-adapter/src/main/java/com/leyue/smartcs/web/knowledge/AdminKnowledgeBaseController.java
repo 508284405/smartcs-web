@@ -85,4 +85,34 @@ public class AdminKnowledgeBaseController {
     public MultiResponse<ChunkDTO> parentChildChunk(@RequestBody @Valid KnowledgeParentChildChunkCmd cmd) {
         return knowledgeBaseService.parentChildChunk(cmd);
     }
+
+    /**
+     * 获取知识库设置
+     */
+    @GetMapping("/{id}/settings")
+    public SingleResponse<KnowledgeBaseSettingsDTO> getKnowledgeBaseSettings(@PathVariable Long id) {
+        return knowledgeBaseService.getKnowledgeBaseSettings(id);
+    }
+
+    /**
+     * 更新知识库设置
+     */
+    @PutMapping("/{id}/settings")
+    public Response updateKnowledgeBaseSettings(@PathVariable Long id, 
+                                               @RequestBody @Valid KnowledgeBaseSettingsUpdateCmd cmd) {
+        // 验证路径ID与请求体ID是否一致
+        if (!id.equals(cmd.getId())) {
+            return Response.buildFailure("PARAMETER_MISMATCH", "路径参数ID与请求体ID不匹配");
+        }
+        return knowledgeBaseService.updateKnowledgeBaseSettings(cmd);
+    }
+
+    /**
+     * 召回测试
+     */
+    @PostMapping("/{id}/recall-test")
+    public MultiResponse<RecallTestResultDTO> recallTest(@PathVariable Long id, 
+                                                          @RequestBody @Valid RecallTestQry qry) {
+        return knowledgeBaseService.recallTest(qry);
+    }
 } 

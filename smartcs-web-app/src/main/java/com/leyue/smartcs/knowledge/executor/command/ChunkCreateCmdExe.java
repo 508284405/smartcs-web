@@ -6,7 +6,7 @@ import com.leyue.smartcs.domain.knowledge.Chunk;
 import com.leyue.smartcs.domain.knowledge.gateway.ChunkGateway;
 import com.leyue.smartcs.dto.knowledge.ChunkCreateCmd;
 import com.leyue.smartcs.dto.knowledge.ChunkDTO;
-import com.leyue.smartcs.knowledge.convertor.ChunkConverter;
+import com.leyue.smartcs.knowledge.convertor.ChunkConvertor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class ChunkCreateCmdExe {
     
     private final ChunkGateway chunkGateway;
-    private final ChunkConverter chunkConverter;
+    private final ChunkConvertor chunkConverter;
     
     /**
      * 执行创建切片命令
