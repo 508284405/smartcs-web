@@ -90,6 +90,130 @@ smartcs:
       max-messages: 20
       ttl-hours: 24
       cleanup-interval: 1h
+      # 降级策略
+      fallback:
+        enabled: true
+    
+    # LTM (Long-Term Memory) 长期记忆配置
+    ltm:
+      # 功能总开关
+      enabled: true
+      
+      # 记忆形成配置
+      formation:
+        # 重要性阈值，低于此值的内容不会形成记忆
+        importance-threshold: 0.5
+        # 是否启用语义记忆提取
+        semantic-extraction:
+          enabled: true
+          # 语义提取置信度阈值
+          confidence-threshold: 0.7
+        # 是否启用程序性记忆学习
+        procedural-learning:
+          enabled: true
+        # 是否异步处理记忆形成
+        async:
+          enabled: true
+      
+      # 记忆巩固配置
+      consolidation:
+        # 定时任务执行时间（cron表达式）
+        schedule: "0 0 2 * * ?"
+        # 每次处理的批次大小
+        batch-size: 100
+        # 巩固重要性阈值
+        importance-threshold: 0.7
+        # 语义巩固
+        semantic:
+          enabled: true
+          # 每个概念最大关联记忆数
+          max-episodes-per-concept: 5
+        # 程序性巩固
+        procedural:
+          enabled: true
+      
+      # 记忆检索配置
+      retrieval:
+        # 是否启用LTM检索
+        enabled: true
+        # LTM内容在最终结果中的权重
+        weight: 0.3
+        # 最大检索结果数
+        max-results: 5
+        # 相似度阈值
+        threshold: 0.7
+      
+      # 记忆分析配置
+      analyzer:
+        # 是否使用LLM进行重要性分析
+        use-llm: true
+        # 分析超时时间（毫秒）
+        timeout-ms: 5000
+      
+      # 用户配置默认值
+      user-defaults:
+        # 最大情景记忆数量
+        max-episodic-memories: 10000
+        # 最大语义概念数量
+        max-semantic-concepts: 1000
+        # 最大程序性模式数量
+        max-procedural-patterns: 500
+        # 情景记忆保留天数
+        episodic-retention-days: 90
+        # 是否启用语义遗忘
+        semantic-decay-enabled: true
+        # 是否启用程序性学习
+        procedural-learning-enabled: true
+        # 隐私级别 (1=普通, 2=敏感, 3=严格)
+        privacy-level: 1
+        # 是否启用自动巩固
+        auto-consolidation: true
+        # 个性化强度 (0.0-1.0)
+        personalization-level: 0.70
+        # 是否允许记忆共享
+        memory-sharing-enabled: false
+      
+      # 安全配置
+      security:
+        # 数据加密
+        encryption:
+          enabled: true
+          # 使用与其他敏感数据相同的加密配置
+          algorithm: "AES"
+          transformation: "AES/GCM/NoPadding"
+        # 用户隔离
+        user-isolation:
+          enabled: true
+          strict-mode: true
+        # 访问控制
+        access-control:
+          enabled: true
+          # 记忆访问日志
+          audit-logging: true
+          # 敏感记忆访问限制
+          sensitive-access-limit: 100
+      
+      # 性能优化配置
+      performance:
+        # 异步任务线程池配置
+        async-executor:
+          core-pool-size: 2
+          max-pool-size: 10
+          queue-capacity: 1000
+          thread-name-prefix: "ltm-async-"
+        # 缓存配置
+        cache:
+          enabled: true
+          # 记忆摘要缓存TTL（秒）
+          summary-cache-ttl: 3600
+          # 分析结果缓存TTL（秒）
+          analysis-cache-ttl: 1800
+        # 批量操作配置
+        batch:
+          # 批量保存大小
+          save-batch-size: 50
+          # 批量查询大小
+          query-batch-size: 100
     
     # 向量存储配置
     vector-store:
