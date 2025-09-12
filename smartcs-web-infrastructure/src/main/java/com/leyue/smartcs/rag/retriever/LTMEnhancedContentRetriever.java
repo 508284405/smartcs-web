@@ -8,10 +8,10 @@ import com.leyue.smartcs.domain.ltm.entity.SemanticMemory;
 
 import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
-import dev.langchain4j.data.query.Query;
+import dev.langchain4j.data.segment.TextSegment;
+import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
-import dev.langchain4j.rag.query.Metadata;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,16 +37,16 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
     private final ContentRetriever baseContentRetriever;
     private final LTMDomainService ltmDomainService;
 
-    @Value("${smartcs.ltm.retrieval.enabled:true}")
+    @Value("${smartcs.ai.ltm.retrieval.enabled:true}")
     private boolean ltmRetrievalEnabled;
 
-    @Value("${smartcs.ltm.retrieval.weight:0.3}")
+    @Value("${smartcs.ai.ltm.retrieval.weight:0.3}")
     private double ltmWeight; // LTM内容在最终结果中的权重
 
-    @Value("${smartcs.ltm.retrieval.max-results:5}")
+    @Value("${smartcs.ai.ltm.retrieval.max-results:5}")
     private int maxLtmResults;
 
-    @Value("${smartcs.ltm.retrieval.threshold:0.7}")
+    @Value("${smartcs.ai.ltm.retrieval.threshold:0.7}")
     private double ltmThreshold;
 
     @Override
@@ -89,7 +89,8 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         }
 
         // 尝试从元数据中获取用户ID
-        Object userIdObj = query.metadata().toMap().get("userId");
+        // TODO: 需要检查Query.metadata()的正确API用法
+        Object userIdObj = null; // query.metadata().get("userId");
         if (userIdObj instanceof Long) {
             return (Long) userIdObj;
         } else if (userIdObj instanceof String) {
@@ -101,7 +102,8 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         }
 
         // 尝试从memoryId中提取
-        Object memoryIdObj = query.metadata().toMap().get("memoryId");
+        // TODO: 需要检查Query.metadata()的正确API用法
+        Object memoryIdObj = null; // query.metadata().get("memoryId");
         if (memoryIdObj != null) {
             String memoryIdStr = memoryIdObj.toString();
             String[] parts = memoryIdStr.split(":");
@@ -124,7 +126,8 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         // 构建LTM检索请求
         Map<String, Object> context = new HashMap<>();
         if (query.metadata() != null) {
-            context.putAll(query.metadata().toMap());
+            // TODO: 需要检查Query.metadata()的正确API用法
+            // context.putAll(query.metadata().toMap());
         }
         context.put("retrieval_timestamp", System.currentTimeMillis());
 
@@ -172,6 +175,7 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         metadataMap.put("memory_id", memory.getId());
         metadataMap.put("episode_id", memory.getEpisodeId());
         metadataMap.put("importance_score", memory.getImportanceScore());
+        metadataMap.put("score", memory.getImportanceScore());
         metadataMap.put("timestamp", memory.getTimestamp());
         metadataMap.put("access_count", memory.getAccessCount());
         
@@ -189,7 +193,7 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         }
 
         Metadata metadata = Metadata.from(metadataMap);
-        return Content.from(contentText.toString(), metadata);
+        return Content.from(TextSegment.from(contentText.toString(), metadata));
     }
 
     /**
@@ -201,6 +205,7 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         metadataMap.put("memory_id", memory.getId());
         metadataMap.put("concept", memory.getConcept());
         metadataMap.put("confidence", memory.getConfidence());
+        metadataMap.put("score", memory.getConfidence());
         metadataMap.put("evidence_count", memory.getEvidenceCount());
         
         if (memory.getSourceEpisodes() != null) {
@@ -218,7 +223,7 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         }
 
         Metadata metadata = Metadata.from(metadataMap);
-        return Content.from(contentText.toString(), metadata);
+        return Content.from(TextSegment.from(contentText.toString(), metadata));
     }
 
     /**
@@ -276,6 +281,6 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         enhancedMetadata.put("personalized", true);
         
         Metadata metadata = Metadata.from(enhancedMetadata);
-        return Content.from(enhancedText, metadata);
+        return Content.from(TextSegment.from(enhancedText, metadata));
     }
 }

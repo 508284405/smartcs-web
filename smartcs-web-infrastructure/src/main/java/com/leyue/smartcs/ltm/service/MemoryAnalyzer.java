@@ -23,7 +23,7 @@ public class MemoryAnalyzer {
 
     private final LanguageModel languageModel;
 
-    @Value("${smartcs.ltm.analyzer.use-llm:true}")
+    @Value("${smartcs.ai.ltm.analyzer.use-llm:true}")
     private boolean useLlmAnalysis;
 
     // 重要性关键词模式

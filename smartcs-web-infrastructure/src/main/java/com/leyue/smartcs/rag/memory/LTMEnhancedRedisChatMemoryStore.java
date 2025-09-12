@@ -40,16 +40,16 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
     private final ChatMemoryStore baseChatMemoryStore;
     private final LTMDomainService ltmDomainService;
 
-    @Value("${smartcs.ltm.enabled:true}")
+    @Value("${smartcs.ai.ltm.enabled:true}")
     private boolean ltmEnabled;
 
-    @Value("${smartcs.ltm.context.max-results:5}")
+    @Value("${smartcs.ai.ltm.context.max-results:5}")
     private int maxLtmResults;
 
-    @Value("${smartcs.ltm.context.threshold:0.8}")
+    @Value("${smartcs.ai.ltm.context.threshold:0.8}")
     private double ltmThreshold;
 
-    @Value("${smartcs.ltm.memory-formation.enabled:true}")
+    @Value("${smartcs.ai.ltm.memory-formation.enabled:true}")
     private boolean memoryFormationEnabled;
 
     @Override

@@ -41,26 +41,26 @@ public class MemoryConsolidationService {
     private final LanguageModel languageModel;
     private final EmbeddingModel embeddingModel;
 
-    @Value("${smartcs.ltm.consolidation.batch-size:100}")
+    @Value("${smartcs.ai.ltm.consolidation.batch-size:100}")
     private int consolidationBatchSize;
 
-    @Value("${smartcs.ltm.consolidation.importance-threshold:0.7}")
+    @Value("${smartcs.ai.ltm.consolidation.importance-threshold:0.7}")
     private double consolidationImportanceThreshold;
 
-    @Value("${smartcs.ltm.consolidation.semantic.enabled:true}")
+    @Value("${smartcs.ai.ltm.consolidation.semantic.enabled:true}")
     private boolean semanticConsolidationEnabled;
 
-    @Value("${smartcs.ltm.consolidation.procedural.enabled:true}")
+    @Value("${smartcs.ai.ltm.consolidation.procedural.enabled:true}")
     private boolean proceduralConsolidationEnabled;
 
-    @Value("${smartcs.ltm.consolidation.max-episodes-per-concept:5}")
+    @Value("${smartcs.ai.ltm.consolidation.max-episodes-per-concept:5}")
     private int maxEpisodesPerConcept;
 
     /**
      * 定时执行记忆巩固任务
      * 默认每天凌晨2点执行
      */
-    @Scheduled(cron = "${smartcs.ltm.consolidation.schedule:0 0 2 * * ?}")
+    @Scheduled(cron = "${smartcs.ai.ltm.consolidation.schedule:0 0 2 * * ?}")
     public void scheduledConsolidation() {
         log.info("开始执行定时记忆巩固任务");
         

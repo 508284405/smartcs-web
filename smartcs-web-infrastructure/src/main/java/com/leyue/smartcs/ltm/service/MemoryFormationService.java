@@ -39,16 +39,16 @@ public class MemoryFormationService {
     private final EmbeddingModel embeddingModel;
     private final MemoryAnalyzer memoryAnalyzer;
 
-    @Value("${smartcs.ltm.formation.importance-threshold:0.5}")
+    @Value("${smartcs.ai.ltm.formation.importance-threshold:0.5}")
     private double importanceThreshold;
 
-    @Value("${smartcs.ltm.formation.semantic-extraction.enabled:true}")
+    @Value("${smartcs.ai.ltm.formation.semantic-extraction.enabled:true}")
     private boolean semanticExtractionEnabled;
 
-    @Value("${smartcs.ltm.formation.procedural-learning.enabled:true}")
+    @Value("${smartcs.ai.ltm.formation.procedural-learning.enabled:true}")
     private boolean proceduralLearningEnabled;
 
-    @Value("${smartcs.ltm.formation.async.enabled:true}")
+    @Value("${smartcs.ai.ltm.formation.async.enabled:true}")
     private boolean asyncFormationEnabled;
 
     /**
@@ -74,6 +74,12 @@ public class MemoryFormationService {
      */
     private void doProcessMemoryFormation(MemoryFormationRequest request) {
         try {
+            // 0. 简单去重：最近若干条内容有高度相同文本则跳过
+            if (isDuplicateContent(request.getUserId(), request.getContent())) {
+                log.debug("检测到重复内容，跳过记忆形成: userId={}", request.getUserId());
+                return;
+            }
+
             // 1. 分析内容重要性
             double importance = memoryAnalyzer.analyzeImportance(request.getContent(), request.getContext());
             
@@ -102,6 +108,35 @@ public class MemoryFormationService {
         } catch (Exception e) {
             log.error("记忆形成处理失败: userId={}, error={}", request.getUserId(), e.getMessage(), e);
         }
+    }
+
+    /**
+     * 基于最近访问的记忆进行轻量级文本去重
+     */
+    private boolean isDuplicateContent(Long userId, String content) {
+        if (userId == null || content == null || content.isBlank()) return false;
+        try {
+            String norm = normalize(content);
+            // 查询最近访问的若干条记忆（如果网关实现可用）
+            java.util.List<EpisodicMemory> recents = episodicMemoryGateway.findRecentlyAccessed(userId, 5);
+            for (EpisodicMemory m : recents) {
+                String mc = m.getContent();
+                if (mc == null) continue;
+                if (normalize(mc).equals(norm)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("去重检查失败，忽略并继续: {}", e.getMessage());
+        }
+        return false;
+    }
+
+    private String normalize(String s) {
+        return s.replaceAll("\\s+", " ")
+                .replaceAll("[，。！？,.!?]", "")
+                .trim()
+                .toLowerCase();
     }
 
     /**

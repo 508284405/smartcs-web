@@ -16,6 +16,7 @@ import com.leyue.smartcs.rag.config.WebSearchProperties;
 import com.leyue.smartcs.rag.content.retriever.SqlQueryContentRetriever;
 import com.leyue.smartcs.rag.database.service.NlpToSqlService;
 import com.leyue.smartcs.rag.query.pipeline.QueryContext;
+import com.leyue.smartcs.rag.retriever.LTMEnhancedContentRetriever;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerPipeline;
 import com.leyue.smartcs.rag.query.pipeline.QueryTransformerStage;
 import com.leyue.smartcs.rag.query.pipeline.stages.ExpandingStage;
@@ -96,6 +97,13 @@ public class RagAugmentorFactory {
     private final DynamicModelManager dynamicModelManager;
     private final ObjectMapper objectMapper;
     private final SlotFillingMetricsCollector slotFillingMetricsCollector;
+    
+    // LTM检索增强器（可选注入）
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private LTMEnhancedContentRetriever ltmEnhancedContentRetriever;
+    
+    @org.springframework.beans.factory.annotation.Value("${smartcs.ai.ltm.retrieval.enabled:true}")
+    private boolean ltmRetrievalEnabled;
     
     // 缓存RAG组件实例，避免重复创建
     private final Map<Long, RetrievalAugmentor> retrievalAugmentorCache = new ConcurrentHashMap<>();
@@ -582,6 +590,11 @@ public class RagAugmentorFactory {
                 retrievers.put(sqlQueryContentRetriever, "数据库查询");
             }
             
+            // LTM个性化检索（可选）
+            if (ltmRetrievalEnabled && ltmEnhancedContentRetriever != null) {
+                retrievers.put(ltmEnhancedContentRetriever, "LTM个性化");
+            }
+            
             return LanguageModelQueryRouter.builder()
                     .chatModel(chatModel)
                     .promptTemplate(config.getPromptTemplate() != null ? PromptTemplate.from(config.getPromptTemplate()) : null)
@@ -613,6 +626,11 @@ public class RagAugmentorFactory {
             // SQL查询检索器始终启用
             ContentRetriever sqlQueryContentRetriever = createSqlQueryContentRetriever(id, id, null);
             retrievers.put(sqlQueryContentRetriever, "数据库查询");
+            
+            // LTM个性化检索（可选）
+            if (ltmRetrievalEnabled && ltmEnhancedContentRetriever != null) {
+                retrievers.put(ltmEnhancedContentRetriever, "LTM个性化");
+            }
             
             return LanguageModelQueryRouter.builder()
                     .chatModel(chatModel)

@@ -142,6 +142,10 @@ smartcs:
         max-results: 5
         # 相似度阈值
         threshold: 0.7
+      # 会话记忆集成（可选）
+      context:
+        chat-store:
+          enabled: false
       
       # 记忆分析配置
       analyzer:
