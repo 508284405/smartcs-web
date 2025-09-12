@@ -83,12 +83,10 @@
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>
-            <version>2.1.0</version>
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-micrometer</artifactId>
-            <version>2.1.0</version>
         </dependency>
 
         <!-- 日志支持 -->
@@ -239,7 +237,6 @@
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-community-web-search-engine-searxng</artifactId>
-            <version>1.4.0-beta10</version>
             <exclusions>
                 <exclusion>
                     <groupId>dev.langchain4j</groupId>
