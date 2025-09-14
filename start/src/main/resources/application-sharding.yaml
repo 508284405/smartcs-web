@@ -1,0 +1,91 @@
+spring:
+  shardingsphere:
+    props:
+      sql-show: true
+
+    datasource:
+      names: ds_0, ds_1
+
+      ds_0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://${DB0_HOST:localhost}:${DB0_PORT:3306}/smartcs_0?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC
+        username: ${DB0_USER:root}
+        password: ${DB0_PWD:root}
+        maximum-pool-size: 10
+        minimum-idle: 2
+        connection-timeout: 30000
+
+      ds_1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://${DB1_HOST:localhost}:${DB1_PORT:3306}/smartcs_1?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=UTC
+        username: ${DB1_USER:root}
+        password: ${DB1_PWD:root}
+        maximum-pool-size: 10
+        minimum-idle: 2
+        connection-timeout: 30000
+
+    rules:
+      sharding:
+        # 绑定表：保持同分片路由，避免跨分片 JOIN 不一致
+        binding-tables:
+          - t_cs_session,t_cs_message
+
+        # 会话与消息分片定义
+        tables:
+          t_cs_session:
+            actual-data-nodes: ds_${0..1}.t_cs_session_${0..3}
+            database-strategy:
+              complex:
+                sharding-columns: session_id,customer_id
+                sharding-algorithm-name: db-composite
+            table-strategy:
+              complex:
+                sharding-columns: session_id,customer_id
+                sharding-algorithm-name: tbl-composite
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake-local
+
+          t_cs_message:
+            actual-data-nodes: ds_${0..1}.t_cs_message_${0..3}
+            database-strategy:
+              complex:
+                sharding-columns: session_id,customer_id
+                sharding-algorithm-name: db-composite
+            table-strategy:
+              complex:
+                sharding-columns: session_id,customer_id
+                sharding-algorithm-name: tbl-composite
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake-local
+
+        # 自定义复合分片算法（CLASS_BASED）
+        sharding-algorithms:
+          db-composite:
+            type: CLASS_BASED
+            props:
+              strategy: COMPLEX
+              algorithmClassName: com.leyue.smartcs.config.sharding.SessionOrCustomerDatabaseShardingAlgorithm
+              databaseShards: 2
+              dsPrefix: ds_
+          tbl-composite:
+            type: CLASS_BASED
+            props:
+              strategy: COMPLEX
+              algorithmClassName: com.leyue.smartcs.config.sharding.SessionOrCustomerTableShardingAlgorithm
+              tableShards: 4
+
+        key-generators:
+          snowflake-local:
+            type: SNOWFLAKE
+            props:
+              worker-id: 1
+
+# Notes:
+# - Activate: `--spring.profiles.active=sharding`.
+# - Prepare schemas `smartcs_0` and `smartcs_1` and physical tables:
+#     t_cs_session_0..3, t_cs_message_0..3 (schema equals logical tables).
+# - Writes/updates should include `session_id` to avoid broadcasts; queries by `customer_id` will route via composite algorithm, otherwise may broadcast.

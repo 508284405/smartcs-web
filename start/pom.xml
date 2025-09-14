@@ -63,6 +63,13 @@
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
+
+        <!-- ShardingSphere JDBC for Spring Boot 3 (Data sharding for sessions/messages) -->
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc-core-spring-boot-starter</artifactId>
+            <version>5.5.1</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

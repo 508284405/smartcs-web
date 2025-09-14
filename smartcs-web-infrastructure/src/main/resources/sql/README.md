@@ -21,6 +21,10 @@ sql/
 - `01_cs_user.sql` - 用户表
 - `02_cs_session.sql` - 会话表  
 - `03_cs_message.sql` - 消息表
+  
+  分库分表物理表（如启用 ShardingSphere-JDBC）：
+  - `02_cs_session_shards.sql` - 会话表分表 t_cs_session_0..3（每个分库执行）
+  - `03_cs_message_shards.sql` - 消息表分表 t_cs_message_0..3（每个分库执行）
 
 ### 2. 知识模块 (Knowledge)
 - `01_knowledge_base.sql` - 知识库表
@@ -51,10 +55,14 @@ source init/00_init_all_modules.sql
 ### 模块化初始化
 按模块分别执行：
 ```sql
--- 聊天模块
 source modules/chat/01_cs_user.sql
 source modules/chat/02_cs_session.sql  
 source modules/chat/03_cs_message.sql
+
+-- 如启用分库分表（ShardingSphere-JDBC）
+-- 请在每个物理库（例如 smartcs_0 与 smartcs_1）分别执行：
+source modules/chat/02_cs_session_shards.sql
+source modules/chat/03_cs_message_shards.sql
 
 -- 知识模块
 source modules/knowledge/01_knowledge_base.sql
@@ -133,3 +141,5 @@ t_cs_message (消息)
 3. 逻辑删除使用 `is_deleted` 字段，0=未删除，1=已删除
 4. 外键约束已设置，注意表的创建顺序
 5. 已优化索引配置，提高查询性能
+6. 分库分表环境中，请确保每个分库都存在对应的分表（如 t_cs_session_0..3、t_cs_message_0..3），并与逻辑表结构一致；逻辑表名在应用侧保持为 `t_cs_session`、`t_cs_message`。
+7. Sharding 配置示例参考：`start/src/main/resources/application-sharding.yaml`（包含绑定表、复合分片算法等）。

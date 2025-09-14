@@ -45,15 +45,13 @@ public class SessionGatewayImpl implements SessionGateway {
     @CacheEvict(value = "sessions", key = "#session.sessionId")
     public boolean updateSession(Session session) {
         CsSessionDO csSessionDO = sessionConverter.toDataObject(session);
-        boolean result = false;
-        if (session.getId() != null) {
-            result = sessionMapper.updateById(csSessionDO) > 0;
-        } else if (session.getSessionId() != null) {
-            result = sessionMapper.update(csSessionDO, new LambdaQueryWrapper<CsSessionDO>()
-                    .eq(CsSessionDO::getSessionId, csSessionDO.getSessionId())) > 0;
+        // 为了兼容分库分表路由，统一使用 session_id 作为更新条件，避免基于 id 的跨分片广播更新
+        if (csSessionDO.getSessionId() == null) {
+            log.warn("更新会话失败，缺少sessionId: {}", csSessionDO);
+            return false;
         }
-
-        return result;
+        return sessionMapper.update(csSessionDO, new LambdaQueryWrapper<CsSessionDO>()
+                .eq(CsSessionDO::getSessionId, csSessionDO.getSessionId())) > 0;
     }
 
     @Override
@@ -132,13 +130,11 @@ public class SessionGatewayImpl implements SessionGateway {
     @Override
     @CacheEvict(value = {"sessions", "sessionStatus"}, key = "#sessionId")
     public void updateSessionStatus(Long sessionId, String status) {
-        CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
-        if (sessionDO == null) {
-            log.warn("会话不存在，无法更新状态: sessionId={}, status={}", sessionId, status);
+        if (sessionId == null) {
+            log.warn("会话不存在，无法更新状态: sessionId=null, status={}", status);
             return;
         }
 
-        // 状态转换：WAITING=0, ACTIVE=1, CLOSED=2
         int sessionState;
         switch (status) {
             case "WAITING":
@@ -155,9 +151,10 @@ public class SessionGatewayImpl implements SessionGateway {
                 return;
         }
 
-        // 更新状态
-        sessionDO.setSessionState(sessionState);
-        sessionMapper.updateById(sessionDO);
+        sessionMapper.update(new LambdaUpdateWrapper<CsSessionDO>()
+                .eq(CsSessionDO::getSessionId, sessionId)
+                .set(CsSessionDO::getSessionState, sessionState)
+                .set(CsSessionDO::getLastMsgTime, System.currentTimeMillis()));
 
         log.info("会话状态已更新: sessionId={}, status={}", sessionId, status);
     }
@@ -165,26 +162,17 @@ public class SessionGatewayImpl implements SessionGateway {
     @Override
     @CacheEvict(value = {"sessions", "sessionStatus"}, key = "#sessionId")
     public void assignAgent(Long sessionId, String agentId) {
-        CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
-        if (sessionDO == null) {
-            log.warn("会话不存在，无法分配客服: sessionId={}, agentId={}", sessionId, agentId);
+        if (sessionId == null) {
+            log.warn("会话不存在，无法分配客服: sessionId=null, agentId={}", agentId);
             return;
         }
-
         try {
-            // 将String类型的agentId转换为Long类型
             Long agentIdLong = Long.parseLong(agentId);
-            sessionDO.setAgentId(agentIdLong);
-
-            // 状态设置为进行中(1)
-            sessionDO.setSessionState(1);
-
-            // 更新最后消息时间
-            sessionDO.setLastMsgTime(System.currentTimeMillis());
-
-            // 更新数据库
-            sessionMapper.updateById(sessionDO);
-
+            sessionMapper.update(new LambdaUpdateWrapper<CsSessionDO>()
+                    .eq(CsSessionDO::getSessionId, sessionId)
+                    .set(CsSessionDO::getAgentId, agentIdLong)
+                    .set(CsSessionDO::getSessionState, 1)
+                    .set(CsSessionDO::getLastMsgTime, System.currentTimeMillis()));
             log.info("会话已分配客服: sessionId={}, agentId={}", sessionId, agentId);
         } catch (NumberFormatException e) {
             log.error("客服员ID转换失败: agentId={}", agentId, e);
@@ -194,22 +182,14 @@ public class SessionGatewayImpl implements SessionGateway {
     @Override
     @CacheEvict(value = {"sessions", "sessionStatus"}, key = "#sessionId")
     public void closeSession(Long sessionId, String reason) {
-        CsSessionDO sessionDO = sessionMapper.selectBySessionId(sessionId);
-        if (sessionDO == null) {
-            log.warn("会话不存在，无法关闭: sessionId={}, reason={}", sessionId, reason);
+        if (sessionId == null) {
+            log.warn("会话不存在，无法关闭: sessionId=null, reason={}", reason);
             return;
         }
-
-        // 更新会话信息
-        // 状态设置为已结束(2)
-        sessionDO.setSessionState(2);
-
-        // 更新最后消息时间
-        sessionDO.setLastMsgTime(System.currentTimeMillis());
-
-        // 更新数据库
-        sessionMapper.updateById(sessionDO);
-
+        sessionMapper.update(new LambdaUpdateWrapper<CsSessionDO>()
+                .eq(CsSessionDO::getSessionId, sessionId)
+                .set(CsSessionDO::getSessionState, 2)
+                .set(CsSessionDO::getLastMsgTime, System.currentTimeMillis()));
         log.info("会话已关闭: sessionId={}, reason={}", sessionId, reason);
     }
 

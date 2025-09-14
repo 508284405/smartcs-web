@@ -240,6 +240,7 @@ graph TD
 
 - 应用启动：`start/src/main/java/com/leyue/smartcs/Application.java:15`
 - 运行配置：`start/src/main/resources/application.yaml:1`
+- 分库分表配置：`start/src/main/resources/application-sharding.yaml:1`
 - 密钥模板：`start/src/main/resources/application-secrets-template.yaml:1`
 - RAG 工厂：`smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/rag/factory/RagAugmentorFactory.java:1`
 - 查询管线：`smartcs-web-infrastructure/src/main/java/com/leyue/smartcs/rag/query/pipeline/QueryTransformerPipeline.java:1`
@@ -433,6 +434,27 @@ export OPENAI_BASE_URL=https://api.openai.com/v1   # 或企业代理/自托管�
 - 如启用 Nacos/Redisson，请覆盖 `bootstrap.yaml`、`redisson.yaml` 中演示参数（已包含示例地址，勿在生产复用）
 - 文档下载等 I/O 已在 `import.download.*` 增强白/黑名单与限速配置，避免 SSRF/大文件风险
 
+## 会话系统与分库分表
+
+- 当前会话系统：
+  - 业务会话使用领域模型 `Session` 与持久化表 `t_cs_session`（主键 `id`，业务键 `session_id`）。
+  - API/用例：`SessionService` + `SessionServiceImpl` + `CreateSessionCmdExe/PageSessionQryExe`。
+  - 网关实现：`SessionGatewayImpl` 使用 MyBatis‑Plus + XML Mapper 按 `session_id`/`customer_id`/`agent_id` 查询。
+  - 认证：`TokenValidateFilter` 基于 JWT，无状态鉴权，将用户信息放入 `UserContext`（非 HttpSession）。
+
+- 分库分表方案（ShardingSphere‑JDBC）：
+  - 依赖：`start/pom.xml` 已集成 `shardingsphere-jdbc-core-spring-boot-starter`。
+  - 配置：示例见 `application-sharding.yaml`。将 `t_cs_session` 按 `session_id` 做 2 库 × 4 表拆分（`ds_0/1` × `t_cs_session_0..3`）。
+  - 激活：使用 `--spring.profiles.active=sharding` 或将该配置迁移至 Nacos `smartcs-web.yaml`。
+  - 路由关键点：所有写/改操作统一以 `session_id` 作为条件，避免跨分片广播（代码已改造：`SessionGatewayImpl`）。
+
+- 注意事项与隐患：
+  - 查询维度：按 `customer_id` 或 `agent_id` 的查询会广播到所有分片，建议后续视压测情况增加复合分片算法或二级索引表。
+  - 主键 `id`：作为局部自增键在各物理表内唯一即可（全局唯一由 `session_id` 保证）。避免以 `id` 作为路由条件。
+  - DDL：请在每个物理库中创建 `t_cs_session_0..3`，表结构与 `t_cs_session` 一致；保留 `uk_session_id` 索引。
+  - 扩容：如后续增加分片数，需数据迁移或使用一致性哈希算法；当前配置基于取模表达式。
+
+
 ## 深入阅读（docs）
 
 ### 🏗️ 业务模块文档（最新）
@@ -471,3 +493,8 @@ export OPENAI_BASE_URL=https://api.openai.com/v1   # 或企业代理/自托管�
 ---
 
 如需我扩展使用说明（例如 curl 示例、Docker 组合、中英文对照），请在 Issue/PR 中 @我。
+
+
+## 📋 相关项目
+https://github.com/508284405/User-Center/tree/clean-branch  用户中心系统(前后端)
+https://github.com/508284405/mathernity-baby-care/tree/master 客户端系统(前后端)
