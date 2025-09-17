@@ -235,7 +235,7 @@ public class MemoryConsolidationService {
             """.formatted(consolidatedContent);
 
         try {
-            return languageModel.generate(prompt).trim();
+            return languageModel.generate(prompt).content();
         } catch (Exception e) {
             log.warn("语义知识生成失败: {}", e.getMessage());
             return "";
@@ -257,7 +257,7 @@ public class MemoryConsolidationService {
             """.formatted(content);
 
         try {
-            return languageModel.generate(prompt).trim();
+            return languageModel.generate(prompt).content();
         } catch (Exception e) {
             log.warn("概念提取失败: {}", e.getMessage());
             return null;

@@ -1,7 +1,7 @@
 package com.leyue.smartcs.config;
 
-import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.BlockExceptionHandler;
-import com.alibaba.csp.sentinel.adapter.spring.webmvc.callback.UrlCleaner;
+import com.alibaba.csp.sentinel.adapter.spring.webmvc_v6x.callback.BlockExceptionHandler;
+import com.alibaba.csp.sentinel.adapter.web.common.UrlCleaner;
 import com.alibaba.csp.sentinel.annotation.aspectj.SentinelResourceAspect;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -41,7 +41,7 @@ public class SentinelConfig {
     public BlockExceptionHandler sentinelBlockExceptionHandler() {
         return new BlockExceptionHandler() {
             @Override
-            public void handle(HttpServletRequest request, HttpServletResponse response,
+            public void handle(HttpServletRequest request, HttpServletResponse response,String s,
                                com.alibaba.csp.sentinel.slots.block.BlockException e) throws Exception {
                 writeBlockResponse(request, response, e);
             }
