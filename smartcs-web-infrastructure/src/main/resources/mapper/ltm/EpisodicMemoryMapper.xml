@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.leyue.smartcs.ltm.mapper.EpisodicMemoryMapper">
+
+    <select id="selectNeedingConsolidationUserIds" resultType="java.lang.Long">
+        SELECT DISTINCT user_id
+        FROM t_ltm_episodic_memory
+        WHERE consolidation_status = 0
+          AND importance_score &gt;= #{minImportanceScore}
+        <if test="startingAfterUserId != null">
+          AND user_id &gt; #{startingAfterUserId}
+        </if>
+        ORDER BY user_id
+        LIMIT #{limit}
+    </select>
+
+</mapper>

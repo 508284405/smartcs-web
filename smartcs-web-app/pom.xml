@@ -40,6 +40,7 @@
         <dependency>
             <groupId>org.glassfish</groupId>
             <artifactId>jakarta.el</artifactId>
+            <version>5.0.0</version>
         </dependency>
         <!-- Jakarta Bean Validation End-->
         

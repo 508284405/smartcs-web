@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -65,6 +66,35 @@ public class EpisodicMemoryGatewayImpl implements EpisodicMemoryGateway {
                 .updatedAt(d.getUpdatedAt())
                 .build();
     }
+
+    private float[] toFloatArray(byte[] bytes) {
+        if (bytes == null || bytes.length == 0 || bytes.length % 4 != 0) {
+            return new float[0];
+        }
+        float[] array = new float[bytes.length / 4];
+        ByteBuffer buffer = ByteBuffer.wrap(bytes);
+        for (int i = 0; i < array.length; i++) {
+            array[i] = buffer.getFloat();
+        }
+        return array;
+    }
+
+    private double cosineSimilarity(float[] a, float[] b) {
+        double dot = 0.0;
+        double normA = 0.0;
+        double normB = 0.0;
+        for (int i = 0; i < a.length; i++) {
+            dot += a[i] * b[i];
+            normA += a[i] * a[i];
+            normB += b[i] * b[i];
+        }
+        if (normA == 0.0 || normB == 0.0) {
+            return Double.NaN;
+        }
+        return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    private record ScoredMemory<T>(T memory, double score) {}
 
     @Override
     public void save(EpisodicMemory episodicMemory) {
@@ -128,9 +158,58 @@ public class EpisodicMemoryGatewayImpl implements EpisodicMemoryGateway {
 
     @Override
     public List<EpisodicMemory> semanticSearch(Long userId, byte[] queryVector, Double threshold, int limit) {
-        // 占位：如未接入向量索引，退化为按重要性排序
-        log.debug("semanticSearch fallback to importance ordering: userId={}", userId);
-        return findByImportanceScore(userId, 0.0, limit);
+        if (queryVector == null || queryVector.length == 0) {
+            log.debug("semanticSearch 缺少查询向量，退化为重要度排序: userId={}", userId);
+            return findByImportanceScore(userId, 0.0, limit);
+        }
+
+        float[] query = toFloatArray(queryVector);
+        if (query.length == 0) {
+            log.debug("semanticSearch 查询向量解析失败，退化为重要度排序: userId={}", userId);
+            return findByImportanceScore(userId, 0.0, limit);
+        }
+
+        int fetchSize = Math.max(limit * 5, 100);
+        List<EpisodicMemoryDO> candidates = mapper.selectList(new LambdaQueryWrapper<EpisodicMemoryDO>()
+                .eq(EpisodicMemoryDO::getUserId, userId)
+                .isNotNull(EpisodicMemoryDO::getEmbeddingVector)
+                .orderByDesc(EpisodicMemoryDO::getImportanceScore)
+                .last("limit " + fetchSize));
+
+        if (candidates.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ScoredMemory<EpisodicMemory>> scored = new ArrayList<>();
+        for (EpisodicMemoryDO candidate : candidates) {
+            byte[] embeddingBytes = candidate.getEmbeddingVector();
+            if (embeddingBytes == null || embeddingBytes.length == 0) {
+                continue;
+            }
+            float[] memoryVector = toFloatArray(embeddingBytes);
+            if (memoryVector.length == 0 || memoryVector.length != query.length) {
+                continue;
+            }
+            double score = cosineSimilarity(query, memoryVector);
+            if (Double.isNaN(score)) {
+                continue;
+            }
+            if (threshold != null && score < threshold) {
+                continue;
+            }
+            scored.add(new ScoredMemory<>(toEntity(candidate), score));
+        }
+
+        if (scored.isEmpty()) {
+            log.debug("semanticSearch 未命中相似记忆: userId={}", userId);
+            return Collections.emptyList();
+        }
+
+        scored.sort(Comparator.comparingDouble(ScoredMemory::score).reversed());
+        return scored.stream()
+                .limit(limit)
+                .map(ScoredMemory::memory)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -145,14 +224,20 @@ public class EpisodicMemoryGatewayImpl implements EpisodicMemoryGateway {
     }
 
     @Override
-    public List<EpisodicMemory> findMemoriesNeedingConsolidation(Long userId, int limit) {
+    public List<EpisodicMemory> findMemoriesNeedingConsolidation(Long userId, double minImportanceScore, int limit) {
         return mapper.selectList(new LambdaQueryWrapper<EpisodicMemoryDO>()
                         .eq(EpisodicMemoryDO::getUserId, userId)
                         .eq(EpisodicMemoryDO::getConsolidationStatus, 0)
-                        .ge(EpisodicMemoryDO::getImportanceScore, 0.7)
+                        .ge(EpisodicMemoryDO::getImportanceScore, minImportanceScore)
                         .orderByDesc(EpisodicMemoryDO::getTimestamp)
                         .last("limit "+limit))
                 .stream().map(this::toEntity).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Long> findUserIdsNeedingConsolidation(double minImportanceScore, Long startingAfterUserId, int limit) {
+        List<Long> userIds = mapper.selectNeedingConsolidationUserIds(minImportanceScore, startingAfterUserId, limit);
+        return userIds == null ? Collections.emptyList() : userIds;
     }
 
     @Override
@@ -244,4 +329,3 @@ public class EpisodicMemoryGatewayImpl implements EpisodicMemoryGateway {
         return Optional.ofNullable(d!=null? d.getTimestamp(): null);
     }
 }
-

@@ -83,12 +83,5 @@ public class SessionOrCustomerTableShardingAlgorithm implements ComplexKeysShard
     public String getType() {
         return "SESSION_OR_CUSTOMER_TBL";
     }
-
-    @Override
-    public Properties getProps() {
-        Properties props = new Properties();
-        props.put("tableShards", tableShards);
-        return props;
-    }
 }
 

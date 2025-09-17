@@ -16,7 +16,6 @@ import org.springframework.context.annotation.ComponentScan;
 @EnableFeignClients(basePackages = "com.leyue.smartcs.**.feign")
 @EnableScheduling
 @EnableConfigurationProperties
-@ComponentScan(basePackages = {"com.leyue.smartcs"})
 public class Application {
 
     public static void main(String[] args) {

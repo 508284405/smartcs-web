@@ -7,6 +7,7 @@ import com.leyue.smartcs.domain.ltm.gateway.EpisodicMemoryGateway;
 import com.leyue.smartcs.domain.ltm.gateway.SemanticMemoryGateway;
 import com.leyue.smartcs.domain.ltm.gateway.ProceduralMemoryGateway;
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryFormationRequest;
+import com.leyue.smartcs.service.TracingSupport;
 
 import dev.langchain4j.model.language.LanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -15,13 +16,19 @@ import dev.langchain4j.data.embedding.Embedding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
-import java.util.concurrent.CompletableFuture;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 /**
  * 记忆形成服务
@@ -38,6 +45,8 @@ public class MemoryFormationService {
     private final LanguageModel languageModel;
     private final EmbeddingModel embeddingModel;
     private final MemoryAnalyzer memoryAnalyzer;
+    private final @Qualifier("ltmTaskExecutor") TaskExecutor ltmTaskExecutor;
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     @Value("${smartcs.ai.ltm.formation.importance-threshold:0.5}")
     private double importanceThreshold;
@@ -59,11 +68,11 @@ public class MemoryFormationService {
 
         if (asyncFormationEnabled) {
             // 异步处理以避免阻塞主流程
-            CompletableFuture.runAsync(() -> doProcessMemoryFormation(request))
-                .exceptionally(throwable -> {
-                    log.error("记忆形成处理异常: userId={}, error={}", request.getUserId(), throwable.getMessage());
-                    return null;
-                });
+            TracingSupport.runAsync(() -> doProcessMemoryFormation(request), ltmTaskExecutor)
+                    .exceptionally(throwable -> {
+                        log.error("记忆形成处理异常: userId={}, error={}", request.getUserId(), throwable.getMessage());
+                        return null;
+                    });
         } else {
             doProcessMemoryFormation(request);
         }
@@ -73,27 +82,31 @@ public class MemoryFormationService {
      * 执行记忆形成处理
      */
     private void doProcessMemoryFormation(MemoryFormationRequest request) {
+        long startNanos = System.nanoTime();
+        String outcome = "success";
         try {
             // 0. 简单去重：最近若干条内容有高度相同文本则跳过
             if (isDuplicateContent(request.getUserId(), request.getContent())) {
                 log.debug("检测到重复内容，跳过记忆形成: userId={}", request.getUserId());
+                outcome = "duplicate";
                 return;
             }
 
             // 1. 分析内容重要性
             double importance = memoryAnalyzer.analyzeImportance(request.getContent(), request.getContext());
-            
+
             if (importance < importanceThreshold) {
-                log.debug("内容重要性不足，跳过记忆形成: userId={}, importance={}", 
-                         request.getUserId(), importance);
+                log.debug("内容重要性不足，跳过记忆形成: userId={}, importance={}",
+                        request.getUserId(), importance);
+                outcome = "skipped";
                 return;
             }
 
             // 2. 形成情景记忆
             EpisodicMemory episodicMemory = createEpisodicMemory(request, importance);
             episodicMemoryGateway.save(episodicMemory);
-            log.debug("成功创建情景记忆: userId={}, episodeId={}", 
-                     request.getUserId(), episodicMemory.getEpisodeId());
+            log.debug("成功创建情景记忆: userId={}, episodeId={}",
+                    request.getUserId(), episodicMemory.getEpisodeId());
 
             // 3. 尝试提取语义记忆
             if (semanticExtractionEnabled && importance >= 0.7) {
@@ -106,7 +119,10 @@ public class MemoryFormationService {
             }
 
         } catch (Exception e) {
+            outcome = "error";
             log.error("记忆形成处理失败: userId={}, error={}", request.getUserId(), e.getMessage(), e);
+        } finally {
+            recordFormationMetrics(outcome, System.nanoTime() - startNanos);
         }
     }
 
@@ -379,5 +395,18 @@ public class MemoryFormationService {
         }
 
         return concepts;
+    }
+
+    private void recordFormationMetrics(String outcome, long durationNanos) {
+        MeterRegistry registry = meterRegistryProvider.getIfAvailable();
+        if (registry == null) {
+            return;
+        }
+        Timer.builder("smartcs.ltm.formation.duration")
+                .description("Time taken to process LTM formation requests")
+                .tag("outcome", outcome)
+                .register(registry)
+                .record(Duration.ofNanos(Math.max(durationNanos, 0)));
+        registry.counter("smartcs.ltm.formation.count", "outcome", outcome).increment();
     }
 }

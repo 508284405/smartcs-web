@@ -3,8 +3,10 @@ package com.leyue.smartcs.web.ltm;
 import com.alibaba.cola.dto.MultiResponse;
 import com.alibaba.cola.dto.Response;
 import com.alibaba.cola.dto.SingleResponse;
+import com.alibaba.cola.exception.BizException;
 import com.leyue.smartcs.client.ltm.dto.memory.*;
 import com.leyue.smartcs.app.ltm.executor.*;
+import com.leyue.smartcs.config.context.UserContext;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,6 +21,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+
+import java.util.Objects;
 
 /**
  * LTM记忆管理控制器
@@ -43,7 +47,8 @@ public class LTMMemoryController {
             @RequestParam @NotNull @Positive Long userId) {
         
         log.debug("获取用户记忆摘要: userId={}", userId);
-        
+        ensureAuthorized(userId);
+
         MemorySummaryQry qry = new MemorySummaryQry();
         qry.setUserId(userId);
         
@@ -67,6 +72,7 @@ public class LTMMemoryController {
             @RequestParam(required = false) Long endTime) {
         
         log.debug("获取情景记忆列表: userId={}, page={}, size={}", userId, page, size);
+        ensureAuthorized(userId);
         
         EpisodicMemoryPageQry qry = new EpisodicMemoryPageQry();
         qry.setUserId(userId);
@@ -94,6 +100,7 @@ public class LTMMemoryController {
             @RequestParam(required = false) String conceptKeyword) {
         
         log.debug("获取语义记忆列表: userId={}, page={}, size={}", userId, page, size);
+        ensureAuthorized(userId);
         
         SemanticMemoryPageQry qry = new SemanticMemoryPageQry();
         qry.setUserId(userId);
@@ -117,6 +124,7 @@ public class LTMMemoryController {
         
         log.debug("获取程序性记忆列表: userId={}, patternType={}, activeOnly={}", 
                  userId, patternType, activeOnly);
+        ensureAuthorized(userId);
         
         ProceduralMemoryQry qry = new ProceduralMemoryQry();
         qry.setUserId(userId);
@@ -139,6 +147,7 @@ public class LTMMemoryController {
             @RequestParam(defaultValue = "50") int limit) {
         
         log.debug("搜索用户记忆: userId={}, keyword={}", userId, keyword);
+        ensureAuthorized(userId);
         
         MemorySearchQry qry = new MemorySearchQry();
         qry.setUserId(userId);
@@ -158,6 +167,7 @@ public class LTMMemoryController {
             @RequestParam @NotNull @Positive Long userId) {
         
         log.info("删除情景记忆: memoryId={}, userId={}", memoryId, userId);
+        ensureAuthorized(userId);
         
         DeleteMemoryCmd cmd = new DeleteMemoryCmd();
         cmd.setMemoryId(memoryId);
@@ -178,6 +188,7 @@ public class LTMMemoryController {
         
         log.info("更新记忆重要性: memoryId={}, userId={}, importance={}", 
                  memoryId, userId, cmd.getImportanceScore());
+        ensureAuthorized(userId);
         
         cmd.setMemoryId(memoryId);
         cmd.setUserId(userId);
@@ -195,7 +206,8 @@ public class LTMMemoryController {
             @Valid @RequestBody ToggleProceduralMemoryCmd cmd) {
         
         log.info("切换程序性记忆状态: memoryId={}, userId={}, active={}", 
-                 memoryId, userId, cmd.getIsActive());
+                memoryId, userId, cmd.getIsActive());
+        ensureAuthorized(userId);
         
         cmd.setMemoryId(memoryId);
         cmd.setUserId(userId);
@@ -212,6 +224,7 @@ public class LTMMemoryController {
             @RequestParam(defaultValue = "30") int days) {
         
         log.debug("获取记忆分析报告: userId={}, days={}", userId, days);
+        ensureAuthorized(userId);
         
         MemoryAnalyticsQry qry = new MemoryAnalyticsQry();
         qry.setUserId(userId);
@@ -227,6 +240,7 @@ public class LTMMemoryController {
         
         log.info("导出用户记忆: userId={}, includeTypes={}", 
                  cmd.getUserId(), cmd.getIncludeTypes());
+        ensureAuthorized(cmd.getUserId());
         
         return memoryManagementCmdExe.exportMemories(cmd);
     }
@@ -238,6 +252,7 @@ public class LTMMemoryController {
         
         log.info("批量删除记忆: userId={}, count={}", 
                  cmd.getUserId(), cmd.getMemoryIds().size());
+        ensureAuthorized(cmd.getUserId());
         
         return memoryManagementCmdExe.batchDeleteMemories(cmd);
     }
@@ -254,6 +269,7 @@ public class LTMMemoryController {
         
         log.info("清理过期记忆: userId={}, retentionDays={}, threshold={}", 
                  userId, retentionDays, minImportanceThreshold);
+        ensureAuthorized(userId);
         
         CleanupMemoryCmd cmd = new CleanupMemoryCmd();
         cmd.setUserId(userId);
@@ -261,5 +277,15 @@ public class LTMMemoryController {
         cmd.setMinImportanceThreshold(minImportanceThreshold);
         
         return memoryManagementCmdExe.cleanupExpiredMemories(cmd);
+    }
+
+    private void ensureAuthorized(Long userId) {
+        UserContext.UserInfo currentUser = UserContext.getCurrentUser();
+        if (currentUser == null) {
+            throw new BizException("未登录用户无法访问长期记忆接口");
+        }
+        if (userId != null && !Objects.equals(currentUser.getId(), userId) && !currentUser.isAdmin()) {
+            throw new BizException("无权访问目标用户的长期记忆数据");
+        }
     }
 }

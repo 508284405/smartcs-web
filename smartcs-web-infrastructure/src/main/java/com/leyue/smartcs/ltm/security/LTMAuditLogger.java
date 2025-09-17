@@ -3,11 +3,13 @@ package com.leyue.smartcs.ltm.security;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -39,6 +41,8 @@ public class LTMAuditLogger {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
         r -> new Thread(r, "ltm-audit-logger")
     );
+
+    private final ObjectProvider<LTMAuditEventSink> auditEventSinkProvider;
 
     private volatile boolean initialized = false;
 
@@ -187,14 +191,23 @@ public class LTMAuditLogger {
 
     private void persistAuditEvents(java.util.List<AuditEvent> events) {
         // 这里应该将审计事件持久化到数据库或其他存储系统
-        // 简化实现，只记录到日志文件
+        // 简化实现：记录到日志，并尝试调用可选的审计事件下沉器
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        
+
         for (AuditEvent event : events) {
             String timestamp = LocalDateTime.now().format(formatter);
-            log.info("AUDIT: [{}] User={} Action={} Details={} IP={} Session={}", 
-                    timestamp, event.getUserId(), event.getAction(), 
+            log.info("AUDIT: [{}] User={} Action={} Details={} IP={} Session={}",
+                    timestamp, event.getUserId(), event.getAction(),
                     event.getDetails(), event.getIpAddress(), event.getSessionId());
+        }
+
+        LTMAuditEventSink sink = auditEventSinkProvider.getIfAvailable();
+        if (sink != null) {
+            try {
+                sink.persistBatch(List.copyOf(events));
+            } catch (Exception ex) {
+                log.warn("落地审计事件到外部存储失败: {}", ex.getMessage());
+            }
         }
     }
 

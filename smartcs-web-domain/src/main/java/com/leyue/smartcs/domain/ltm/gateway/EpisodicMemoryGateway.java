@@ -64,7 +64,16 @@ public interface EpisodicMemoryGateway {
     /**
      * 查找需要巩固的记忆
      */
-    List<EpisodicMemory> findMemoriesNeedingConsolidation(Long userId, int limit);
+    List<EpisodicMemory> findMemoriesNeedingConsolidation(Long userId, double minImportanceScore, int limit);
+
+    /**
+     * 获取存在待巩固记忆的用户ID
+     *
+     * @param minImportanceScore 记忆重要性阈值
+     * @param startingAfterUserId 游标模式下起始用户ID（可为空）
+     * @param limit 单次提取的最大用户数量
+     */
+    List<Long> findUserIdsNeedingConsolidation(double minImportanceScore, Long startingAfterUserId, int limit);
 
     /**
      * 查找最近访问的记忆

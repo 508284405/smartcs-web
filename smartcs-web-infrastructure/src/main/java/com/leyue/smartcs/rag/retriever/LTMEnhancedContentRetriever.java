@@ -5,25 +5,20 @@ import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.LTMContext;
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryRetrievalRequest;
 import com.leyue.smartcs.domain.ltm.entity.EpisodicMemory;
 import com.leyue.smartcs.domain.ltm.entity.SemanticMemory;
-
-import dev.langchain4j.data.document.Document;
 import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.segment.TextSegment;
-import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
-
+import dev.langchain4j.rag.query.Query;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Map;
 
 /**
  * LTM增强的内容检索器
@@ -88,31 +83,18 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
             return null;
         }
 
-        // 尝试从元数据中获取用户ID
-        // TODO: 需要检查Query.metadata()的正确API用法
-        Object userIdObj = null; // query.metadata().get("userId");
-        if (userIdObj instanceof Long) {
-            return (Long) userIdObj;
-        } else if (userIdObj instanceof String) {
-            try {
-                return Long.valueOf((String) userIdObj);
-            } catch (NumberFormatException e) {
-                log.debug("无法解析用户ID字符串: {}", userIdObj);
-            }
+        Object chatMemoryId = query.metadata().chatMemoryId();
+        Long parsed = parseNumericIdentifier(chatMemoryId);
+        if (parsed != null) {
+            return parsed;
         }
 
-        // 尝试从memoryId中提取
-        // TODO: 需要检查Query.metadata()的正确API用法
-        Object memoryIdObj = null; // query.metadata().get("memoryId");
-        if (memoryIdObj != null) {
-            String memoryIdStr = memoryIdObj.toString();
-            String[] parts = memoryIdStr.split(":");
-            if (parts.length > 0) {
-                try {
-                    return Long.valueOf(parts[0]);
-                } catch (NumberFormatException e) {
-                    log.debug("无法从memoryId解析用户ID: {}", memoryIdStr);
-                }
+        // 兼容 "userId:sessionId" 形式的 memoryId
+        if (chatMemoryId instanceof String memoryIdStr && memoryIdStr.contains(":")) {
+            String candidate = memoryIdStr.substring(0, memoryIdStr.indexOf(':'));
+            parsed = parseNumericIdentifier(candidate);
+            if (parsed != null) {
+                return parsed;
             }
         }
 
@@ -126,8 +108,13 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
         // 构建LTM检索请求
         Map<String, Object> context = new HashMap<>();
         if (query.metadata() != null) {
-            // TODO: 需要检查Query.metadata()的正确API用法
-            // context.putAll(query.metadata().toMap());
+            if (query.metadata().chatMemoryId() != null) {
+                context.put("chat_memory_id", query.metadata().chatMemoryId().toString());
+            }
+            if (query.metadata().chatMessage() instanceof dev.langchain4j.data.message.UserMessage userMessage
+                    && userMessage.hasSingleText()) {
+                context.put("recent_user_message", userMessage.singleText());
+            }
         }
         context.put("retrieval_timestamp", System.currentTimeMillis());
 
@@ -274,13 +261,34 @@ public class LTMEnhancedContentRetriever implements ContentRetriever {
     private Content enhanceLTMContent(Content ltmContent) {
         // 在LTM内容前添加个性化标识
         String enhancedText = "[个性化内容] " + ltmContent.textSegment().text();
-        
+
         // 保留原有元数据并添加增强标识
         Map<String, Object> enhancedMetadata = new HashMap<>(ltmContent.textSegment().metadata().toMap());
         enhancedMetadata.put("enhanced", true);
         enhancedMetadata.put("personalized", true);
-        
+
         Metadata metadata = Metadata.from(enhancedMetadata);
         return Content.from(TextSegment.from(enhancedText, metadata));
+    }
+
+    private Long parseNumericIdentifier(Object candidate) {
+        if (candidate == null) {
+            return null;
+        }
+        String text = candidate.toString();
+        if (text.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.valueOf(text);
+        } catch (NumberFormatException ex) {
+            long hashed = Math.abs(text.hashCode());
+            if (hashed > 0) {
+                log.debug("使用哈希值替代非数值标识: {} -> {}", text, hashed);
+                return hashed;
+            }
+            log.debug("无法解析数字标识: {}", text);
+            return null;
+        }
     }
 }

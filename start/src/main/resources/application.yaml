@@ -38,6 +38,12 @@ spring:
     admin:
       close-timeout: 10s
 
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: embedded
+
   cloud:
     sentinel:
       transport:
@@ -125,7 +131,22 @@ smartcs:
       max-messages: 20
       ttl-hours: 24
       cleanup-interval: 1h
-    
+
+    ltm:
+      consolidation:
+        enabled: true
+        schedule: "0 0 2 * * ?"
+        batch-size: 100
+        importance-threshold: 0.7
+        semantic:
+          enabled: true
+        procedural:
+          enabled: true
+        max-episodes-per-concept: 5
+        user-fetch-size: 200
+        chunk-size: 10
+        retry-limit: 3
+
     # 向量存储配置
     vector-store:
       type: redis  # redis, inmemory

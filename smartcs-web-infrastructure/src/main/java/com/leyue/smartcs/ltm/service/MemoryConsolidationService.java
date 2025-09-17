@@ -6,6 +6,7 @@ import com.leyue.smartcs.domain.ltm.entity.ProceduralMemory;
 import com.leyue.smartcs.domain.ltm.gateway.EpisodicMemoryGateway;
 import com.leyue.smartcs.domain.ltm.gateway.SemanticMemoryGateway;
 import com.leyue.smartcs.domain.ltm.gateway.ProceduralMemoryGateway;
+import com.leyue.smartcs.ltm.config.MemoryConsolidationProperties;
 
 import dev.langchain4j.model.language.LanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -14,9 +15,7 @@ import dev.langchain4j.data.embedding.Embedding;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -40,50 +39,15 @@ public class MemoryConsolidationService {
     private final ProceduralMemoryGateway proceduralMemoryGateway;
     private final LanguageModel languageModel;
     private final EmbeddingModel embeddingModel;
-
-    @Value("${smartcs.ai.ltm.consolidation.batch-size:100}")
-    private int consolidationBatchSize;
-
-    @Value("${smartcs.ai.ltm.consolidation.importance-threshold:0.7}")
-    private double consolidationImportanceThreshold;
-
-    @Value("${smartcs.ai.ltm.consolidation.semantic.enabled:true}")
-    private boolean semanticConsolidationEnabled;
-
-    @Value("${smartcs.ai.ltm.consolidation.procedural.enabled:true}")
-    private boolean proceduralConsolidationEnabled;
-
-    @Value("${smartcs.ai.ltm.consolidation.max-episodes-per-concept:5}")
-    private int maxEpisodesPerConcept;
-
-    /**
-     * 定时执行记忆巩固任务
-     * 默认每天凌晨2点执行
-     */
-    @Scheduled(cron = "${smartcs.ai.ltm.consolidation.schedule:0 0 2 * * ?}")
-    public void scheduledConsolidation() {
-        log.info("开始执行定时记忆巩固任务");
-        
-        try {
-            // 获取所有需要巩固的用户
-            List<Long> userIds = getActiveUserIds();
-            
-            for (Long userId : userIds) {
-                consolidateUserMemories(userId);
-            }
-            
-            log.info("定时记忆巩固任务完成，处理了{}个用户", userIds.size());
-        } catch (Exception e) {
-            log.error("定时记忆巩固任务执行失败", e);
-        }
-    }
+    private final MemoryConsolidationProperties consolidationProperties;
 
     /**
      * 为特定用户执行记忆巩固
      */
     @Async("ltmTaskExecutor")
     public CompletableFuture<Void> consolidateUserMemoriesAsync(Long userId) {
-        return CompletableFuture.runAsync(() -> consolidateUserMemories(userId));
+        consolidateUserMemories(userId);
+        return CompletableFuture.completedFuture(null);
     }
 
     /**
@@ -93,9 +57,19 @@ public class MemoryConsolidationService {
         log.debug("开始巩固用户记忆: userId={}", userId);
 
         try {
+            if (!consolidationProperties.isEnabled()) {
+                log.debug("记忆巩固已禁用，跳过用户: userId={}", userId);
+                return;
+            }
+
             // 获取需要巩固的情景记忆
+            int batchSize = consolidationProperties.getBatchSize();
+            double minImportance = consolidationProperties.getImportanceThreshold();
+            boolean semanticEnabled = consolidationProperties.isSemanticEnabled();
+            boolean proceduralEnabled = consolidationProperties.isProceduralEnabled();
+
             List<EpisodicMemory> candidateMemories = episodicMemoryGateway
-                .findMemoriesNeedingConsolidation(userId, consolidationBatchSize);
+                .findMemoriesNeedingConsolidation(userId, minImportance, batchSize);
 
             if (candidateMemories.isEmpty()) {
                 log.debug("用户无需巩固的记忆: userId={}", userId);
@@ -105,12 +79,12 @@ public class MemoryConsolidationService {
             log.debug("找到{}条待巩固记忆: userId={}", candidateMemories.size(), userId);
 
             // 执行语义巩固
-            if (semanticConsolidationEnabled) {
+            if (semanticEnabled) {
                 consolidateToSemanticMemories(userId, candidateMemories);
             }
 
             // 执行程序性巩固
-            if (proceduralConsolidationEnabled) {
+            if (proceduralEnabled) {
                 consolidateToProceduralMemories(userId, candidateMemories);
             }
 
@@ -239,6 +213,7 @@ public class MemoryConsolidationService {
      * 生成语义知识
      */
     private String generateSemanticKnowledge(List<EpisodicMemory> memories) {
+        int maxEpisodesPerConcept = consolidationProperties.getMaxEpisodesPerConcept();
         String consolidatedContent = memories.stream()
             .map(EpisodicMemory::getContent)
             .limit(maxEpisodesPerConcept)
@@ -445,15 +420,6 @@ public class MemoryConsolidationService {
 
         episodicMemoryGateway.batchUpdateConsolidationStatus(memoryIds, 1);
         log.debug("标记{}条记忆为已巩固", memoryIds.size());
-    }
-
-    /**
-     * 获取活跃用户ID列表
-     */
-    private List<Long> getActiveUserIds() {
-        // 这里应该从数据库获取有待巩固记忆的用户ID
-        // 简化实现，实际需要查询数据库
-        return new ArrayList<>();
     }
 
     /**

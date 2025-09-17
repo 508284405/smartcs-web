@@ -11,13 +11,19 @@ import com.leyue.smartcs.ltm.security.LTMAuditLogger;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 /**
  * LTMDomainService 实现
@@ -29,6 +35,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class LTMDomainServiceImpl implements LTMDomainService {
+
+    private static final LTMContext EMPTY_CONTEXT = new LTMContext(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 
     @Autowired(required = false)
     @Nullable
@@ -45,6 +53,7 @@ public class LTMDomainServiceImpl implements LTMDomainService {
     private final MemoryFormationService memoryFormationService;
     private final MemoryConsolidationService memoryConsolidationService;
     private final LTMAuditLogger auditLogger;
+    private final ObjectProvider<MeterRegistry> meterRegistryProvider;
 
     @Value("${smartcs.ai.ltm.retrieval.max-results:5}")
     private int defaultMaxResults;
@@ -57,16 +66,23 @@ public class LTMDomainServiceImpl implements LTMDomainService {
 
     @Override
     public LTMContext retrieveMemoryContext(MemoryRetrievalRequest request) {
-        if (request == null || request.getUserId() == null) {
-            return new LTMContext(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-
-        if (!gatewaysAvailable()) {
-            log.debug("LTM gateways not available, returning empty context for userId={}", request.getUserId());
-            return new LTMContext(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
-        }
-
+        long startNanos = System.nanoTime();
+        String outcome = "success";
+        int episodicCount = 0;
+        int semanticCount = 0;
+        int proceduralCount = 0;
         try {
+            if (request == null || request.getUserId() == null) {
+                outcome = "invalid";
+                return emptyContext();
+            }
+
+            if (!gatewaysAvailable()) {
+                log.debug("LTM gateways not available, returning empty context for userId={}", request.getUserId());
+                outcome = "degraded";
+                return emptyContext();
+            }
+
             int limit = Optional.ofNullable(request.getMaxResults()).orElse(defaultMaxResults);
             double threshold = Optional.ofNullable(request.getThreshold()).orElse(defaultThreshold);
 
@@ -74,13 +90,22 @@ public class LTMDomainServiceImpl implements LTMDomainService {
             List<SemanticMemory> semantic = retrieveSemantic(request, threshold, limit);
             List<ProceduralMemory> procedural = retrieveProcedural(request, limit);
 
+            episodicCount = episodic.size();
+            semanticCount = semantic.size();
+            proceduralCount = procedural.size();
+
             auditLogger.log(request.getUserId(), "LTM_CONTEXT_RETRIEVED",
-                    String.format("episodic=%d, semantic=%d, procedural=%d", episodic.size(), semantic.size(), procedural.size()));
+                    String.format("episodic=%d, semantic=%d, procedural=%d", episodicCount, semanticCount, proceduralCount));
 
             return new LTMContext(episodic, semantic, procedural);
         } catch (Exception e) {
-            log.warn("retrieveMemoryContext failed: userId={}, error={}", request.getUserId(), e.getMessage());
-            return new LTMContext(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+            outcome = "error";
+            Long userId = request != null ? request.getUserId() : null;
+            log.warn("retrieveMemoryContext failed: userId={}, error={}", userId, e.getMessage());
+            return emptyContext();
+        } finally {
+            Long userId = request != null ? request.getUserId() : null;
+            recordRetrievalMetrics(outcome, userId, episodicCount, semanticCount, proceduralCount, System.nanoTime() - startNanos);
         }
     }
 
@@ -348,5 +373,49 @@ public class LTMDomainServiceImpl implements LTMDomainService {
         if (memories == null) return false;
         return memories.stream().anyMatch(m -> m.getTriggerConditions() != null &&
                 Boolean.TRUE.equals(m.getTriggerConditions().get(triggerKey)));
+    }
+
+    private LTMContext emptyContext() {
+        return EMPTY_CONTEXT;
+    }
+
+    private void recordRetrievalMetrics(String outcome, Long userId, int episodicCount, int semanticCount, int proceduralCount, long durationNanos) {
+        MeterRegistry registry = meterRegistryProvider.getIfAvailable();
+        if (registry == null) {
+            return;
+        }
+
+        Timer.builder("smartcs.ltm.retrieve.duration")
+                .description("Time taken to assemble LTM context for conversations")
+                .tag("outcome", outcome)
+                .tag("user_present", userId != null ? "true" : "false")
+                .register(registry)
+                .record(Duration.ofNanos(Math.max(durationNanos, 0)));
+
+        registry.counter("smartcs.ltm.retrieve.count", "outcome", outcome).increment();
+
+        DistributionSummary.builder("smartcs.ltm.retrieve.size")
+                .description("Number of memories returned per retrieval")
+                .baseUnit("memories")
+                .tag("type", "episodic")
+                .tag("outcome", outcome)
+                .register(registry)
+                .record(episodicCount);
+
+        DistributionSummary.builder("smartcs.ltm.retrieve.size")
+                .description("Number of memories returned per retrieval")
+                .baseUnit("memories")
+                .tag("type", "semantic")
+                .tag("outcome", outcome)
+                .register(registry)
+                .record(semanticCount);
+
+        DistributionSummary.builder("smartcs.ltm.retrieve.size")
+                .description("Number of memories returned per retrieval")
+                .baseUnit("memories")
+                .tag("type", "procedural")
+                .tag("outcome", outcome)
+                .register(registry)
+                .record(proceduralCount);
     }
 }
