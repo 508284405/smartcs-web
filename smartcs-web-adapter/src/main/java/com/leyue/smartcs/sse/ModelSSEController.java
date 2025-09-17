@@ -1,8 +1,16 @@
 package com.leyue.smartcs.sse;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.fastjson2.JSON;
+import com.leyue.smartcs.api.ModelSSEService;
+import com.leyue.smartcs.dto.model.ModelInferStreamRequest;
+import com.leyue.smartcs.dto.sse.SSEMessage;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.time.Duration;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,19 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.function.RouterFunction;
-import org.springframework.web.servlet.function.RouterFunctions;
-import org.springframework.web.servlet.function.ServerResponse;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import com.alibaba.fastjson2.JSON;
-import com.leyue.smartcs.api.ModelSSEService;
-import com.leyue.smartcs.dto.model.ModelInferStreamRequest;
-import com.leyue.smartcs.dto.sse.SSEMessage;
-
-import jakarta.servlet.ServletException;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * 模型SSE流式推理控制器
@@ -35,8 +31,10 @@ public class ModelSSEController {
 
     private final ModelSSEService modelSSEService;
 
-    // 移除RouterFunction相关代码，改为标准Spring MVC接口
     @PostMapping(value = "/model/{modelId}/infer", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @SentinelResource(value = "model:infer:controller",
+            blockHandler = "modelInferStreamBlockHandler",
+            fallback = "modelInferStreamFallback")
     public SseEmitter modelInferStream(@PathVariable Long modelId, @RequestBody ModelInferStreamRequest request) {
         request.setModelId(modelId);
         SseEmitter emitter = new SseEmitter(Duration.ofMinutes(10).toMillis());
@@ -70,5 +68,25 @@ public class ModelSSEController {
         });
         modelSSEService.inferStream(request, emitter);
         return emitter;
+    }
+
+    public SseEmitter modelInferStreamFallback(Long modelId, ModelInferStreamRequest request, Throwable throwable) {
+        log.warn("模型推理接口降级: modelId={}, error={}", modelId, throwable.getMessage());
+        SseEmitter emitter = new SseEmitter(Duration.ofSeconds(30).toMillis());
+        try {
+            emitter.send(SseEmitter.event()
+                    .name("error")
+                    .data(JSON.toJSONString(SSEMessage.error(modelId, "模型服务繁忙，请稍后重试"))));
+        } catch (IOException e) {
+            log.error("发送降级消息失败", e);
+        } finally {
+            emitter.complete();
+        }
+        return emitter;
+    }
+
+    public SseEmitter modelInferStreamBlockHandler(Long modelId, ModelInferStreamRequest request, BlockException ex) {
+        log.warn("模型推理接口触发限流: modelId={}, rule={}", modelId, ex.getRule());
+        return modelInferStreamFallback(modelId, request, ex);
     }
 }

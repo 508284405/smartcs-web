@@ -1,18 +1,27 @@
 package com.leyue.smartcs.rag.database.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.domain.database.entity.DatabaseTableSchema;
 import com.leyue.smartcs.model.gateway.ModelProvider;
 import com.leyue.smartcs.rag.database.service.SchemaRetrievalService.SchemaRetrievalResult;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * 自然语言转SQL服务
@@ -73,6 +82,9 @@ public class NlpToSqlService {
      * @param minSimilarity 最小相似度
      * @return SQL转换结果
      */
+    @SentinelResource(value = "rag:nlp2sql:generate",
+            blockHandler = "generateSqlBlockHandler",
+            fallback = "generateSqlFallback")
     public SqlGenerationResult generateSql(String nlpQuery, Long chatModelId, Long embeddingModelId, int maxTables, double minSimilarity) {
         try {
             log.info("开始NLP到SQL转换: query={}", nlpQuery);
@@ -149,6 +161,29 @@ public class NlpToSqlService {
                     .errorMessage("转换过程发生异常: " + e.getMessage())
                     .build();
         }
+    }
+
+    public SqlGenerationResult generateSqlFallback(String nlpQuery, Long chatModelId, Long embeddingModelId,
+                                                   int maxTables, double minSimilarity, Throwable throwable) {
+        log.warn("NLP到SQL转换降级: queryLength={}, error={}",
+                nlpQuery != null ? nlpQuery.length() : 0, throwable.getMessage());
+        return SqlGenerationResult.builder()
+                .originalQuery(nlpQuery)
+                .success(false)
+                .errorMessage("NLP到SQL服务降级，请稍后重试")
+                .confidence(0.0)
+                .build();
+    }
+
+    public SqlGenerationResult generateSqlBlockHandler(String nlpQuery, Long chatModelId, Long embeddingModelId,
+                                                       int maxTables, double minSimilarity, BlockException ex) {
+        log.warn("NLP到SQL转换触发限流: rule={}", ex.getRule());
+        return SqlGenerationResult.builder()
+                .originalQuery(nlpQuery)
+                .success(false)
+                .errorMessage("NLP到SQL请求过多，请稍后重试")
+                .confidence(0.0)
+                .build();
     }
     
     /**

@@ -1,14 +1,19 @@
 package com.leyue.smartcs.model.executor;
 
 import com.alibaba.cola.exception.BizException;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.fastjson2.JSON;
 import com.leyue.smartcs.common.constant.Constants;
 import com.leyue.smartcs.domain.model.Model;
 import com.leyue.smartcs.domain.model.gateway.ModelGateway;
 import com.leyue.smartcs.domain.model.gateway.ModelInferenceGateway;
-import com.leyue.smartcs.dto.model.ModelInferStreamRequest;
 import com.leyue.smartcs.dto.model.ModelInferResponse;
+import com.leyue.smartcs.dto.model.ModelInferStreamRequest;
 import com.leyue.smartcs.dto.sse.SSEMessage;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -16,10 +21,6 @@ import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
-import java.io.IOException;
-import java.util.Optional;
-import java.util.UUID;
 
 /**
  * 模型流式推理命令执行器
@@ -37,6 +38,9 @@ public class ModelInferStreamCmdExe {
      * 执行模型流式推理
      */
     @SneakyThrows
+    @SentinelResource(value = "model:infer:stream",
+            blockHandler = "executeBlockHandler",
+            fallback = "executeFallback")
     public void execute(ModelInferStreamRequest request, SseEmitter sse) throws IOException {
         long startTime = System.currentTimeMillis();
         final String sessionId = request.getSessionId() == null ? UUID.randomUUID().toString() : request.getSessionId();
@@ -119,6 +123,24 @@ public class ModelInferStreamCmdExe {
                 lock.unlock();
             }
         }
+    }
+
+    public void executeFallback(ModelInferStreamRequest request, SseEmitter sse, Throwable throwable) throws IOException {
+        String sessionId = request != null && request.getSessionId() != null
+                ? request.getSessionId()
+                : UUID.randomUUID().toString();
+        log.warn("模型流式推理降级: modelId={}, sessionId={}, error={}",
+                request != null ? request.getModelId() : null, sessionId, throwable.getMessage(), throwable);
+        sendErrorMessage(sse, sessionId, "模型服务暂时不可用，请稍后重试");
+    }
+
+    public void executeBlockHandler(ModelInferStreamRequest request, SseEmitter sse, BlockException ex) throws IOException {
+        String sessionId = request != null && request.getSessionId() != null
+                ? request.getSessionId()
+                : UUID.randomUUID().toString();
+        log.warn("模型流式推理触发限流: modelId={}, sessionId={}, rule={}",
+                request != null ? request.getModelId() : null, sessionId, ex.getRule());
+        sendErrorMessage(sse, sessionId, "请求过多，请稍后重试");
     }
 
     /**

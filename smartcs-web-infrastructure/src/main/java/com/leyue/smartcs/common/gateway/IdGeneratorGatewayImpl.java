@@ -3,15 +3,13 @@ package com.leyue.smartcs.common.gateway;
 import org.springframework.stereotype.Component;
 
 import com.alibaba.cola.exception.BizException;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.common.feign.IdGeneratorFeignClient;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.common.ApiResponse;
 import com.leyue.smartcs.dto.common.IdGeneratorRequest;
 import com.leyue.smartcs.dto.common.IdGeneratorResponse;
-
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,9 +24,9 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     private final IdGeneratorFeignClient idGeneratorFeignClient;
 
     @Override
-    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
-    @Retry(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
-    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdFallback")
+    @SentinelResource(value = "gateway:id-generator:generateId",
+            blockHandler = "generateIdBlockHandler",
+            fallback = "generateIdFallback")
     public Long generateId() {
         try {
             ApiResponse<IdGeneratorResponse> response = idGeneratorFeignClient.generateId(new IdGeneratorRequest());
@@ -54,16 +52,24 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     /**
      * 生成ID的降级方法
      */
-    public Long generateIdFallback(Exception e) {
-        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+    public Long generateIdFallback(Throwable e) {
+        log.warn("ID生成服务调用失败，使用降级策略", e);
         // 返回一个基于时间戳的ID
         return System.currentTimeMillis();
     }
 
+    /**
+     * Sentinel限流处理
+     */
+    public Long generateIdBlockHandler(BlockException ex) {
+        log.warn("ID生成服务触发限流/降级: {}", ex.getMessage());
+        return System.currentTimeMillis();
+    }
+
     @Override
-    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
-    @Retry(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
-    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateBatchIdsFallback")
+    @SentinelResource(value = "gateway:id-generator:generateBatchIds",
+            blockHandler = "generateBatchIdsBlockHandler",
+            fallback = "generateBatchIdsFallback")
     public Long[] generateBatchIds(int batchSize) {
         if (batchSize <= 0) {
             batchSize = 1;
@@ -101,8 +107,8 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     /**
      * 批量生成ID的降级方法
      */
-    public Long[] generateBatchIdsFallback(int batchSize, Exception e) {
-        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+    public Long[] generateBatchIdsFallback(int batchSize, Throwable e) {
+        log.warn("批量ID生成失败，使用降级策略", e);
         // 返回基于时间戳的批量ID
         Long[] fallbackIds = new Long[batchSize];
         long baseTime = System.currentTimeMillis();
@@ -112,10 +118,18 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
         return fallbackIds;
     }
 
+    /**
+     * 批量生成ID的限流/降级处理
+     */
+    public Long[] generateBatchIdsBlockHandler(int batchSize, BlockException ex) {
+        log.warn("批量生成ID触发限流/降级: {}", ex.getMessage());
+        return generateBatchIdsFallback(batchSize, ex);
+    }
+
     @Override
-    @CircuitBreaker(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
-    @Retry(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
-    @Bulkhead(name = "id-generator-feign", fallbackMethod = "generateIdStrFallback")
+    @SentinelResource(value = "gateway:id-generator:generateIdStr",
+            blockHandler = "generateIdStrBlockHandler",
+            fallback = "generateIdStrFallback")
     public String generateIdStr() {
         Long id = generateId();
         return String.format("%019d", id);
@@ -124,9 +138,17 @@ public class IdGeneratorGatewayImpl implements IdGeneratorGateway {
     /**
      * 生成ID字符串的降级方法
      */
-    public String generateIdStrFallback(Exception e) {
-        log.warn("ID生成服务调用失败，使用降级策略: error={}", e.getMessage());
+    public String generateIdStrFallback(Throwable e) {
+        log.warn("生成ID字符串失败，使用降级策略", e);
         // 返回基于时间戳的ID字符串
+        return String.format("%019d", System.currentTimeMillis());
+    }
+
+    /**
+     * 生成ID字符串的限流/降级处理
+     */
+    public String generateIdStrBlockHandler(BlockException ex) {
+        log.warn("生成ID字符串触发限流/降级: {}", ex.getMessage());
         return String.format("%019d", System.currentTimeMillis());
     }
 }

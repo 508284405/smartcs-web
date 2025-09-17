@@ -1,15 +1,16 @@
 package com.leyue.smartcs.rag.transformer.gateway;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.domain.rag.transformer.gateway.QueryExpansionGateway;
 import com.leyue.smartcs.model.ai.DynamicModelManager;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 查询扩展Gateway实现
@@ -25,6 +26,9 @@ public class QueryExpansionGatewayImpl implements QueryExpansionGateway {
     private final DynamicModelManager dynamicModelManager;
     
     @Override
+    @SentinelResource(value = "rag:query-expansion:generate",
+            blockHandler = "generateExpansionBlockHandler",
+            fallback = "generateExpansionFallback")
     public String generateExpansion(String prompt, Long modelId) {
         try {
             log.debug("开始生成查询扩展: modelId={}, promptLength={}", modelId, prompt.length());
@@ -41,8 +45,22 @@ public class QueryExpansionGatewayImpl implements QueryExpansionGateway {
             throw new RuntimeException("查询扩展生成失败: " + e.getMessage(), e);
         }
     }
-    
+
+    public String generateExpansionFallback(String prompt, Long modelId, Throwable e) {
+        log.warn("查询扩展降级: modelId={}, promptLength={}, error={}", modelId,
+                prompt != null ? prompt.length() : 0, e.getMessage());
+        return prompt;
+    }
+
+    public String generateExpansionBlockHandler(String prompt, Long modelId, BlockException ex) {
+        log.warn("查询扩展触发限流: modelId={}, rule={}", modelId, ex.getRule());
+        return prompt;
+    }
+
     @Override
+    @SentinelResource(value = "rag:query-expansion:parse",
+            blockHandler = "parseExpandedQueriesBlockHandler",
+            fallback = "parseExpandedQueriesFallback")
     public List<String> parseExpandedQueries(String expandedText, int maxQueries) {
         List<String> queries = new ArrayList<>();
         
@@ -75,6 +93,16 @@ public class QueryExpansionGatewayImpl implements QueryExpansionGateway {
             log.error("查询解析失败: textLength={}", expandedText.length(), e);
             return queries; // 返回已解析的部分结果
         }
+    }
+
+    public List<String> parseExpandedQueriesFallback(String expandedText, int maxQueries, Throwable e) {
+        log.warn("解析扩展查询降级: maxQueries={}, error={}", maxQueries, e.getMessage());
+        return new ArrayList<>();
+    }
+
+    public List<String> parseExpandedQueriesBlockHandler(String expandedText, int maxQueries, BlockException ex) {
+        log.warn("解析扩展查询触发限流: rule={}", ex.getRule());
+        return new ArrayList<>();
     }
     
     /**

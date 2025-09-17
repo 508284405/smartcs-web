@@ -38,6 +38,42 @@ spring:
     admin:
       close-timeout: 10s
 
+  cloud:
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8719}
+        port: ${SENTINEL_CLIENT_PORT:8720}
+      eager: true
+      http-method-specify: true
+      filter:
+        enabled: true
+      web-context-unify: false
+      datasource:
+        flow-rules:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:${spring.cloud.nacos.discovery.server-addr:localhost:8848}}
+            namespace: ${spring.cloud.nacos.config.namespace:}
+            group-id: ${spring.cloud.nacos.config.group:DEFAULT_GROUP}
+            data-id: ${spring.application.name}-sentinel-flow-rules
+            data-type: json
+            rule-type: flow
+        degrade-rules:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:${spring.cloud.nacos.discovery.server-addr:localhost:8848}}
+            namespace: ${spring.cloud.nacos.config.namespace:}
+            group-id: ${spring.cloud.nacos.config.group:DEFAULT_GROUP}
+            data-id: ${spring.application.name}-sentinel-degrade-rules
+            data-type: json
+            rule-type: degrade
+        param-flow-rules:
+          nacos:
+            server-addr: ${spring.cloud.nacos.config.server-addr:${spring.cloud.nacos.discovery.server-addr:localhost:8848}}
+            namespace: ${spring.cloud.nacos.config.namespace:}
+            group-id: ${spring.cloud.nacos.config.group:DEFAULT_GROUP}
+            data-id: ${spring.application.name}-sentinel-param-rules
+            data-type: json
+            rule-type: param_flow
+
 # MCP (Model Context Protocol) 配置
 mcp:
   server:
@@ -342,110 +378,11 @@ logging:
               observability: info
     dev:
       langchain4j: debug
-    io.github.resilience4j: debug
+    com.alibaba.csp.sentinel: info
 
-# Resilience4j 熔断器配置
-resilience4j:
-  circuitbreaker:
-    instances:
-      redis-memory-store:
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 60s
-        permitted-number-of-calls-in-half-open-state: 3
-        automatic-transition-from-open-to-half-open-enabled: true
-        record-exceptions:
-          - java.lang.Exception
-      id-generator-feign:
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 30s
-        permitted-number-of-calls-in-half-open-state: 2
-        automatic-transition-from-open-to-half-open-enabled: true
-      user-center-feign:
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 30s
-        permitted-number-of-calls-in-half-open-state: 2
-        automatic-transition-from-open-to-half-open-enabled: true
-      order-feign:
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 30s
-        permitted-number-of-calls-in-half-open-state: 2
-        automatic-transition-from-open-to-half-open-enabled: true
-  retry:
-    instances:
-      redis-memory-store:
-        max-attempts: 3
-        wait-duration: 1s
-        retry-exceptions:
-          - java.lang.Exception
-      id-generator-feign:
-        max-attempts: 2
-        wait-duration: 500ms
-        retry-exceptions:
-          - java.lang.Exception
-      user-center-feign:
-        max-attempts: 2
-        wait-duration: 500ms
-        retry-exceptions:
-          - java.lang.Exception
-      order-feign:
-        max-attempts: 2
-        wait-duration: 500ms
-        retry-exceptions:
-          - java.lang.Exception
-  ratelimiter:
-    instances:
-      redis-memory-store:
-        limit-for-period: 100
-        limit-refresh-period: 1s
-        timeout-duration: 5s
-      id-generator-feign:
-        limit-for-period: 50
-        limit-refresh-period: 1s
-        timeout-duration: 3s
-      user-center-feign:
-        limit-for-period: 50
-        limit-refresh-period: 1s
-        timeout-duration: 3s
-      order-feign:
-        limit-for-period: 50
-        limit-refresh-period: 1s
-        timeout-duration: 3s
-  timelimiter:
-    instances:
-      redis-memory-store:
-        timeout-duration: 10s
-        cancel-running-future: true
-      id-generator-feign:
-        timeout-duration: 5s
-        cancel-running-future: true
-      user-center-feign:
-        timeout-duration: 5s
-        cancel-running-future: true
-      order-feign:
-        timeout-duration: 5s
-        cancel-running-future: true
-  bulkhead:
-    instances:
-      redis-memory-store:
-        max-concurrent-calls: 20
-        max-wait-duration: 5s
-      id-generator-feign:
-        max-concurrent-calls: 10
-        max-wait-duration: 3s
-      user-center-feign:
-        max-concurrent-calls: 10
-        max-wait-duration: 3s
-      order-feign:
-        max-concurrent-calls: 10
-        max-wait-duration: 3s
+feign:
+  sentinel:
+    enabled: true
 
 # 权限白名单配置
 permission:

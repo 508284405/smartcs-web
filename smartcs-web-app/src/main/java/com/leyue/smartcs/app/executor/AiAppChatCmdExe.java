@@ -1,23 +1,18 @@
 package com.leyue.smartcs.app.executor;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import org.springframework.stereotype.Component;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.domain.common.gateway.IdGeneratorGateway;
 import com.leyue.smartcs.dto.app.AiAppChatCmd;
 import com.leyue.smartcs.dto.app.AiAppChatResponse;
 import com.leyue.smartcs.dto.app.AiAppChatSSEMessage;
 import com.leyue.smartcs.dto.app.RagComponentConfig;
+import com.leyue.smartcs.intent.service.SessionIntentStateStore;
 import com.leyue.smartcs.model.gateway.ModelProvider;
 import com.leyue.smartcs.moderation.service.LangChain4jModerationService;
 import com.leyue.smartcs.rag.SmartChatService;
 import com.leyue.smartcs.rag.factory.RagAugmentorFactory;
 import com.leyue.smartcs.service.TracingSupport;
-import com.leyue.smartcs.intent.service.SessionIntentStateStore;
 
 import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.ChatMessage;
@@ -31,8 +26,13 @@ import dev.langchain4j.rag.query.Query;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * AI应用聊天命令执行器
@@ -77,6 +77,9 @@ public class AiAppChatCmdExe {
      * 执行SSE聊天
      * 简化版本：支持内容审核和RAG增强，意图识别集成在RAG QueryTransformer中
      */
+    @SentinelResource(value = "app:ai-chat:execute",
+            blockHandler = "executeBlockHandler",
+            fallback = "executeFallback")
     public SseEmitter execute(AiAppChatCmd cmd) {
         SseEmitter emitter = new SseEmitter(cmd.getTimeout() != null ? cmd.getTimeout() : 30000L);
         String sessionId = generateSessionId(cmd);
@@ -135,6 +138,29 @@ public class AiAppChatCmdExe {
 
         setupEmitterCallbacks(emitter, cmd.getAppId(), sessionId);
         return emitter;
+    }
+
+    public SseEmitter executeFallback(AiAppChatCmd cmd, Throwable throwable) {
+        log.warn("AI应用聊天降级: appId={}, error={}",
+                cmd != null ? cmd.getAppId() : null, throwable.getMessage(), throwable);
+        SseEmitter emitter = new SseEmitter(cmd != null && cmd.getTimeout() != null ? cmd.getTimeout() : 30000L);
+        String sessionId = (cmd != null && cmd.getSessionId() != null && !cmd.getSessionId().isBlank())
+                ? cmd.getSessionId()
+                : "sentinel_fallback_" + System.currentTimeMillis();
+        try {
+            sendSSEMessage(emitter, AiAppChatSSEMessage.error(sessionId, "服务繁忙，请稍后重试"));
+        } catch (IOException ioException) {
+            log.error("发送降级消息失败", ioException);
+        } finally {
+            emitter.complete();
+        }
+        return emitter;
+    }
+
+    public SseEmitter executeBlockHandler(AiAppChatCmd cmd, BlockException ex) {
+        log.warn("AI应用聊天触发限流: appId={}, rule={}",
+                cmd != null ? cmd.getAppId() : null, ex.getRule());
+        return executeFallback(cmd, ex);
     }
 
     /**

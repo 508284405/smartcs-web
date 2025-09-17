@@ -1,32 +1,28 @@
 package com.leyue.smartcs.rag.memory;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService;
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.LTMContext;
-import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryRetrievalRequest;
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryFormationRequest;
+import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryRetrievalRequest;
 import com.leyue.smartcs.domain.ltm.entity.EpisodicMemory;
 import com.leyue.smartcs.service.TracingSupport;
-
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.stream.Collectors;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * LTM增强的Redis聊天记忆存储
@@ -53,9 +49,9 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
     private boolean memoryFormationEnabled;
 
     @Override
-    @CircuitBreaker(name = "ltm-enhanced-memory", fallbackMethod = "getMessagesFallback")
-    @Retry(name = "ltm-enhanced-memory")
-    @Bulkhead(name = "ltm-enhanced-memory")
+    @SentinelResource(value = "ltm-enhanced-memory:getMessages",
+            blockHandler = "getMessagesBlockHandler",
+            fallback = "getMessagesFallback")
     public List<ChatMessage> getMessages(Object memoryId) {
         log.debug("获取LTM增强的聊天记忆: memoryId={}", memoryId);
 
@@ -91,15 +87,20 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 获取消息的降级方法
      */
-    public List<ChatMessage> getMessagesFallback(Object memoryId, Exception e) {
-        log.warn("LTM增强获取消息失败，使用基础存储: memoryId={}, error={}", memoryId, e.getMessage());
+    public List<ChatMessage> getMessagesFallback(Object memoryId, Throwable e) {
+        log.warn("LTM增强获取消息失败，使用基础存储: memoryId={}", memoryId, e);
         return baseChatMemoryStore.getMessages(memoryId);
     }
 
+    public List<ChatMessage> getMessagesBlockHandler(Object memoryId, BlockException ex) {
+        log.warn("LTM增强获取消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        return getMessagesFallback(memoryId, ex);
+    }
+
     @Override
-    @CircuitBreaker(name = "ltm-enhanced-memory", fallbackMethod = "updateMessagesFallback")
-    @Retry(name = "ltm-enhanced-memory")
-    @Bulkhead(name = "ltm-enhanced-memory")
+    @SentinelResource(value = "ltm-enhanced-memory:updateMessages",
+            blockHandler = "updateMessagesBlockHandler",
+            fallback = "updateMessagesFallback")
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         log.debug("更新LTM增强的聊天记忆: memoryId={}", memoryId);
 
@@ -134,9 +135,14 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 更新消息的降级方法
      */
-    public void updateMessagesFallback(Object memoryId, List<ChatMessage> messages, Exception e) {
-        log.warn("LTM增强更新消息失败，使用基础存储: memoryId={}, error={}", memoryId, e.getMessage());
+    public void updateMessagesFallback(Object memoryId, List<ChatMessage> messages, Throwable e) {
+        log.warn("LTM增强更新消息失败，使用基础存储: memoryId={}", memoryId, e);
         baseChatMemoryStore.updateMessages(memoryId, messages);
+    }
+
+    public void updateMessagesBlockHandler(Object memoryId, List<ChatMessage> messages, BlockException ex) {
+        log.warn("LTM增强更新消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        updateMessagesFallback(memoryId, messages, ex);
     }
 
     @Override

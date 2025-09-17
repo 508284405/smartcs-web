@@ -3,24 +3,20 @@ package com.leyue.smartcs.rag.memory;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.leyue.smartcs.service.TracingSupport;
-
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.store.memory.chat.ChatMemoryStore;
-import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
-import io.github.resilience4j.bulkhead.annotation.Bulkhead;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
 /**
- * 容错的Redis聊天记忆存储
- * 使用Resilience4j框架提供熔断器、重试、限流、超时保护
+ * 容错的Redis聊天记忆存储，基于 Sentinel 提供熔断、限流与降级能力。
  */
 @Component
 @RequiredArgsConstructor
@@ -38,9 +34,9 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     private final InMemoryChatMemoryStore fallbackStore = new InMemoryChatMemoryStore();
 
     @Override
-    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
-    @Retry(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
-    @Bulkhead(name = "redis-memory-store", fallbackMethod = "getMessagesFallback")
+    @SentinelResource(value = "redis-memory-store:getMessages",
+            blockHandler = "getMessagesBlockHandler",
+            fallback = "getMessagesFallback")
     public List<ChatMessage> getMessages(Object memoryId) {
         log.debug("从Redis获取消息: memoryId={}", memoryId);
         
@@ -57,8 +53,8 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 获取消息的降级方法
      */
-    public List<ChatMessage> getMessagesFallback(Object memoryId, Exception e) {
-        log.warn("Redis获取消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+    public List<ChatMessage> getMessagesFallback(Object memoryId, Throwable e) {
+        log.warn("Redis获取消息失败，使用内存存储降级: memoryId={}", memoryId, e);
         if (fallbackEnabled) {
             return fallbackStore.getMessages(memoryId);
         } else {
@@ -66,10 +62,15 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
         }
     }
 
+    public List<ChatMessage> getMessagesBlockHandler(Object memoryId, BlockException ex) {
+        log.warn("Redis获取消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        return getMessagesFallback(memoryId, ex);
+    }
+
     @Override
-    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
-    @Retry(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
-    @Bulkhead(name = "redis-memory-store", fallbackMethod = "updateMessagesFallback")
+    @SentinelResource(value = "redis-memory-store:updateMessages",
+            blockHandler = "updateMessagesBlockHandler",
+            fallback = "updateMessagesFallback")
     public void updateMessages(Object memoryId, List<ChatMessage> messages) {
         log.debug("更新Redis消息: memoryId={}", memoryId);
         chatMemoryStore.updateMessages(memoryId, messages);
@@ -78,8 +79,8 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 更新消息的降级方法
      */
-    public void updateMessagesFallback(Object memoryId, List<ChatMessage> messages, Exception e) {
-        log.warn("Redis更新消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+    public void updateMessagesFallback(Object memoryId, List<ChatMessage> messages, Throwable e) {
+        log.warn("Redis更新消息失败，使用内存存储降级: memoryId={}", memoryId, e);
         if (fallbackEnabled) {
             fallbackStore.updateMessages(memoryId, messages);
         } else {
@@ -87,10 +88,15 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
         }
     }
 
+    public void updateMessagesBlockHandler(Object memoryId, List<ChatMessage> messages, BlockException ex) {
+        log.warn("Redis更新消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        updateMessagesFallback(memoryId, messages, ex);
+    }
+
     @Override
-    @CircuitBreaker(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
-    @Retry(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
-    @Bulkhead(name = "redis-memory-store", fallbackMethod = "deleteMessagesFallback")
+    @SentinelResource(value = "redis-memory-store:deleteMessages",
+            blockHandler = "deleteMessagesBlockHandler",
+            fallback = "deleteMessagesFallback")
     public void deleteMessages(Object memoryId) {
         log.debug("删除Redis消息: memoryId={}", memoryId);
         chatMemoryStore.deleteMessages(memoryId);
@@ -104,8 +110,8 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 删除消息的降级方法
      */
-    public void deleteMessagesFallback(Object memoryId, Exception e) {
-        log.warn("Redis删除消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+    public void deleteMessagesFallback(Object memoryId, Throwable e) {
+        log.warn("Redis删除消息失败，使用内存存储降级: memoryId={}", memoryId, e);
         if (fallbackEnabled) {
             fallbackStore.deleteMessages(memoryId);
         } else {
@@ -113,9 +119,17 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
         }
     }
 
+    public void deleteMessagesBlockHandler(Object memoryId, BlockException ex) {
+        log.warn("Redis删除消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        deleteMessagesFallback(memoryId, ex);
+    }
+
     /**
      * 异步获取消息（用于TimeLimiter）
      */
+    @SentinelResource(value = "redis-memory-store:getMessagesAsync",
+            blockHandler = "getMessagesAsyncBlockHandler",
+            fallback = "getMessagesAsyncFallback")
     public CompletableFuture<List<ChatMessage>> getMessagesAsync(Object memoryId) {
         return TracingSupport.supplyAsync(() -> {
             log.debug("异步从Redis获取消息: memoryId={}", memoryId);
@@ -126,13 +140,18 @@ public class FaultTolerantRedisChatMemoryStore implements ChatMemoryStore {
     /**
      * 异步获取消息的降级方法
      */
-    public CompletableFuture<List<ChatMessage>> getMessagesAsyncFallback(Object memoryId, Exception e) {
-        log.warn("Redis异步获取消息失败，使用内存存储降级: memoryId={}, error={}", memoryId, e.getMessage());
+    public CompletableFuture<List<ChatMessage>> getMessagesAsyncFallback(Object memoryId, Throwable e) {
+        log.warn("Redis异步获取消息失败，使用内存存储降级: memoryId={}", memoryId, e);
         if (fallbackEnabled) {
             return CompletableFuture.completedFuture(fallbackStore.getMessages(memoryId));
         } else {
             throw new RuntimeException("Redis存储失败且降级被禁用", e);
         }
+    }
+
+    public CompletableFuture<List<ChatMessage>> getMessagesAsyncBlockHandler(Object memoryId, BlockException ex) {
+        log.warn("Redis异步获取消息触发限流/降级: memoryId={}, rule={}", memoryId, ex.getRule());
+        return getMessagesAsyncFallback(memoryId, ex);
     }
 
     /**

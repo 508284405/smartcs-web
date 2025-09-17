@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,8 @@ import com.leyue.smartcs.rag.database.service.NlpToSqlService;
 import com.leyue.smartcs.rag.database.service.NlpToSqlService.SqlGenerationResult;
 
 import dev.langchain4j.data.document.Metadata;
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
@@ -69,6 +72,9 @@ public class SqlQueryContentRetriever implements ContentRetriever {
     };
 
     @Override
+    @SentinelResource(value = "rag:sql-retriever:retrieve",
+            blockHandler = "retrieveBlockHandler",
+            fallback = "retrieveFallback")
     public List<Content> retrieve(Query query) {
         String queryText = query.text();
         log.info("SQL查询ContentRetriever接收到查询: {}", queryText);
@@ -86,6 +92,29 @@ public class SqlQueryContentRetriever implements ContentRetriever {
                 ))
             )));
         }
+    }
+
+    public List<Content> retrieveFallback(Query query, Throwable throwable) {
+        log.warn("SQL查询检索降级: queryLength={}, error={}",
+                query != null && query.text() != null ? query.text().length() : 0, throwable.getMessage());
+        return Collections.singletonList(Content.from(TextSegment.from(
+                "查询系统繁忙，请稍后重试。",
+                Metadata.from(Map.of(
+                        "source", "sql_query_fallback",
+                        "error", Optional.ofNullable(throwable.getMessage()).orElse("fallback")
+                ))
+        )));
+    }
+
+    public List<Content> retrieveBlockHandler(Query query, BlockException ex) {
+        log.warn("SQL查询检索触发限流: rule={}", ex.getRule());
+        return Collections.singletonList(Content.from(TextSegment.from(
+                "查询请求过多，请稍后重试。",
+                Metadata.from(Map.of(
+                        "source", "sql_query_block",
+                        "rule", Optional.ofNullable(ex.getRule()).map(Object::toString).orElse("block")
+                ))
+        )));
     }
     
     /**
