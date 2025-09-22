@@ -8,15 +8,18 @@ import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryFormati
 import com.leyue.smartcs.domain.ltm.domainservice.LTMDomainService.MemoryRetrievalRequest;
 import com.leyue.smartcs.domain.ltm.entity.EpisodicMemory;
 import com.leyue.smartcs.service.TracingSupport;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.TextContent;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -226,8 +229,10 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
 
         // 获取最后几条用户消息作为查询上下文
         return messages.stream()
-            .filter(msg -> msg instanceof UserMessage)
-            .map(ChatMessage::text)
+            .filter(UserMessage.class::isInstance)
+            .map(UserMessage.class::cast)
+            .map(this::extractUserMessageText)
+            .filter(text -> text != null && !text.isBlank())
             .reduce((first, second) -> second) // 获取最后一条
             .orElse("");
     }
@@ -335,6 +340,55 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
         return contextDesc.toString().trim();
     }
 
+    private String extractUserMessageText(UserMessage userMessage) {
+        if (userMessage == null) {
+            return "";
+        }
+
+        if (userMessage.hasSingleText()) {
+            return Objects.toString(userMessage.singleText(), "");
+        }
+
+        if (userMessage.contents() == null || userMessage.contents().isEmpty()) {
+            return "";
+        }
+
+        return userMessage.contents().stream()
+            .filter(TextContent.class::isInstance)
+            .map(TextContent.class::cast)
+            .map(TextContent::text)
+            .filter(text -> text != null && !text.isBlank())
+            .collect(Collectors.joining("\n"));
+    }
+
+    private String extractMessageText(ChatMessage message) {
+        if (message instanceof UserMessage userMessage) {
+            return extractUserMessageText(userMessage);
+        }
+        if (message instanceof AiMessage aiMessage) {
+            return Objects.toString(aiMessage.text(), "");
+        }
+        if (message instanceof SystemMessage systemMessage) {
+            return Objects.toString(systemMessage.text(), "");
+        }
+        if (message instanceof ToolExecutionResultMessage toolMessage) {
+            return Objects.toString(toolMessage.text(), "");
+        }
+        return "";
+    }
+
+    private String buildMessageSummary(ChatMessage message) {
+        if (message == null) {
+            return "";
+        }
+
+        String messageText = extractMessageText(message);
+        if (messageText == null || messageText.isBlank()) {
+            return message.type().toString();
+        }
+        return message.type().toString() + ": " + messageText;
+    }
+
     /**
      * 从消息形成记忆
      */
@@ -351,7 +405,8 @@ public class LTMEnhancedRedisChatMemoryStore implements ChatMemoryStore {
 
             // 构建记忆内容
             String content = recentMessages.stream()
-                .map(msg -> msg.type().toString() + ": " + msg.text())
+                .map(msg -> buildMessageSummary(msg))
+                .filter(summary -> summary != null && !summary.isEmpty())
                 .collect(Collectors.joining("\n"));
 
             // 构建上下文
